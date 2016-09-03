@@ -9,15 +9,8 @@ chdir(path.normpath(path.join(path.abspath(__file__), pardir)))
 
 setup(
     name="elasticsearch-django",
-    version="0.1",
+    version="0.1.0-dev0",
     packages=find_packages(),
-    # [
-    #     'elasticsearch_django',
-    #     'elasticsearch_django.migrations',
-    #     'elasticsearch_django.management.commands',
-    #     'elasticsearch_django.tests',
-    #     'elasticsearch_django.db',
-    # ],
     install_requires=[
         'django>=1.8',
         'elasticsearch-dsl>=2.0',
