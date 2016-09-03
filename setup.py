@@ -2,14 +2,14 @@
 from os import path, chdir, pardir
 from setuptools import setup, find_packages
 
-README = open(path.join(path.dirname(__file__), 'README')).read()
+README = open(path.join(path.dirname(__file__), 'README.rst')).read()
 
 # allow setup.py to be run from any path
 chdir(path.normpath(path.join(path.abspath(__file__), pardir)))
 
 setup(
     name="elasticsearch-django",
-    version="0.1.0-dev0",
+    version="0.1.0-dev1",
     packages=find_packages(),
     install_requires=[
         'django>=1.8',
