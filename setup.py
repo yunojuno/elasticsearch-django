@@ -1,24 +1,32 @@
-import os
-from setuptools import setup
+# -*- coding: utf-8 -*-
+from os import path, chdir, pardir
+from setuptools import setup, find_packages
 
-README = open(os.path.join(os.path.dirname(__file__), 'README.md')).read()
+README = open(path.join(path.dirname(__file__), 'README')).read()
 
 # allow setup.py to be run from any path
-os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
+chdir(path.normpath(path.join(path.abspath(__file__), pardir)))
 
 setup(
     name="elasticsearch-django",
     version="0.1",
-    packages=[
-        'elasticsearch_django',
-        'elasticsearch_django.migrations',
-        'elasticsearch_django.management.commands'
+    packages=find_packages(),
+    # [
+    #     'elasticsearch_django',
+    #     'elasticsearch_django.migrations',
+    #     'elasticsearch_django.management.commands',
+    #     'elasticsearch_django.tests',
+    #     'elasticsearch_django.db',
+    # ],
+    install_requires=[
+        'django>=1.8',
+        'elasticsearch-dsl>=2.0',
+        'simplejson>=3.0',
     ],
-    install_requires=['django>=1.8', 'elasticsearch-dsl>=2.0'],
     include_package_data=True,
-    description='Django-aware Elasticsearch library.',
+    description='Elasticsearch Django app',
     long_description=README,
-    url='https://github.com/yunojuno/django-elasticsearch',
+    url='https://github.com/yunojuno/elasticsearch-django',
     author='Hugo Rodger-Brown',
     author_email='code@yunojuno.com',
     maintainer='Hugo Rodger-Brown',

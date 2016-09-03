@@ -2,12 +2,11 @@
 """Search3 apps module tests."""
 import mock
 
-from django.apps import AppConfig
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
 
 from elasticsearch_django.apps import (
-    Search3Config,
+    ElasticAppConfig,
     _validate_config,
     _validate_model,
     _validate_mapping,
@@ -35,7 +34,7 @@ class SearchAppsConfigTests(TestCase):
     def test_ready(self, mock_signals, mock_config, mock_setting):
         """Test the AppConfig.ready method."""
         mock_setting.return_value = True  # auto-sync
-        config = Search3Config('foo_bar', tests)
+        config = ElasticAppConfig('foo_bar', tests)
         config.ready()
         mock_config.assert_called_once_with(mock_setting.return_value)
         mock_signals.assert_called_once_with()

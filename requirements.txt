@@ -1,10 +1,7 @@
-# if you want to work out the coverage, install these
-#coverage==3.7.1
-#django-coverage==1.2.4
-
-# if you want to run the tests automatically using tox install this
-#tox==1.8.0
-
 Django==1.8
+coverage==4.2
 elasticsearch==2.4.0
 elasticsearch-dsl==2.1.0
+mock==2.0.0
+simplejson==3.8.2
+tox==2.3.1

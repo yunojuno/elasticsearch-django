@@ -11,7 +11,7 @@ from elasticsearch_django import settings
 logger = logging.getLogger(__name__)
 
 
-class Search3Config(AppConfig):
+class ElasticAppConfig(AppConfig):
 
     """AppConfig for Search3."""
 
@@ -21,7 +21,7 @@ class Search3Config(AppConfig):
 
     def ready(self):
         """Validate config and connect signals."""
-        super(Search3Config, self).ready()
+        super(ElasticAppConfig, self).ready()
         _validate_config(settings.get_setting('strict_validation'))
         if settings.get_setting('auto_sync'):
             _connect_signals()
