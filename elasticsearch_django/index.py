@@ -5,7 +5,7 @@ import logging
 from elasticsearch import helpers
 
 from elasticsearch_django.settings import (
-    get_settings,
+    get_setting,
     get_index_mapping,
     get_index_models,
     get_client
@@ -30,7 +30,7 @@ def update_index(index):
         logger.info("Updating search index model: '%s'", model.search_doc_type)
         objects = model.objects.get_search_queryset(index).iterator()
         actions = bulk_actions(objects, index=index, action='index')
-        response = helpers.bulk(client, actions, chunk_size=get_settings()['chunk_size'])
+        response = helpers.bulk(client, actions, chunk_size=get_setting('chunk_size'))
         responses.append(response)
     return responses
 
@@ -74,7 +74,7 @@ def prune_index(index):
         )
         if len(prunes) > 0:
             actions = bulk_actions(prunes, index, 'delete')
-            response = helpers.bulk(client, actions, chunk_size=get_settings()['chunk_size'])
+            response = helpers.bulk(client, actions, chunk_size=get_setting('chunk_size'))
             responses.append(response)
     return responses
 

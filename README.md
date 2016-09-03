@@ -50,21 +50,21 @@ SEARCH_SETTINGS = {
         'default': getenv('ELASTICSEARCH_URL'),
     },
     'indexes': {
-        'people': {
+        'blog': {
             'models': [
-                'profiles.FreelancerProfile',
+                'website.BlogPost',
             ]
         }
     },
     'settings': {
         # batch size for ES bulk api operations
-        'chunk_size': getenv('SEARCH_INDEX_CHUNK_SIZE', 500),
-        # truncate source querysets - used for testing
-        'truncate': getenv('SEARCH_INDEX_TRUNCATE', None),
+        'chunk_size': 500,
         # default page size for search results
-        'page_size': getenv('SEARCH_INDEX_PAGE_SIZE', 25),
+        'page_size': 25,
         # set to True to connect post_save/delete signals
-        'auto_sync': getenv('SEARCH_INDEX_AUTO_SYNC', True),
+        'auto_sync': True,
+        # if true, then indexes must have mapping files
+        'strict_validation': False
     }
 }
 ```
@@ -159,7 +159,7 @@ from elasticsearch_django.models import SearchQuery
 from elasticsearch_dsl import Search
 
 # run a default match_all query
-search = Search(using=get_client(), index='profiles')
+search = Search(using=get_client(), index='blog')
 sq = SearchQuery.execute(search)
 ```
 
@@ -176,12 +176,12 @@ In conclusion - running a search against an index means getting to grips with th
 Running a search against an index will return a page of results, each containing the `_source` attribute which is the search document itself (as created by the `SearchDocumentMixin.as_search_document` method), together with meta info about the result - most significantly the relevance **score**, which is the magic value used for ranking (ordering) results. However, the search document probably doesn’t contain all the of the information that you need to display the result, so what you really need is a standard Django QuerySet, containing the objects in the search results, but maintaining the order. This means injecting the ES score into the queryset, and then using it for ordering. There is a method on the `SearchDocumentManagerMixin` called `from_search_query` which will do this for you. It uses raw SQL to add the score as an annotation to each object in the queryset. (It also adds the ‘rank’ - so that even if the score is identical for all hits, the ordering is preserved.)
 
 ```
-from profiles.models import FreelancerProfile
+from models import BlogPost
 
 # run a default match_all query
-search = Search(using=get_client(), index='profiles')
+search = Search(using=get_client(), index='blog')
 sq = SearchQuery.execute(search)
-for obj in FreelancerProfile.objects.from_search_query(sq):
+for obj in BlogPost.objects.from_search_query(sq):
     print obj.search_score, obj.search_rank
 ```
 

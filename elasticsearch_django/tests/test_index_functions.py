@@ -82,6 +82,7 @@ class IndexFunctionTests(TestCase):
         mock_actions.assert_called_once()
         mock_helpers.bulk.assert_called_once()
 
+        mock_actions.reset_mock()
         mock_helpers.bulk.reset_mock()
         # if there are no objects to prune
         mock_prune.return_value = None
