@@ -46,7 +46,7 @@ Configure Django settings
 
 The Django settings for search are contained in a dictionary called ``SEARCH_SETTINGS``, which should be in the main ``django.conf.settings`` file. The dictionary has three root nodes, ``connections``, ``indexes`` and ``settings``. Below is an example:
 
-.. code::
+.. code:: python
 
     SEARCH_SETTINGS = {
         'connections': {
@@ -93,7 +93,7 @@ So far we have configure Django to know the names of the indexes we want, and th
 
 This mixin must be implemented by the model itself, and it requires a single method implementation - ``as_search_document()``. This should return a dict that is the index representation of the object; the ``index`` kwarg can be used to provide different representations for different indexes. By default this is ``_all`` which means that all indexes receive the same document for a given object.
 
-.. code::
+.. code:: python
 
     def as_search_document(self, index='_all'):
         return {name: “foo”} if index == 'foo' else {name = “bar”}
@@ -102,14 +102,14 @@ This mixin must be implemented by the model itself, and it requires a single met
 
 This mixin must be implemented by the model's default manager (``objects``). It also requires a single method implementation - ``get_search_queryset()`` - which returns a queryset of objects that are to be indexed. This can also use the ``index`` kwarg to provide different sets of objects to different indexes.
 
-.. code::
+.. code:: python
 
     def get_search_queryset(self, index):
         return self.get_queryset().filter(foo="bar")
 
 We now have the bare bones of our search implementation. We can now use the included management commands to create and populate our search index:
 
-.. code::
+.. code:: bash
 
     # create the index 'foo' from the 'foo.json' mapping file
     $ ./manage.py create_search_index foo
@@ -138,7 +138,7 @@ Running search queries
 
 The search itself is done using ``elasticsearch_dsl``, which provides a pythonic abstraction over the QueryDSL, but also allows you to use raw JSON if required:
 
-.. code::
+.. code:: python
 
     from elasticsearch_django.settings import get_client
     from elasticsearch_dsl import Search
@@ -159,7 +159,7 @@ The response from ``execute`` is a ``Response`` object which wraps up the ES JSO
 
 The ``elasticsearch_django.models.SearchQuery`` model wraps this functionality up and provides helper properties, as well as logging the query:
 
-.. code::
+.. code:: python
 
     from elasticsearch_django.settings import get_client
     from elasticsearch_django.models import SearchQuery
@@ -182,7 +182,7 @@ Converting search hits into Django objects
 
 Running a search against an index will return a page of results, each containing the ``_source`` attribute which is the search document itself (as created by the ``SearchDocumentMixin.as_search_document`` method), together with meta info about the result - most significantly the relevance **score**, which is the magic value used for ranking (ordering) results. However, the search document probably doesn't contain all the of the information that you need to display the result, so what you really need is a standard Django QuerySet, containing the objects in the search results, but maintaining the order. This means injecting the ES score into the queryset, and then using it for ordering. There is a method on the ``SearchDocumentManagerMixin`` called ``from_search_query`` which will do this for you. It uses raw SQL to add the score as an annotation to each object in the queryset. (It also adds the 'rank' - so that even if the score is identical for all hits, the ordering is preserved.)
 
-.. code::
+.. code:: python
 
     from models import BlogPost
 
