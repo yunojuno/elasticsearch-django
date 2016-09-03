@@ -1,0 +1,1 @@
+# elasticsearch_django.db package
