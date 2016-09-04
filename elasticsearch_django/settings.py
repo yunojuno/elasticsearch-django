@@ -57,10 +57,11 @@ def get_index_mapping(index):
         index: string, the name of the index to look for.
 
     """
-    app_path = apps.get_app_config('elasticsearch_django').path
-    mappings_dir = 'mappings'
+    # app_path = apps.get_app_config('elasticsearch_django').path
+    mappings_dir = get_setting('mappings_dir')
     filename = '%s.json' % index
-    with open((os.path.join(app_path, mappings_dir, filename)), 'r') as f:
+    path = os.path.join(mappings_dir, filename)
+    with open(path, 'r') as f:
         return json.load(f)
 
 

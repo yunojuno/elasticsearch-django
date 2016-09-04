@@ -133,5 +133,7 @@ SEARCH_SETTINGS = {
         'auto_sync': True,
         # if True, raise ImproperlyConfigured if an index has no mapping file
         'strict_validation': False,
+        # path/to/mappings/dir - where mapping files will be expected
+        'mappings_dir': 'mappings'
     }
 }

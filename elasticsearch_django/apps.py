@@ -43,7 +43,7 @@ def _validate_mapping(index, strict=False):
         settings.get_index_mapping(index)
     except IOError:
         if strict:
-            raise ImproperlyConfigured("Index '%s' has no mapping file.")
+            raise ImproperlyConfigured("Index '%s' has no mapping file." % index)
         else:
             logger.warn("Index '%s' has no mapping, relying on ES instead.", index)
 
