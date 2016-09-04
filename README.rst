@@ -1,5 +1,8 @@
-elasticsearch_django
-====================
+Elasticsearch for Django
+========================
+
+.. image:: https://travis-ci.org/yunojuno/elasticsearch-django.svg?branch=master
+    :target: https://travis-ci.org/yunojuno/elasticsearch-django
 
 This is a lightweight Django app for people who are using Elasticsearch with Django,
 and want to manage their indexes.
