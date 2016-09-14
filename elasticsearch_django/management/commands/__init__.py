@@ -39,7 +39,6 @@ class BaseSearchCommand(BaseCommand):
         for index in options.pop('indexes'):
             data = {}
             try:
-                print "calling do_index_command", index, options
                 data = self.do_index_command(index, **options)
             except TransportError as ex:
                 logger.warn("ElasticSearch threw an error: %s", ex)
