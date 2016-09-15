@@ -13,7 +13,6 @@ import simplejson as json
 from django.db import models
 from django.conf import settings
 from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
 
 
 """

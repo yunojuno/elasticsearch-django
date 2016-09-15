@@ -254,6 +254,27 @@ class SearchQueryTests(TestCase):
         sq = SearchQuery()
         self.assertEqual(sq.save(), sq)
         mock_save.assert_called_once_with()
+        self.assertEqual(sq.page_slice, (0, 10))
+
+    def test_paging(self):
+        """Test the paging properties method."""
+        sq = SearchQuery()
+        # sq.query = {'from': 0, 'size': 25}
+        self.assertEqual(sq.page_slice, (0, 10))
+
+        # no hits, so should all be 0
+        sq.query = {'from': 0, 'size': 25}
+        self.assertEqual(sq.page_slice, (0, 25))
+        self.assertEqual(sq.page_from, 0)
+        self.assertEqual(sq.page_to, 0)
+        self.assertEqual(sq.page_size, 0)
+
+        # three hits
+        sq.hits = [1, 2, 3]  # random list of size = 3
+        sq.query = {'from': 0, 'size': 25}
+        self.assertEqual(sq.page_from, 1)
+        self.assertEqual(sq.page_to, 3)
+        self.assertEqual(sq.page_size, 3)
 
     @mock.patch('elasticsearch_django.models.tz_now')
     @mock.patch.object(Search, 'execute')

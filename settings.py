@@ -12,15 +12,19 @@ DATABASES = {
 }
 
 INSTALLED_APPS = (
+    'django.contrib.admin',
     'django.contrib.auth',
-    'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'django.contrib.contenttypes',
     'django.contrib.sites',
+    'django.contrib.staticfiles',
     'elasticsearch_django',
 )
 
-MIDDLEWARE_CLASSES = [
-]
+MIDDLEWARE_CLASSES = (
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+)
 
 SECRET_KEY = "elasticsearch_django"
 

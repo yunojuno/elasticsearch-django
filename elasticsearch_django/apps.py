@@ -16,7 +16,7 @@ class ElasticAppConfig(AppConfig):
     """AppConfig for Search3."""
 
     name = 'elasticsearch_django'
-    verbose_name = "Powered by ElasticSearch"
+    verbose_name = "Elasticsearch"
     configs = []
 
     def ready(self):

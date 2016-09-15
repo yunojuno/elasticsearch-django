@@ -383,6 +383,8 @@ class SearchQuery(models.Model):
 
     class Meta:
         app_label = 'elasticsearch_django'
+        verbose_name = "Search query"
+        verbose_name_plural = "Search queries"
 
     def __unicode__(self):
         return (
@@ -445,3 +447,26 @@ class SearchQuery(models.Model):
     def object_ids(self):
         """List of model ids extracted from hits."""
         return self._extract_set('id')
+
+    @property
+    def page_slice(self):
+        """Return the query from:size tuple (0-based)."""
+        return (
+            self.query.get('from', 0),
+            self.query.get('size', 10)
+        )
+
+    @property
+    def page_from(self):
+        """1-based index of the first hit in the returned page."""
+        return 0 if self.page_size == 0 else self.page_slice[0] + 1
+
+    @property
+    def page_to(self):
+        """1-based index of the last hit in the returned page."""
+        return 0 if self.page_size == 0 else self.page_from + self.page_size - 1
+
+    @property
+    def page_size(self):
+        """The number of hits returned in this specific page."""
+        return len(self.hits)
