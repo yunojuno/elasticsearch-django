@@ -257,9 +257,8 @@ class SearchQueryTests(TestCase):
         self.assertEqual(sq.page_slice, (0, 10))
 
     def test_paging(self):
-        """Test the paging properties method."""
+        """Test the paging properties."""
         sq = SearchQuery()
-        # sq.query = {'from': 0, 'size': 25}
         self.assertEqual(sq.page_slice, (0, 10))
 
         # no hits, so should all be 0
@@ -275,6 +274,16 @@ class SearchQueryTests(TestCase):
         self.assertEqual(sq.page_from, 1)
         self.assertEqual(sq.page_to, 3)
         self.assertEqual(sq.page_size, 3)
+
+    def test_scores(self):
+        """Test the max/min properties."""
+        sq = SearchQuery()
+        self.assertEqual(sq.max_score, 0)
+        self.assertEqual(sq.min_score, 0)
+
+        sq.hits = [{'score': 1}, {'score': 2}]
+        self.assertEqual(sq.max_score, 2)
+        self.assertEqual(sq.min_score, 1)
 
     @mock.patch('elasticsearch_django.models.tz_now')
     @mock.patch.object(Search, 'execute')

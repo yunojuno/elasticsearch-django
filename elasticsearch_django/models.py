@@ -444,6 +444,16 @@ class SearchQuery(models.Model):
         return self._extract_set('doc_type')
 
     @property
+    def max_score(self):
+        """The max relevance score in the returned page."""
+        return max(self._extract_set('score') or [0])
+
+    @property
+    def min_score(self):
+        """The min relevance score in the returned page."""
+        return min(self._extract_set('score') or [0])
+
+    @property
     def object_ids(self):
         """List of model ids extracted from hits."""
         return self._extract_set('id')

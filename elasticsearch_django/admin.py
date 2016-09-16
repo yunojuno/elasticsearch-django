@@ -36,6 +36,8 @@ class SearchQueryAdmin(admin.ModelAdmin):
         'index',
         'total_hits',
         'returned_',
+        'min_',
+        'max_',
         'reference',
         'executed_at',
     )
@@ -49,6 +51,8 @@ class SearchQueryAdmin(admin.ModelAdmin):
         'index',
         'total_hits',
         'returned_',
+        'min_',
+        'max_',
         'query_',
         'hits_',
         'executed_at',
@@ -58,9 +62,22 @@ class SearchQueryAdmin(admin.ModelAdmin):
         """Pretty version of query JSON."""
         return pprint(instance.query)
 
+    def max_(self, instance):
+        """Pretty version of max_score."""
+        return '-' if instance.page_size == 0 else instance.max_score
+    max_.short_description = "Max score"
+
+    def min_(self, instance):
+        """Pretty version of min_score."""
+        return '-' if instance.page_size == 0 else instance.min_score
+    min_.short_description = "Min score"
+
     def returned_(self, instance):
         """Number of hits returned in the page."""
-        return "%i - %i" % (instance.page_from, instance.page_to)
+        if instance.page_size == 0:
+            return '-'
+        else:
+            return "%i - %i" % (instance.page_from, instance.page_to)
 
     returned_.short_description = "Page returned"
 
