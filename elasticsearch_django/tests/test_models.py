@@ -216,8 +216,8 @@ class SearchDocumentManagerMixinTests(TestCase):
         self.assertEqual(
             str(qs.query),
             'SELECT "elasticsearch_django_testmodel"."id", '
-            '(SELECT CASE elasticsearch_django_testmodel.id WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE 0 END) '
-            'AS "search_score", (SELECT CASE elasticsearch_django_testmodel.id WHEN 1 THEN 0 WHEN 2 '
+            '(SELECT CASE elasticsearch_django_testmodel.id WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE 0 END) '  # noqa
+            'AS "search_score", (SELECT CASE elasticsearch_django_testmodel.id WHEN 1 THEN 0 WHEN 2 '  # noqa
             'THEN 1 ELSE 0 END) AS "search_rank" FROM "elasticsearch_django_testmodel" WHERE '
             '"elasticsearch_django_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC'
         )
@@ -298,6 +298,7 @@ class SearchQueryTests(TestCase):
         self.assertEqual(sq.hits, {})
         self.assertEqual(sq.total_hits, mock_execute.return_value.hits.total)
         self.assertEqual(sq.reference, '')
+        self.assertTrue(sq.duration > 0)
         self.assertEqual(sq.executed_at, mock_now.return_value)
         mock_save.assert_called_once_with()
 

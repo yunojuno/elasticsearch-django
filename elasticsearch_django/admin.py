@@ -53,6 +53,7 @@ class SearchQueryAdmin(admin.ModelAdmin):
         'returned_',
         'min_',
         'max_',
+        'duration',
         'query_',
         'hits_',
         'executed_at',

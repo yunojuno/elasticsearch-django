@@ -1,5 +1,6 @@
 """search app models."""
 import logging
+import time
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -380,6 +381,9 @@ class SearchQuery(models.Model):
     executed_at = models.DateTimeField(
         help_text="When the search was executed - set via execute() method."
     )
+    duration = models.FloatField(
+        help_text="Time taken to execute the search itself, in seconds."
+    )
 
     class Meta:
         app_label = 'elasticsearch_django'
@@ -395,8 +399,8 @@ class SearchQuery(models.Model):
 
     def __repr__(self):
         return (
-            u"<QueryLog id=%s user=%s index='%s'>" % (
-                self.id, self.user, self.index
+            u"<QueryLog id=%s user=%s index='%s' total_hits=%i >" % (
+                self.id, self.user, self.index, self.total_hits
             )
         )
 
@@ -418,7 +422,9 @@ class SearchQuery(models.Model):
                 Defaults to True
 
         """
+        start = time.time()
         response = search.execute()
+        duration = time.time() - start
         log = SearchQuery(
             user=user,
             index=', '.join(search._index or ['_all'])[:100],  # field length restriction
@@ -426,7 +432,8 @@ class SearchQuery(models.Model):
             hits=[h.meta.to_dict() for h in response.hits],
             total_hits=response.hits.total,
             reference=reference or '',
-            executed_at=tz_now()
+            executed_at=tz_now(),
+            duration=duration
         )
         return log.save() if save else log
 
