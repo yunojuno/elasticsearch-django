@@ -84,7 +84,8 @@ def _on_model_delete(sender, **kwargs):
 
 def _update_search_index(instance, action):
     """Process generic search index update actions."""
-    try:
-        instance.update_search_index(action)
-    except:
-        logger.exception("Error handling '%s' signal for %s", action, instance)
+    for index in settings.get_model_indexes(instance.__class__):
+        try:
+            instance.update_search_index(action, index=index)
+        except:
+            logger.exception("Error handling '%s' signal for %s", action, instance)

@@ -122,15 +122,28 @@ class SearchAppsValidationTests(TestCase):
         mock_update.assert_called_once_with(obj, 'index')
 
     @mock.patch('elasticsearch_django.apps.logger')
+    @mock.patch('elasticsearch_django.settings.get_model_indexes')
     @mock.patch.object(SearchDocumentMixin, 'update_search_index')
-    def test__update_search_index(self, mock_update, mock_logger):
+    def test__update_search_index(self, mock_update, mock_indexes, mock_logger):
         """Test the _update_search_index function."""
+        mock_indexes.return_value = ['foo']
         obj = SearchDocumentMixin()
         _update_search_index(obj, 'delete')
-        mock_update.assert_called_once_with('delete')
+        mock_update.assert_called_once_with('delete', index='foo')
+
         # if the update bombs, should still pass, and call logger
         mock_update.reset_mock()
         mock_update.side_effect = Exception()
         _update_search_index(obj, 'delete')
-        mock_update.assert_called_once_with('delete')
+        mock_update.assert_called_once_with('delete', index='foo')
         mock_logger.exception.assert_called_once()
+
+        # check that it calls for each configured index
+        mock_update.reset_mock()
+        mock_indexes.return_value = ['foo', 'bar']
+        obj = SearchDocumentMixin()
+        _update_search_index(obj, 'delete')
+        mock_update.assert_has_calls([
+            mock.call('delete', index='foo'),
+            mock.call('delete', index='bar')
+        ])
