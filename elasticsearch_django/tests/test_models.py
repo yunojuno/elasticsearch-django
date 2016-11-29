@@ -254,12 +254,11 @@ class SearchQueryTests(TestCase):
         sq = SearchQuery()
         self.assertEqual(sq.save(), sq)
         mock_save.assert_called_once_with()
-        self.assertEqual(sq.page_slice, (0, 10))
 
     def test_paging(self):
         """Test the paging properties."""
         sq = SearchQuery()
-        self.assertEqual(sq.page_slice, (0, 10))
+        self.assertEqual(sq.page_slice, None)
 
         # no hits, so should all be 0
         sq.query = {'from': 0, 'size': 25}
@@ -295,7 +294,7 @@ class SearchQueryTests(TestCase):
         self.assertEqual(sq.user, None)
         self.assertEqual(sq.index, '_all')
         self.assertEqual(sq.query, search.to_dict())
-        self.assertEqual(sq.hits, {})
+        self.assertEqual(sq.hits, [])
         self.assertEqual(sq.total_hits, mock_execute.return_value.hits.total)
         self.assertEqual(sq.reference, '')
         self.assertTrue(sq.duration > 0)

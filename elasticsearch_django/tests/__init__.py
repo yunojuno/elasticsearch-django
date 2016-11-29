@@ -2,7 +2,7 @@
 # search.tests package identifier
 from django.db import models
 
-from elasticsearch_django.models import (
+from ..models import (
     SearchDocumentMixin,
     SearchDocumentManagerMixin
 )

@@ -3,12 +3,12 @@ import logging
 import time
 
 from django.contrib.auth.models import User
+from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
 from django.db import models
 from django.db.models.expressions import RawSQL
 from django.utils.timezone import now as tz_now
 
-from .db.fields import JSONField
 from .settings import (
     get_client,
     get_model_indexes,
@@ -366,7 +366,7 @@ class SearchQuery(models.Model):
         help_text="The raw ElasticSearch DSL query."
     )
     hits = JSONField(
-        help_text="The list of meta info for each of the query matches returned.",
+        help_text="The list of meta info for each of the query matches returned."
     )
     total_hits = models.IntegerField(
         default=0,
@@ -443,7 +443,9 @@ class SearchQuery(models.Model):
         return self
 
     def _extract_set(self, _property):
-        return list(set([h[_property] for h in self.hits]))
+        return [] if self.hits is None else (
+            list(set([h[_property] for h in self.hits]))
+        )
 
     @property
     def doc_types(self):
@@ -468,7 +470,7 @@ class SearchQuery(models.Model):
     @property
     def page_slice(self):
         """Return the query from:size tuple (0-based)."""
-        return (
+        return None if self.query is None else (
             self.query.get('from', 0),
             self.query.get('size', 10)
         )
@@ -486,4 +488,4 @@ class SearchQuery(models.Model):
     @property
     def page_size(self):
         """The number of hits returned in this specific page."""
-        return len(self.hits)
+        return 0 if self.hits is None else len(self.hits)

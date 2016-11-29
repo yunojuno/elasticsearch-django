@@ -48,9 +48,6 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        # 'verbose': {
-        #     'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
-        # },
         'simple': {
             'format': '%(levelname)s %(message)s'
         },
@@ -63,7 +60,7 @@ LOGGING = {
         },
         'null': {
             'level': 'DEBUG',
-            'class': 'django.utils.log.NullHandler',
+            'class': 'logging.NullHandler',
         },
     },
     'loggers': {
@@ -71,6 +68,11 @@ LOGGING = {
             'handlers': ['null'],
             'propagate': True,
             'level': 'DEBUG',
+        },
+        'elasticsearch_django': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
         },
         # 'django': {
         #     'handlers': ['console'],
@@ -82,11 +84,6 @@ LOGGING = {
         #     'handlers': ['console'],
         #     'propagate': False,
         # },
-        'elasticsearch_django': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
         # 'elasticsearch': {
         #     'handlers': ['console'],
         #     'level': getenv('LOGGING_LEVEL_SEARCH', 'WARNING'),
