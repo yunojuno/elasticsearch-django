@@ -9,10 +9,10 @@ chdir(path.normpath(path.join(path.abspath(__file__), pardir)))
 
 setup(
     name="elasticsearch-django",
-    version="0.3.2",
+    version="0.3.3",
     packages=find_packages(),
     install_requires=[
-        'django>=1.8',
+        'django>=1.8,<1.9',
         'elasticsearch-dsl>=2.0',
         'simplejson>=3.0',
     ],
