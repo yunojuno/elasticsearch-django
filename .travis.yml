@@ -2,6 +2,9 @@ language: python
 python:
   - "2.7"
 # command to install tox depdendency, which then knows how to install any other dependencies
-install: "pip install tox==2.3.1"
+install: "pip install tox"
 # command to run tests
 script: tox
+# post 1.9 we want to test the native postgres JSONField
+addons:
+  postgresql: "9.5"

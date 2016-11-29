@@ -1,15 +1,11 @@
 # -*- coding: utf-8 -*-
 """django_elasticsearch default test settings."""
 from os import getenv
+import dj_database_url
 
 DEBUG = True
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': 'test.db',
-    }
-}
+DATABASES = {'default': dj_database_url.config()}
 
 INSTALLED_APPS = (
     'django.contrib.admin',
