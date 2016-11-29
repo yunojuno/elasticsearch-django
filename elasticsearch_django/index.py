@@ -4,7 +4,7 @@ import logging
 
 from elasticsearch import helpers
 
-from elasticsearch_django.settings import (
+from .settings import (
     get_setting,
     get_index_mapping,
     get_index_models,

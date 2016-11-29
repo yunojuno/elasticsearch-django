@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Search3 apps module tests."""
 import mock
 
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
 
-from elasticsearch_django.apps import (
+from ..apps import (
     ElasticAppConfig,
     _validate_config,
     _validate_model,
@@ -13,15 +12,11 @@ from elasticsearch_django.apps import (
     _connect_signals,
     _on_model_delete,
     _on_model_save,
-    _update_search_index
+    _update_search_index,
 )
-from elasticsearch_django.models import (
-    SearchDocumentMixin
-)
-from elasticsearch_django import tests
-from elasticsearch_django.tests import (
-    TestModel,
-)
+from ..models import SearchDocumentMixin
+from ..tests import TestModel
+from .. import tests
 
 
 class SearchAppsConfigTests(TestCase):
@@ -147,3 +142,10 @@ class SearchAppsValidationTests(TestCase):
             mock.call('delete', index='foo'),
             mock.call('delete', index='bar')
         ])
+
+        # confirm that it is **not** called if auto_sync is off
+        mock_update.reset_mock()
+        with mock.patch('elasticsearch_django.settings.get_setting') as mock_settings:
+            mock_settings.return_value = False
+            _update_search_index(obj, 'delete')
+            mock_update.assert_not_called()

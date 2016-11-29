@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from elasticsearch.exceptions import TransportError
 
-from elasticsearch_django.management.commands import (
+from ..management.commands import (
     BaseSearchCommand,
     create_search_index,
     delete_search_index,

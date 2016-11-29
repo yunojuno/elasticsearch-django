@@ -7,12 +7,12 @@ from django.test import TestCase
 
 from elasticsearch_dsl.search import Search
 
-from elasticsearch_django.models import (
+from ..models import (
     SearchDocumentMixin,
     SearchDocumentManagerMixin,
     SearchQuery,
 )
-from elasticsearch_django.tests import (
+from ..tests import (
     TestModel,
     TestModelManager,
     SEARCH_DOC,

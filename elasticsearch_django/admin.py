@@ -6,7 +6,7 @@ import logging
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 
-from elasticsearch_django.models import SearchQuery
+from .models import SearchQuery
 
 logger = logging.getLogger(__name__)
 

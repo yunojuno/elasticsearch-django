@@ -4,7 +4,7 @@ import mock
 
 from django.test import TestCase
 
-from elasticsearch_django.index import (
+from ..index import (
     create_index,
     update_index,
     delete_index,
@@ -13,7 +13,7 @@ from elasticsearch_django.index import (
     scan_index,
     bulk_actions
 )
-from elasticsearch_django.tests import (
+from ..tests import (
     TestModel,
     TestModelManager
 )

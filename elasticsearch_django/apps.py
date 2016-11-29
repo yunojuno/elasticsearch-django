@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-"""elasticsearch_django apps module - includes config validation functions."""
 import logging
 
 from django.apps import AppConfig
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import signals
 
-from elasticsearch_django import settings
+from . import settings
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +83,10 @@ def _on_model_delete(sender, **kwargs):
 
 def _update_search_index(instance, action):
     """Process generic search index update actions."""
+    # this allows us to turn off sync temporarily - e.g. when doing bulk updates
+    if not settings.get_setting('auto_sync'):
+        logger.debug("SEARCH_AUTO_SYNC disabled, ignoring update.")
+        return
     for index in settings.get_model_indexes(instance.__class__):
         try:
             instance.update_search_index(action, index=index)

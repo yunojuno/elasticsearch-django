@@ -8,8 +8,8 @@ from django.db import models
 from django.db.models.expressions import RawSQL
 from django.utils.timezone import now as tz_now
 
-from elasticsearch_django.db.fields import JSONField
-from elasticsearch_django.settings import (
+from .db.fields import JSONField
+from .settings import (
     get_client,
     get_model_indexes,
 )

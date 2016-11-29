@@ -5,7 +5,7 @@ import mock
 from django.test import TestCase
 from django.test.utils import override_settings
 
-from elasticsearch_django.settings import (
+from ..settings import (
     get_client,
     get_setting,
     get_settings,
@@ -17,9 +17,7 @@ from elasticsearch_django.settings import (
     get_document_models,
     get_document_model
 )
-from elasticsearch_django.tests import (
-    TestModel
-)
+from ..tests import TestModel
 
 
 TEST_SETTINGS = {
