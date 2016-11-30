@@ -1,7 +1,24 @@
-language: python
+dist:
+  trusty
+
+language:
+  python
+
 python:
-  - "2.7"
-# command to install tox depdendency, which then knows how to install any other dependencies
-install: "pip install tox==2.3.1"
-# command to run tests
-script: tox
+  2.7
+
+install:
+  pip install tox codecov
+
+script:
+  tox
+  codecov
+
+addons:
+    postgresql: "9.5"
+
+env:
+  TEST_DB_HOST: "localhost"
+  TEST_DB_NAME: "test"
+  TEST_DB_USER: "postgres"
+  TEST_DB_PASSWORD: ""
