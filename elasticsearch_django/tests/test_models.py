@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 """Search3 app model tests."""
+import datetime
+import decimal
 import mock
 
 from django.db.models import Model
 from django.test import TestCase
+from django.utils.timezone import now as tz_now
 
 from elasticsearch_dsl.search import Search
 
@@ -248,12 +251,24 @@ class SearchQueryTests(TestCase):
         obj = SearchQuery(hits=SearchQueryTests.hits)
         self.assertEqual(set(obj.object_ids), set([1, 2, 3]))
 
-    @mock.patch.object(Model, 'save')
-    def test_save(self, mock_save):
-        """Test the save method."""
-        sq = SearchQuery()
-        self.assertEqual(sq.save(), sq)
-        mock_save.assert_called_once_with()
+    def test_save(self):
+        """Try saving unserializable JSON."""
+        today = datetime.date.today()
+        sq = SearchQuery(
+            user=None,
+            index='foo',
+            query={'today': today},
+            hits={'hits': decimal.Decimal('1.0')},
+            total_hits=100,
+            reference='bar',
+            executed_at=tz_now(),
+            duration=0
+        )
+        sq.save()
+        sq.refresh_from_db()
+        # invalid JSON values will have been converted
+        self.assertEqual(sq.query['today'], today.isoformat())
+        self.assertEqual(sq.hits['hits'], '1.0')
 
     def test_paging(self):
         """Test the paging properties."""

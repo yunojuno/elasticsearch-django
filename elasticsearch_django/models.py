@@ -3,12 +3,12 @@ import logging
 import time
 
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
 from django.db import models
 from django.db.models.expressions import RawSQL
 from django.utils.timezone import now as tz_now
 
+from .db.fields import JSONField
 from .settings import (
     get_client,
     get_model_indexes,
@@ -43,8 +43,9 @@ class SearchDocumentManagerMixin(object):
 
         """
         raise NotImplementedError(
-            "%s does not implement 'get_search_queryset'."
-            % self.__class__.__name__
+            "{} does not implement 'get_search_queryset'.".format(
+                self.__class__.__name__
+            )
         )
 
     def in_search_queryset(self, instance_id, index='_all'):
@@ -125,10 +126,10 @@ class SearchDocumentManagerMixin(object):
 
     def _raw_sql(self, values):
         """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
-        when_ = lambda (x, y): "WHEN %s THEN %s" % (x, y)
+        when_ = lambda (x, y): "WHEN {} THEN {}".format(x, y)
         when_clauses = ' '.join([when_(h) for h in values])
         table_name = self.model._meta.db_table
-        return "SELECT CASE %s.id %s ELSE 0 END" % (table_name, when_clauses)
+        return "SELECT CASE {}.id {} ELSE 0 END".format(table_name, when_clauses)
 
 
 class SearchDocumentMixin(object):
@@ -150,7 +151,7 @@ class SearchDocumentMixin(object):
     @property
     def search_document_cache_key(self):
         """Key used for storing search docs in local cache."""
-        return 'elasticsearch_django:%s.%s.%s' % (
+        return 'elasticsearch_django:{}.{}.{}'.format(
             self._meta.app_label,
             self._meta.model_name,
             self.id
@@ -180,8 +181,7 @@ class SearchDocumentMixin(object):
 
         """
         raise NotImplementedError(
-            "%s does not implement 'get_search_document'." %
-            self.__class__.__name__
+            "{} does not implement 'get_search_document'.".format(self.__class__.__name__)
         )
 
     def as_search_action(self, index, action):
@@ -305,7 +305,7 @@ class SearchDocumentMixin(object):
         """
         assert self.id, ("Object must have a primary key before being indexed.")
         assert action in ('index', 'delete'), (
-            "Search action '%s' is invalid; must be 'index' or 'delete'." % action
+            "Search action '{}' is invalid; must be 'index' or 'delete'.".format(action)
         )
         client = get_client()
         cache_key = self.search_document_cache_key
