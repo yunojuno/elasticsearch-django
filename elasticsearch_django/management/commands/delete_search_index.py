@@ -15,11 +15,6 @@ class Command(BaseSearchCommand):
     help = "Clears out the specified (or all) search index completely."
     description = "Delete search index"
 
-    def _confirm_action(self):
-        """Return True if the user confirms the action."""
-        msg = "Are you sure you wish to continue? [y/N] "
-        return raw_input(msg).lower().startswith('y')
-
     def do_index_command(self, index, **options):
         """Delete search index."""
         if options['interactive']:

@@ -15,6 +15,11 @@ class BaseSearchCommand(BaseCommand):
 
     description = "Base search command."
 
+    def _confirm_action(self):
+        """Return True if the user confirms the action."""
+        msg = "Are you sure you wish to continue? [y/N] "
+        return raw_input(msg).lower().startswith('y')
+
     def add_arguments(self, parser):
         """Add default base options of --noinput and indexes."""
         parser.add_argument(

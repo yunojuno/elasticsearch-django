@@ -11,7 +11,8 @@ from ..management.commands import (
     create_search_index,
     delete_search_index,
     prune_search_index,
-    update_search_index
+    update_search_index,
+    rebuild_search_index
 )
 
 
@@ -73,4 +74,15 @@ class NamedCommandTests(TestCase):
         """Test the update_search_index command."""
         cmd = update_search_index.Command()
         cmd.do_index_command('foo')
+        mock_update.assert_called_once_with('foo')
+
+    @mock.patch('elasticsearch_django.management.commands.rebuild_search_index.delete_index')
+    @mock.patch('elasticsearch_django.management.commands.rebuild_search_index.create_index')
+    @mock.patch('elasticsearch_django.management.commands.rebuild_search_index.update_index')
+    def test_update_search_index(self, mock_update, mock_create, mock_delete):
+        """Test the rebuild_search_index command."""
+        cmd = rebuild_search_index.Command()
+        cmd.do_index_command('foo', interactive=False)  # True would hang the tests
+        mock_delete.assert_called_once_with('foo')
+        mock_create.assert_called_once_with('foo')
         mock_update.assert_called_once_with('foo')
