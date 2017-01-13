@@ -92,7 +92,7 @@ class SearchDocumentMixinTests(TestCase):
         )
         self.assertEqual(response, mock_get.return_value)
 
-    @mock.patch.object(TestModel, '_default_manager')
+    @mock.patch('elasticsearch_django.tests.TestModel.objects')
     @mock.patch.object(TestModel, 'search_indexes', new_callable=mock.PropertyMock)
     @mock.patch.object(TestModel, '_do_search_action')
     def test_update_search_index(self, mock_do_search, mock_indexes, mock_manager):

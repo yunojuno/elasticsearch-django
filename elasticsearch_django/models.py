@@ -265,7 +265,7 @@ class SearchDocumentMixin(object):
         assert action in ('index', 'update', 'delete'), ("Action must be 'index', 'update' or 'delete'.")  # noqa
         assert self.id, ("Object must have a primary key before being indexed.")
 
-        if not self._default_manager.in_search_queryset(self.id, index=index):
+        if not self.__class__.objects.in_search_queryset(self.id, index=index):
             logger.debug(
                 "%r is not in the source queryset for '%s', aborting update.",
                 self, index
