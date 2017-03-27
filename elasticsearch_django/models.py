@@ -113,7 +113,7 @@ class SearchDocumentManagerMixin(object):
         """
         hits = search_query.hits
         score_sql = self._raw_sql([(h['id'], h['score']) for h in hits])
-        rank_sql = self._raw_sql([(hits[i]['id'], i) for i in xrange(len(hits))])
+        rank_sql = self._raw_sql([(hits[i]['id'], i) for i in range(len(hits))])
         return (
             self.get_queryset()
             .filter(id__in=[h['id'] for h in hits])
@@ -126,8 +126,8 @@ class SearchDocumentManagerMixin(object):
 
     def _raw_sql(self, values):
         """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
-        when_ = lambda (x, y): "WHEN {} THEN {}".format(x, y)
-        when_clauses = ' '.join([when_(h) for h in values])
+        when_ = lambda x, y: "WHEN {} THEN {}".format(x, y)
+        when_clauses = ' '.join([when_(x, y) for (x, y) in values])
         table_name = self.model._meta.db_table
         return "SELECT CASE {}.id {} ELSE 0 END".format(table_name, when_clauses)
 
