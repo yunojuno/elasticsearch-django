@@ -12,7 +12,7 @@ chdir(path.normpath(path.join(path.abspath(__file__), pardir)))
 
 setup(
     name="elasticsearch-django",
-    version="0.5.2",
+    version="0.5.3",
     packages=find_packages(),
     install_requires=REQUIREMENTS,
     include_package_data=True,
