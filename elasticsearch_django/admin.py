@@ -26,7 +26,8 @@ def pprint(data):
         indent=4,
         separators=(',', ': ')
     )
-    return mark_safe("<code>%s</code>" % pretty.replace(" ", "&nbsp;"))
+    html = pretty.replace(" ", "&nbsp;").replace("\n", "<br>")
+    return mark_safe("<code>%s</code>" % html)
 
 
 class SearchQueryAdmin(admin.ModelAdmin):
