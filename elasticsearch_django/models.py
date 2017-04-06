@@ -1,9 +1,9 @@
-"""search app models."""
+# -*- coding: utf-8 -*-
 import logging
 import time
 
-# import django
 from django.contrib.auth.models import User
+from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
@@ -14,14 +14,6 @@ from .settings import (
     get_client,
     get_model_indexes,
 )
-# if (django.VERSION[0] == 1 and django.VERSION[1] == 11):
-#     # Django 1.11 and above can use the contrib JSONField as it supports
-#     # the encoder kwarg, which means we can use DjangoJSONEncode; 1.10
-#     # and 1.9 must use our hacked together version (which is a direct
-#     # copy+paste from the 1.11 codebase).
-#     from django.contrib.postgres.fields import JSONField
-# else:
-from .db.fields import JSONField
 
 
 logger = logging.getLogger(__name__)

@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 
 from django.db import migrations
-import elasticsearch_django.db.fields
+from django.contrib.postgres.fields import JSONField
 
 
 class Migration(migrations.Migration):
@@ -16,11 +16,11 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='searchquery',
             name='hits',
-            field=elasticsearch_django.db.fields.JSONField(help_text=b'The list of meta info for each of the query matches returned.'),
+            field=JSONField(help_text=b'The list of meta info for each of the query matches returned.'),
         ),
         migrations.AlterField(
             model_name='searchquery',
             name='query',
-            field=elasticsearch_django.db.fields.JSONField(help_text=b'The raw ElasticSearch DSL query.'),
+            field=JSONField(help_text=b'The raw ElasticSearch DSL query.'),
         ),
     ]

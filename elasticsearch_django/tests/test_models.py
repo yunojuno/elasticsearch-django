@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Search3 app model tests."""
 import datetime
 import decimal
-import mock
+from unittest import mock
 
 from django.db.models import Model
 from django.test import TestCase

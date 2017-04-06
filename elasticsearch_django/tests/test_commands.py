@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Search3 app management commands tests."""
-import mock
+from unittest import mock
 
 from django.test import TestCase
 
