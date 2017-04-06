@@ -2,17 +2,27 @@
 import logging
 import time
 
+# import django
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models.expressions import RawSQL
 from django.utils.timezone import now as tz_now
 
-from .db.fields import JSONField
 from .settings import (
     get_client,
     get_model_indexes,
 )
+# if (django.VERSION[0] == 1 and django.VERSION[1] == 11):
+#     # Django 1.11 and above can use the contrib JSONField as it supports
+#     # the encoder kwarg, which means we can use DjangoJSONEncode; 1.10
+#     # and 1.9 must use our hacked together version (which is a direct
+#     # copy+paste from the 1.11 codebase).
+#     from django.contrib.postgres.fields import JSONField
+# else:
+from .db.fields import JSONField
+
 
 logger = logging.getLogger(__name__)
 
@@ -124,10 +134,12 @@ class SearchDocumentManagerMixin(object):
             .order_by('search_rank')
         )
 
+    def _when(self, x, y):
+        return "WHEN {} THEN {}".format(x, y)
+
     def _raw_sql(self, values):
         """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
-        when_ = lambda x, y: "WHEN {} THEN {}".format(x, y)
-        when_clauses = ' '.join([when_(x, y) for (x, y) in values])
+        when_clauses = ' '.join([self._when(x, y) for (x, y) in values])
         table_name = self.model._meta.db_table
         return "SELECT CASE {}.id {} ELSE 0 END".format(table_name, when_clauses)
 
@@ -363,10 +375,12 @@ class SearchQuery(models.Model):
         help_text="The name of the ElasticSearch index(es) being queried."
     )
     query = JSONField(
-        help_text="The raw ElasticSearch DSL query."
+        help_text="The raw ElasticSearch DSL query.",
+        encoder=DjangoJSONEncoder
     )
     hits = JSONField(
-        help_text="The list of meta info for each of the query matches returned."
+        help_text="The list of meta info for each of the query matches returned.",
+        encoder=DjangoJSONEncoder
     )
     total_hits = models.IntegerField(
         default=0,
