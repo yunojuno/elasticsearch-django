@@ -44,7 +44,7 @@ def get_index_config(index):
 
 def get_index_names():
     """Return list of the names of all configured indexes."""
-    return settings.SEARCH_SETTINGS['indexes'].keys()
+    return list(settings.SEARCH_SETTINGS['indexes'].keys())
 
 
 def get_index_mapping(index):

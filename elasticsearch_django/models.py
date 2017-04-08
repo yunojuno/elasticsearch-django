@@ -398,14 +398,14 @@ class SearchQuery(models.Model):
 
     def __unicode__(self):
         return (
-            u"Query (id=%s) run against index '%s'" % (
+            "Query (id=%s) run against index '%s'" % (
                 self.id, self.index
             )
         )
 
     def __repr__(self):
         return (
-            u"<QueryLog id=%s user=%s index='%s' total_hits=%i >" % (
+            "<QueryLog id=%s user=%s index='%s' total_hits=%i >" % (
                 self.id, self.user, self.index, self.total_hits
             )
         )

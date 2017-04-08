@@ -46,7 +46,7 @@ class SettingsFunctionTests(TestCase):
         client = get_client('foo')
         self.assertEqual(
             client.transport.hosts,
-            [{u'host': 'foo', u'scheme': 'http'}]
+            [{'host': 'foo', 'scheme': 'http'}]
         )
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
@@ -73,7 +73,7 @@ class SettingsFunctionTests(TestCase):
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_index_names(self):
         """Test the get_index_names method."""
-        self.assertEqual(get_index_names(), TEST_SETTINGS['indexes'].keys())
+        self.assertEqual(get_index_names(), list(TEST_SETTINGS['indexes'].keys()))
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_index_models(self):
