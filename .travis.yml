@@ -1,31 +1,18 @@
 dist:
   trusty
-
 language:
   python
-
-# python:
-#   - "2.7"
-#   - "3.6"
-
-install: "pip install tox codecov"
-
+python:
+  - "2.7"
+  - "3.6"
+install:
+  pip install tox-travis
 script:
-  - "tox"
-  - "codecov"
-
+  tox
 addons:
-    postgresql: "9.4"
-
-# env:
-#   TEST_DB_HOST: "localhost"
-#   TEST_DB_NAME: "test"
-#   TEST_DB_USER: "postgres"
-#   TEST_DB_PASSWORD: ""
-
-matrix:
-  include:
-    - python: 2.7
-      env: TOXENV=py27
-    - python: 3.6
-      env: TOXENV=py36
+  postgresql: "9.4"
+env:
+  TEST_DB_HOST: "localhost"
+  TEST_DB_NAME: "postgres"
+  TEST_DB_USER: "postgres"
+  TEST_DB_PASSWORD: ""

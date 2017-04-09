@@ -1,9 +1,10 @@
-"""search app models."""
+# -*- coding: utf-8 -*-
 import logging
 import time
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models.expressions import RawSQL
 from django.utils.timezone import now as tz_now
@@ -13,6 +14,7 @@ from .settings import (
     get_client,
     get_model_indexes,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -124,10 +126,12 @@ class SearchDocumentManagerMixin(object):
             .order_by('search_rank')
         )
 
+    def _when(self, x, y):
+        return "WHEN {} THEN {}".format(x, y)
+
     def _raw_sql(self, values):
         """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
-        when_ = lambda x, y: "WHEN {} THEN {}".format(x, y)
-        when_clauses = ' '.join([when_(x, y) for (x, y) in values])
+        when_clauses = ' '.join([self._when(x, y) for (x, y) in values])
         table_name = self.model._meta.db_table
         return "SELECT CASE {}.id {} ELSE 0 END".format(table_name, when_clauses)
 
@@ -363,10 +367,12 @@ class SearchQuery(models.Model):
         help_text="The name of the ElasticSearch index(es) being queried."
     )
     query = JSONField(
-        help_text="The raw ElasticSearch DSL query."
+        help_text="The raw ElasticSearch DSL query.",
+        encoder=DjangoJSONEncoder
     )
     hits = JSONField(
-        help_text="The list of meta info for each of the query matches returned."
+        help_text="The list of meta info for each of the query matches returned.",
+        encoder=DjangoJSONEncoder
     )
     total_hits = models.IntegerField(
         default=0,
@@ -392,14 +398,18 @@ class SearchQuery(models.Model):
 
     def __unicode__(self):
         return (
-            u"Query (id=%s) run against index '%s'" % (
+            "Query (id=%s) run against index '%s'" % (
                 self.id, self.index
             )
         )
 
     def __repr__(self):
         return (
+<<<<<<< HEAD
             u"<SearchQuery id=%s user=%s index='%s' total_hits=%i >" % (
+=======
+            "<QueryLog id=%s user=%s index='%s' total_hits=%i >" % (
+>>>>>>> python3
                 self.id, self.user, self.index, self.total_hits
             )
         )

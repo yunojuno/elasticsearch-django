@@ -3,35 +3,43 @@ from os import path, chdir, pardir
 from setuptools import setup, find_packages
 
 README = open(path.join(path.dirname(__file__), 'README.rst')).read()
-# requirements.txt must be included in MANIFEST.in and include_package_data must be True
-# in order for this to work; ensures that tox can use the setup to enforce requirements
-REQUIREMENTS = '\n'.join(open(path.join(path.dirname(__file__), 'requirements.txt')).readlines())  # noqa
 
 # allow setup.py to be run from any path
 chdir(path.normpath(path.join(path.abspath(__file__), pardir)))
 
 setup(
     name="elasticsearch-django",
-    version="0.5.3",
+    version="0.6",
     packages=find_packages(),
-    install_requires=REQUIREMENTS,
+    install_requires=[
+        'Django>=1.9',
+        'elasticsearch>=2.4',
+        'elasticsearch-dsl>=2.1',
+        'psycopg2>=2.6',
+        'simplejson>=3.8',
+    ],
     include_package_data=True,
     license='MIT',
     description='Elasticsearch Django app',
     long_description=README,
     url='https://github.com/yunojuno/elasticsearch-django',
-    author='Hugo Rodger-Brown',
+    author='YunoJuno',
     author_email='code@yunojuno.com',
-    maintainer='Hugo Rodger-Brown',
-    maintainer_email='hugo@yunojuno.com',
+    maintainer='YunoJuno',
+    maintainer_email='code@yunojuno.com',
     classifiers=[
         'Environment :: Web Environment',
-        'Framework :: Django',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
+        'Framework :: Django',
+        'Framework :: Django :: 1.8',
+        'Framework :: Django :: 1.9',
+        'Framework :: Django :: 1.10',
+        'Framework :: Django :: 1.11',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.6',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
     ],

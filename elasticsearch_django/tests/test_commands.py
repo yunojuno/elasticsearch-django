@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Search3 app management commands tests."""
-import mock
-
 from django.test import TestCase
 
 from elasticsearch.exceptions import TransportError
 
+from ..compat import mock
 from ..management.commands import (
     BaseSearchCommand,
     create_search_index,
