@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-from unittest import mock
-
 from django.test import TestCase
 from django.test.utils import override_settings
 
+from ..compat import mock
 from ..settings import (
     get_client,
     get_setting,

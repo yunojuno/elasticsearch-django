@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from unittest import mock
-
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
 
@@ -14,9 +12,10 @@ from ..apps import (
     _on_model_save,
     _update_search_index,
 )
+from .. import tests
+from ..compat import mock
 from ..models import SearchDocumentMixin
 from ..tests import TestModel
-from .. import tests
 
 
 class SearchAppsConfigTests(TestCase):

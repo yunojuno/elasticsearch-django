@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-from unittest import mock
-
 from django.test import TestCase
 
+from ..compat import mock
 from ..index import (
     create_index,
     update_index,

@@ -3,13 +3,13 @@ import logging
 import time
 
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models.expressions import RawSQL
 from django.utils.timezone import now as tz_now
 
+from .db.fields import JSONField
 from .settings import (
     get_client,
     get_model_indexes,
