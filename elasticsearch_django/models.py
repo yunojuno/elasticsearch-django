@@ -399,7 +399,7 @@ class SearchQuery(models.Model):
 
     def __repr__(self):
         return (
-            u"<QueryLog id=%s user=%s index='%s' total_hits=%i >" % (
+            u"<SearchQuery id=%s user=%s index='%s' total_hits=%i >" % (
                 self.id, self.user, self.index, self.total_hits
             )
         )
