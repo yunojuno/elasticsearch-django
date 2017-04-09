@@ -4,17 +4,12 @@
 .. image:: https://badge.fury.io/py/elasticsearch_django.svg
     :target: https://badge.fury.io/py/elasticsearch_django
 
-**Python3 and Django 2.0**
-
-The latest version of Django, 1.11 is the last to support Python 2, and so
-in advance of the migration to Django 2.0 this package will also now only
-support Python 3 officially. If you need to support earlier Django versions
-please use the ``python27`` branch.
-
 Elasticsearch for Django
 ========================
 
 This is a lightweight Django app for people who are using Elasticsearch with Django, and want to manage their indexes.
+
+**NB this codebase has only been tested with ES 2.x**
 
 ----
 
