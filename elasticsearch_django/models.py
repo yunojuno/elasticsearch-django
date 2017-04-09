@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 import logging
 import time
 
@@ -271,8 +273,7 @@ class SearchDocumentMixin(object):
 
         if not self.__class__.objects.in_search_queryset(self.id, index=index):
             logger.debug(
-                "%r is not in the source queryset for '%s', aborting update.",
-                self, index
+                "{} is not in the source queryset for '{}', aborting update.".format(self, index)
             )
             return None
 
@@ -396,21 +397,18 @@ class SearchQuery(models.Model):
         verbose_name = "Search query"
         verbose_name_plural = "Search queries"
 
-    def __unicode__(self):
+    def __str__(self):
         return (
-            "Query (id=%s) run against index '%s'" % (
-                self.id, self.index
-            )
+            "Query (id={}) run against index '{}'".format(self.id, self.index)
         )
 
     def __repr__(self):
         return (
-<<<<<<< HEAD
-            u"<SearchQuery id=%s user=%s index='%s' total_hits=%i >" % (
-=======
-            "<QueryLog id=%s user=%s index='%s' total_hits=%i >" % (
->>>>>>> python3
-                self.id, self.user, self.index, self.total_hits
+            "<SearchQuery id={} user={} index='{}' total_hits={} >".format(
+                self.id,
+                self.user,
+                self.index,
+                self.total_hits
             )
         )
 
