@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 import logging
 import time
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
@@ -357,7 +358,7 @@ class SearchQuery(models.Model):
     """
 
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         related_name='search_queries',
         blank=True, null=True,
         help_text="The user who made the search query (nullable)."
