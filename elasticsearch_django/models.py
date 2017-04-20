@@ -7,6 +7,7 @@ import time
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db.models.fields import CharField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models.expressions import RawSQL
@@ -121,7 +122,7 @@ class SearchDocumentManagerMixin(object):
         rank_sql = self._raw_sql([(hits[i]['id'], i) for i in range(len(hits))])
         return (
             self.get_queryset()
-            .filter(id__in=[h['id'] for h in hits])
+            .filter(pk__in=[h['id'] for h in hits])
             # add the query relevance score
             .annotate(search_score=RawSQL(score_sql, ()))
             # add the ordering number (0-based)
@@ -134,9 +135,13 @@ class SearchDocumentManagerMixin(object):
 
     def _raw_sql(self, values):
         """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
-        when_clauses = ' '.join([self._when(x, y) for (x, y) in values])
+        if isinstance(self.model._meta.pk, CharField):
+            when_clauses = ' '.join([self._when("'{}'".format(x), y) for (x, y) in values])
+        else:
+            when_clauses = ' '.join([self._when(x, y) for (x, y) in values])
         table_name = self.model._meta.db_table
-        return "SELECT CASE {}.id {} ELSE 0 END".format(table_name, when_clauses)
+        primary_key = self.model._meta.pk.column
+        return 'SELECT CASE {}."{}" {} ELSE 0 END'.format(table_name, primary_key, when_clauses)
 
 
 class SearchDocumentMixin(object):
