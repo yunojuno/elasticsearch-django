@@ -5,7 +5,6 @@ import logging
 import time
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db.models.fields import CharField
 from django.core.serializers.json import DjangoJSONEncoder
