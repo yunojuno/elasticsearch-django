@@ -18,7 +18,7 @@ class BaseSearchCommand(BaseCommand):
     def _confirm_action(self):
         """Return True if the user confirms the action."""
         msg = "Are you sure you wish to continue? [y/N] "
-        return input(msg).lower().startswith('y')
+        return raw_input(msg).lower().startswith('y')
 
     def add_arguments(self, parser):
         """Add default base options of --noinput and indexes."""
@@ -50,7 +50,7 @@ class BaseSearchCommand(BaseCommand):
                 data = {
                     "index": index,
                     "status": ex.status_code,
-                    "reason": ex.info['error']['reason']
+                    "reason": ex.error,
                 }
             finally:
                 logger.info(data)

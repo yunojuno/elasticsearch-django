@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Update all documents in a search index."""
-from elasticsearch_django.management.commands import BaseSearchCommand
-from elasticsearch_django.index import update_index
+from . import BaseSearchCommand
+from ...index import update_index
 
 
 class Command(BaseSearchCommand):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Create a search index."""
-from elasticsearch_django.management.commands import BaseSearchCommand
-from elasticsearch_django.index import create_index
+from . import BaseSearchCommand
+from ...index import create_index
 
 
 class Command(BaseSearchCommand):
