@@ -1,5 +1,0 @@
-Django>=1.11
-elasticsearch>=2.4
-elasticsearch-dsl>=2.1
-psycopg2>=2.6
-simplejson>=3.8

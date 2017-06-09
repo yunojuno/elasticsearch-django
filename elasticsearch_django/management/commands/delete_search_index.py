@@ -2,8 +2,8 @@
 """Delete a search index (and all documents therein)."""
 import logging
 
-from elasticsearch_django.management.commands import BaseSearchCommand
-from elasticsearch_django.index import delete_index
+from . import BaseSearchCommand
+from ...index import delete_index
 
 logger = logging.getLogger(__name__)
 

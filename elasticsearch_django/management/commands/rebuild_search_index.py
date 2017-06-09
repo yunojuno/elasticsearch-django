@@ -2,8 +2,10 @@
 """Create a search index."""
 import logging
 
-from elasticsearch_django.management.commands import BaseSearchCommand
-from elasticsearch_django.index import (
+from elasticsearch.exceptions import TransportError
+
+from . import BaseSearchCommand
+from ...index import (
     delete_index,
     create_index,
     update_index
@@ -27,7 +29,10 @@ class Command(BaseSearchCommand):
                 logger.warn("Aborting rebuild of index '%s' at user's request.", index)
                 return
 
-        delete = delete_index(index)
+        try:
+            delete = delete_index(index)
+        except TransportError:
+            logger.info("Index %s does not exist, cannot be deleted.", index)
         create = create_index(index)
         update = update_index(index)
 

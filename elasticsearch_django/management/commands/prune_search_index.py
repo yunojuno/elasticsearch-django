@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Remove all documents in a search index that no longer exist in source queryset."""
-from elasticsearch_django.management.commands import BaseSearchCommand
-from elasticsearch_django.index import prune_index
+from . import BaseSearchCommand
+from ...index import prune_index
 
 
 class Command(BaseSearchCommand):

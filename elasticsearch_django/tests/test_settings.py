@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 from django.test import TestCase
 from django.test.utils import override_settings
 
@@ -42,11 +44,9 @@ class SettingsFunctionTests(TestCase):
     def test_get_client(self, mock_conn):
         """Test the get_client function."""
         mock_conn.return_value = "http://foo"
-        client = get_client('foo')
-        self.assertEqual(
-            client.transport.hosts,
-            [{'host': 'foo', 'scheme': 'http'}]
-        )
+        client = get_client()
+        self.assertEqual(len(client.transport.hosts), 1)
+        self.assertEqual(client.transport.hosts[0]['host'], 'foo')
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_settings(self):
