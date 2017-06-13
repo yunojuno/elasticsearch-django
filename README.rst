@@ -9,7 +9,7 @@ Elasticsearch for Django
 
 This is a lightweight Django app for people who are using Elasticsearch with Django, and want to manage their indexes.
 
-**NB this codebase has only been tested with ES 2.x**
+**NB the master branch is now based on ES5.x. If you are using ES2.x, please switch to the ES2 branch (released on PyPI as 2.x)**
 
 ----
 
