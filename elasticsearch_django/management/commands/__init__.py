@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Base command for search-related management commands."""
+from builtins import input
+
 import logging
 
 from django.core.management.base import BaseCommand
@@ -18,7 +20,7 @@ class BaseSearchCommand(BaseCommand):
     def _confirm_action(self):
         """Return True if the user confirms the action."""
         msg = "Are you sure you wish to continue? [y/N] "
-        return raw_input(msg).lower().startswith('y')
+        return input(msg).lower().startswith('y')
 
     def add_arguments(self, parser):
         """Add default base options of --noinput and indexes."""
