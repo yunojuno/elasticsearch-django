@@ -17,6 +17,7 @@ setup(
         'elasticsearch-dsl>=5',
         'psycopg2>=2.6',
         'simplejson>=3.8',
+        'future'
     ],
     include_package_data=True,
     license='MIT',
