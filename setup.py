@@ -9,7 +9,7 @@ chdir(path.normpath(path.join(path.abspath(__file__), pardir)))
 
 setup(
     name="elasticsearch-django",
-    version="2.0",
+    version="2.0.1",
     packages=find_packages(),
     install_requires=[
         'Django>=1.9',
@@ -17,6 +17,7 @@ setup(
         'elasticsearch-dsl>=2.1,<3',
         'psycopg2>=2.6',
         'simplejson>=3.8',
+        'future'
     ],
     include_package_data=True,
     license='MIT',
