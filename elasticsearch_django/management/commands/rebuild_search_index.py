@@ -24,9 +24,9 @@ class Command(BaseSearchCommand):
     def do_index_command(self, index, **options):
         """Rebuild search index."""
         if options['interactive']:
-            logger.warn("This will permanently delete the index '%s'.", index)
+            logger.warning("This will permanently delete the index '%s'.", index)
             if not self._confirm_action():
-                logger.warn("Aborting rebuild of index '%s' at user's request.", index)
+                logger.warning("Aborting rebuild of index '%s' at user's request.", index)
                 return
 
         try:
