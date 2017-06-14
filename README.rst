@@ -1,8 +1,6 @@
-.. image:: https://travis-ci.org/yunojuno/elasticsearch-django.svg?branch=master
-    :target: https://travis-ci.org/yunojuno/elasticsearch-django
+[![N|Solid](https://travis-ci.org/yunojuno/elasticsearch-django.svg?branch=master)](https://travis-ci.org/yunojuno/elasticsearch-django)
 
-.. image:: https://badge.fury.io/py/elasticsearch_django.svg
-    :target: https://badge.fury.io/py/elasticsearch_django
+[![N|Solid](https://badge.fury.io/py/elasticsearch_django.svg)](https://badge.fury.io/py/elasticsearch_django)
 
 Elasticsearch for Django
 ========================
@@ -48,12 +46,14 @@ The prerequisite to configuring Django to work with an index is having the mappi
 
 Once you have the JSON mapping, you should save it as ``search/mappings/{{index_name}}.json``.
 
+The location of the file can be configured by tweaking ``the mappings_dir`` key in ``SEARCH_SETTINGS``.
+
 Configure Django settings
 -------------------------
 
 The Django settings for search are contained in a dictionary called ``SEARCH_SETTINGS``, which should be in the main ``django.conf.settings`` file. The dictionary has three root nodes, ``connections``, ``indexes`` and ``settings``. Below is an example:
 
-.. code:: python
+```python
 
     SEARCH_SETTINGS = {
         'connections': {
@@ -73,10 +73,13 @@ The Django settings for search are contained in a dictionary called ``SEARCH_SET
             'page_size': 25,
             # set to True to connect post_save/delete signals
             'auto_sync': True,
-            # if true, then indexes must have mapping files
-            'strict_validation': False
+            # if true then keeps the index updated via post-save/delete signals. indexes must have mapping files.
+            'strict_validation': False,
+            # path/to/mappings/dir - location of the index mapping files
+            'mappings_dir': './search/mappings/'
         }
     }
+```
 
 The ``connections`` node is (hopefully) self-explanatory - we support multiple connections, but in practice you should only need the one - 'default' connection. This is the URL used to connect to your ES instance. The ``setting`` node contains site-wide search settings. The ``indexes`` nodes is where we configure how Django and ES play together, and is where most of the work happens.
 
@@ -100,29 +103,32 @@ So far we have configure Django to know the names of the indexes we want, and th
 
 This mixin must be implemented by the model itself, and it requires a single method implementation - ``as_search_document()``. This should return a dict that is the index representation of the object; the ``index`` kwarg can be used to provide different representations for different indexes. By default this is ``_all`` which means that all indexes receive the same document for a given object.
 
-.. code:: python
+```python
 
     def as_search_document(self, index='_all'):
         return {name: “foo”} if index == 'foo' else {name = “bar”}
+```
 
 **SearchDocumentManagerMixin**
 
 This mixin must be implemented by the model's default manager (``objects``). It also requires a single method implementation - ``get_search_queryset()`` - which returns a queryset of objects that are to be indexed. This can also use the ``index`` kwarg to provide different sets of objects to different indexes.
 
-.. code:: python
+```python
 
     def get_search_queryset(self, index):
         return self.get_queryset().filter(foo="bar")
+```
 
 We now have the bare bones of our search implementation. We can now use the included management commands to create and populate our search index:
 
-.. code:: bash
+```bash
 
-    # create the index 'foo' from the 'foo.json' mapping file
+    # create the index 'foo' from the 'foo.json' mapping file. This
     $ ./manage.py create_search_index foo
 
     # populate foo with all the relevant objects
     $ ./manage.py update_search_index foo
+```
 
 The next step is to ensure that our models stay in sync with the index.
 
@@ -135,6 +141,10 @@ There is a VERY IMPORTANT caveat to the signal handling. It will **only** pick o
 
 We now have documents in our search index, kept up to date with their Django counterparts. We are ready to start querying ES.
 
+***WARNING***: Queryset operations do not trigger django signals. This could result in your index becoming out of sync with the db.
+Run ``python manage.py prune_search_index INDEX_NAME`` to update the index manually.
+
+
 ----
 
 Search Queries (How to Search)
@@ -145,7 +155,7 @@ Running search queries
 
 The search itself is done using ``elasticsearch_dsl``, which provides a pythonic abstraction over the QueryDSL, but also allows you to use raw JSON if required:
 
-.. code:: python
+```python
 
     from elasticsearch_django.settings import get_client
     from elasticsearch_dsl import Search
@@ -159,6 +169,7 @@ The search itself is done using ``elasticsearch_dsl``, which provides a pythonic
 
     # change the query from the raw JSON
     search.update_from_dict({"query": {"match": {"title": "python"}}})
+```
 
 The response from ``execute`` is a ``Response`` object which wraps up the ES JSON response, but is still basically JSON.
 
@@ -166,7 +177,7 @@ The response from ``execute`` is a ``Response`` object which wraps up the ES JSO
 
 The ``elasticsearch_django.models.SearchQuery`` model wraps this functionality up and provides helper properties, as well as logging the query:
 
-.. code:: python
+```python
 
     from elasticsearch_django.settings import get_client
     from elasticsearch_django.models import SearchQuery
@@ -175,6 +186,7 @@ The ``elasticsearch_django.models.SearchQuery`` model wraps this functionality u
     # run a default match_all query
     search = Search(using=get_client(), index='blog')
     sq = SearchQuery.execute(search)
+```
 
 Calling the ``SearchQuery.execute`` class method will execute the underlying search, log the query JSON, the number of hits, and the list of hit meta information for future analysis. The ``execute`` method also includes these additional kwargs:
 
@@ -189,7 +201,7 @@ Converting search hits into Django objects
 
 Running a search against an index will return a page of results, each containing the ``_source`` attribute which is the search document itself (as created by the ``SearchDocumentMixin.as_search_document`` method), together with meta info about the result - most significantly the relevance **score**, which is the magic value used for ranking (ordering) results. However, the search document probably doesn't contain all the of the information that you need to display the result, so what you really need is a standard Django QuerySet, containing the objects in the search results, but maintaining the order. This means injecting the ES score into the queryset, and then using it for ordering. There is a method on the ``SearchDocumentManagerMixin`` called ``from_search_query`` which will do this for you. It uses raw SQL to add the score as an annotation to each object in the queryset. (It also adds the 'rank' - so that even if the score is identical for all hits, the ordering is preserved.)
 
-.. code:: python
+```python
 
     from models import BlogPost
 
@@ -198,3 +210,119 @@ Running a search against an index will return a page of results, each containing
     sq = SearchQuery.execute(search)
     for obj in BlogPost.objects.from_search_query(sq):
         print obj.search_score, obj.search_rank
+```
+
+Quick Start
+================
+
+**models.py**
+
+```python
+
+    from django.db import models
+    from elasticsearch_django.models import SearchDocumentMixin, SearchDocumentManagerMixin
+
+
+    class ElasticManager(models.Manager, SearchDocumentManagerMixin):
+        def get_search_queryset(self, index='_all'):
+            return self.get_queryset()
+
+    class Car(models.Model, SearchDocumentMixin):
+        model_name = models.CharField(max_length=30)
+        year = models.IntegerField()
+        objects = ElasticManager()
+
+        def as_search_document(self, index='_all'):
+            return {'name': self.model_name, 'year': self.year, 'id': self.id}
+```
+
+**views.py**
+
+```python
+
+    from elasticsearch_django.settings import get_client
+    from elasticsearch_dsl import Search
+    from django.http import JsonResponse
+    from django.conf import settings
+
+    def car_search(request):
+        search = Search(using=get_client(), index=settings.ES_INDEX, doc_type='car')  # get es search instance
+        query = search.query('wildcard', name='*{}*'.format(request.GET.get('key')))  # create query
+        data = [r.to_dict() for r in query[:20].execute()]  # fetch result; limit results to 20 & convert to dicts
+        return JsonResponse(data, safe=False)
+```
+
+**urls.py**
+
+```python
+
+    from django.conf.urls import include, url
+    import search.views as sv
+    urlpatterns = [
+        ...
+        url(r'^search/', sv.car_search),
+    ]
+```
+
+**settings.py**
+
+```python
+
+    INSTALLED_APPS = [
+        ...
+        'elasticsearch_django'
+    ]
+
+    ES_INDEX = 'my_es'  # set your index name here
+
+    SEARCH_SETTINGS = {
+        'connections': {
+            'default': os.getenv('ELASTICSEARCH_URL', 'elasticsearch'),
+        },
+        'indexes': {
+            ES_INDEX: {
+                'models': [
+                    'search.Car',
+                ]
+            }
+        },
+        'settings': {
+            # batch size for ES bulk api operations
+            'chunk_size': 500,
+            # default page size for search results
+            'page_size': 25,
+            # set to True to connect post_save/delete signals
+            'auto_sync': True,
+            # if true, then indexes must have mapping files
+            'strict_validation': False,
+            # path to the folder containing the index mappings
+            'mappings_dir': './mappings/'
+        }
+    }
+```
+
+**mappinf file (./mappings/my_es.json)**
+
+```json
+
+    {
+      "mappings": {
+        "car": {
+          "_all": {
+            "enabled": true
+          },
+          "properties": {
+            "year": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "text"
+            },
+            "id": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+```
