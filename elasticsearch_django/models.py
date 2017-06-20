@@ -283,7 +283,7 @@ class SearchDocumentMixin(object):
             return None
 
         if action == 'update':
-            logger.warn(
+            logger.warning(
                 "'update' action is unsupported - switching to 'index' instead."
             )
             action = 'index'

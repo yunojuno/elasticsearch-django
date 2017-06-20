@@ -30,7 +30,7 @@ class BaseSearchCommandTests(TestCase):
         mock_do.side_effect = TransportError(123, "oops", {'error': {'reason': 'no idea'}})
         obj.handle(indexes=['baz'])
         mock_do.assert_called_once_with('baz')
-        mock_log.warn.assert_called_once()
+        mock_log.warning.assert_called_once()
 
 
 class NamedCommandTests(TestCase):
@@ -77,10 +77,17 @@ class NamedCommandTests(TestCase):
     @mock.patch('elasticsearch_django.management.commands.rebuild_search_index.delete_index')
     @mock.patch('elasticsearch_django.management.commands.rebuild_search_index.create_index')
     @mock.patch('elasticsearch_django.management.commands.rebuild_search_index.update_index')
-    def test_update_search_index(self, mock_update, mock_create, mock_delete):
+    def test_rebuild_search_index(self, mock_update, mock_create, mock_delete):
         """Test the rebuild_search_index command."""
         cmd = rebuild_search_index.Command()
-        cmd.do_index_command('foo', interactive=False)  # True would hang the tests
+        result = cmd.do_index_command('foo', interactive=False)  # True would hang the tests
         mock_delete.assert_called_once_with('foo')
         mock_create.assert_called_once_with('foo')
         mock_update.assert_called_once_with('foo')
+        self.assertEqual(result['delete'], mock_delete.return_value)
+        self.assertEqual(result['create'], mock_create.return_value)
+        self.assertEqual(result['update'], mock_update.return_value)
+        # check that the delete is handled if the index does not exist
+        mock_delete.side_effect = TransportError("Index not found")
+        result = cmd.do_index_command('foo', interactive=False)  # True would hang the tests
+        self.assertEqual(result['delete'], {})

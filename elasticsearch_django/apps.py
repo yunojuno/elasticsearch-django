@@ -44,7 +44,7 @@ def _validate_mapping(index, strict=False):
         if strict:
             raise ImproperlyConfigured("Index '%s' has no mapping file." % index)
         else:
-            logger.warn("Index '%s' has no mapping, relying on ES instead.", index)
+            logger.warning("Index '%s' has no mapping, relying on ES instead.", index)
 
 
 def _validate_model(model):

@@ -48,7 +48,7 @@ class BaseSearchCommand(BaseCommand):
             try:
                 data = self.do_index_command(index, **options)
             except TransportError as ex:
-                logger.warn("ElasticSearch threw an error: %s", ex)
+                logger.warning("ElasticSearch threw an error: %s", ex)
                 data = {
                     "index": index,
                     "status": ex.status_code,
