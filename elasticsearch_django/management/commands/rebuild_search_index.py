@@ -32,6 +32,7 @@ class Command(BaseSearchCommand):
         try:
             delete = delete_index(index)
         except TransportError:
+            delete = {}
             logger.info("Index %s does not exist, cannot be deleted.", index)
         create = create_index(index)
         update = update_index(index)
