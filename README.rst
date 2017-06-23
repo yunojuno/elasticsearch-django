@@ -103,7 +103,7 @@ This mixin must be implemented by the model itself, and it requires a single met
 .. code:: python
 
     def as_search_document(self, index='_all'):
-        return {name: “foo”} if index == 'foo' else {name = “bar”}
+        return {name: "foo"} if index == 'foo' else {name = "bar"}
 
 **SearchDocumentManagerMixin**
 
