@@ -106,7 +106,7 @@ class SearchAppsValidationTests(TestCase):
         """Test the _on_model_delete function."""
         obj = SearchDocumentMixin()
         _on_model_delete(None, instance=obj)
-        mock_update.assert_called_once_with(obj, 'delete')
+        mock_update.assert_called_once_with(obj, 'delete', force=True)
 
     @mock.patch('elasticsearch_django.apps._update_search_index')
     def test__on_model_save(self, mock_update):
@@ -123,13 +123,13 @@ class SearchAppsValidationTests(TestCase):
         mock_indexes.return_value = ['foo']
         obj = SearchDocumentMixin()
         _update_search_index(obj, 'delete')
-        mock_update.assert_called_once_with('delete', index='foo')
+        mock_update.assert_called_once_with('delete', index='foo', force=False)
 
         # if the update bombs, should still pass, and call logger
         mock_update.reset_mock()
         mock_update.side_effect = Exception()
         _update_search_index(obj, 'delete')
-        mock_update.assert_called_once_with('delete', index='foo')
+        mock_update.assert_called_once_with('delete', index='foo', force=False)
         mock_logger.exception.assert_called_once()
 
         # check that it calls for each configured index
@@ -138,13 +138,13 @@ class SearchAppsValidationTests(TestCase):
         obj = SearchDocumentMixin()
         _update_search_index(obj, 'delete')
         mock_update.assert_has_calls([
-            mock.call('delete', index='foo'),
-            mock.call('delete', index='bar')
+            mock.call('delete', index='foo', force=False),
+            mock.call('delete', index='bar', force=False)
         ])
 
         # confirm that it is **not** called if auto_sync is off
         mock_update.reset_mock()
         with mock.patch('elasticsearch_django.settings.get_setting') as mock_settings:
             mock_settings.return_value = False
-            _update_search_index(obj, 'delete')
+            _update_search_index(obj, 'delete', force=True)
             mock_update.assert_not_called()

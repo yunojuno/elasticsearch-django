@@ -263,8 +263,8 @@ class SearchDocumentMixin(object):
             index: string, the name of the index to update. Defaults to '_all',
                 which is a reserved ES term meaning all indexes. In this case we
                 use the config to look up all configured indexes for the model.
-            force: bool, if True then ignore caching and force the update. Defaults
-                to False.
+            force: bool, if True then ignore the in_search_queryset check and run
+                the update regardless.
 
         NB In reality we only support 'index' and 'delete' - 'update' is really
         a PATCH operation, updating partial documents in the search index - and
@@ -276,7 +276,9 @@ class SearchDocumentMixin(object):
         assert action in ('index', 'update', 'delete'), ("Action must be 'index', 'update' or 'delete'.")  # noqa
         assert self.id, ("Object must have a primary key before being indexed.")
 
-        if not self.__class__.objects.in_search_queryset(self.id, index=index):
+        if force is True:
+            logger.debug("Forcing search index update: {} {}".format(action, self))
+        elif not self.__class__.objects.in_search_queryset(self.id, index=index):
             logger.debug(
                 "{} is not in the source queryset for '{}', aborting update.".format(self, index)
             )
