@@ -137,6 +137,13 @@ class SearchDocumentMixinTests(TestCase):
             mock.call('bar', 'index', force=False)
         ])
 
+        # test for issue 14 - deletes not being picked up
+        mock_manager.reset_mock()
+        mock_do_search.reset_mock()
+        response = obj.update_search_index(action='delete', index='bar', force=True)
+        mock_manager.in_search_queryset.assert_not_called()
+        mock_do_search.assert_called_once_with('bar', 'delete', force=True)
+
     @mock.patch('elasticsearch_django.models.cache')
     @mock.patch('elasticsearch_django.models.get_client')
     def test__do_search_action(self, mock_client, mock_cache):

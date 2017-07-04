@@ -77,11 +77,18 @@ def _on_model_save(sender, **kwargs):
 
 
 def _on_model_delete(sender, **kwargs):
-    """Remove documents from search index post_delete."""
-    _update_search_index(kwargs.get('instance'), 'delete')
+    """
+    Remove documents from search index post_delete.
+
+    When deleting a document from the search index, always use force=True
+    to ignore the in_search_queryset check - as by definition on a delete
+    the object will no longer in exist in the database.
+
+    """
+    _update_search_index(kwargs.get('instance'), 'delete', force=True)
 
 
-def _update_search_index(instance, action):
+def _update_search_index(instance, action, force=False):
     """Process generic search index update actions."""
     # this allows us to turn off sync temporarily - e.g. when doing bulk updates
     if not settings.get_setting('auto_sync'):
@@ -89,6 +96,6 @@ def _update_search_index(instance, action):
         return
     for index in settings.get_model_indexes(instance.__class__):
         try:
-            instance.update_search_index(action, index=index)
-        except:
+            instance.update_search_index(action, index=index, force=force)
+        except Exception:
             logger.exception("Error handling '%s' signal for %s", action, instance)
