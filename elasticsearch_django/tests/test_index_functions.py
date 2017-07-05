@@ -42,7 +42,7 @@ class IndexFunctionTests(TestCase):
     @mock.patch('elasticsearch.helpers.bulk')
     def test_update_index(self, mock_bulk, mock_models, mock_actions, mock_client, mock_qs):
         """Test the update_index function."""
-        mock_foo = mock.Mock
+        mock_foo = mock.Mock()
         mock_foo.search_doc_type = mock.PropertyMock(return_value='bar')
         mock_foo.objects = mock.PropertyMock(return_value=mock.Mock())
         mock_models.return_value = [mock_foo]
