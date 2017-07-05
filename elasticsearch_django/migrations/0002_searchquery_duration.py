@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 from django.db import models, migrations
 
 
@@ -12,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='searchquery',
             name='duration',
-            field=models.FloatField(default=0, help_text=b'Time taken to execute the search itself, in seconds.'),
+            field=models.FloatField(default=0, help_text='Time taken to execute the search itself, in seconds.'),
             preserve_default=False,
         ),
     ]
