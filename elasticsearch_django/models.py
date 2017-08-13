@@ -74,7 +74,7 @@ class SearchDocumentManagerMixin(object):
                 Defaults to '_all'.
 
         """
-        return self.get_search_queryset(index=index).filter(id=instance_id).exists()
+        return self.get_search_queryset(index=index).filter(pk=instance_id).exists()
 
     def from_search_query(self, search_query):
         """
@@ -165,7 +165,7 @@ class SearchDocumentMixin(object):
         return 'elasticsearch_django:{}.{}.{}'.format(
             self._meta.app_label,
             self._meta.model_name,
-            self.id
+            self.pk
         )
 
     @property
@@ -221,7 +221,7 @@ class SearchDocumentMixin(object):
             '_index': index,
             '_type': self.search_doc_type,
             '_op_type': action,
-            '_id': self.id,
+            '_id': self.pk,
         }
 
         if action == 'index':
@@ -232,12 +232,12 @@ class SearchDocumentMixin(object):
 
     def fetch_search_document(self, index):
         """Fetch the object's document from a search index by id."""
-        assert self.id, ("Object must have a primary key before being indexed.")
+        assert self.pk, "Object must have a primary key before being indexed."
         client = get_client()
         return client.get(
             index=index,
             doc_type=self.search_doc_type,
-            id=self.id
+            id=self.pk
         )
 
     def update_search_index(self, action, index='_all', force=False):
@@ -274,11 +274,11 @@ class SearchDocumentMixin(object):
 
         """
         assert action in ('index', 'update', 'delete'), ("Action must be 'index', 'update' or 'delete'.")  # noqa
-        assert self.id, ("Object must have a primary key before being indexed.")
+        assert self.pk, "Object must have a primary key before being indexed."
 
         if force is True:
             logger.debug("Forcing search index update: {} {}".format(action, self))
-        elif not self.__class__.objects.in_search_queryset(self.id, index=index):
+        elif not self.__class__.objects.in_search_queryset(self.pk, index=index):
             logger.debug(
                 "{} is not in the source queryset for '{}', aborting update.".format(self, index)
             )
@@ -315,7 +315,7 @@ class SearchDocumentMixin(object):
         used as the search index document type name.
 
         """
-        assert self.id, ("Object must have a primary key before being indexed.")
+        assert self.pk, "Object must have a primary key before being indexed."
         assert action in ('index', 'delete'), (
             "Search action '{}' is invalid; must be 'index' or 'delete'.".format(action)
         )
@@ -335,7 +335,7 @@ class SearchDocumentMixin(object):
                 index=index,
                 doc_type=self.search_doc_type,
                 body=new_doc,
-                id=self.id
+                id=self.pk
             )
 
         if action == 'delete':
@@ -343,7 +343,7 @@ class SearchDocumentMixin(object):
             return client.delete(
                 index=index,
                 doc_type=self.search_doc_type,
-                id=self.id
+                id=self.pk
             )
 
 
@@ -406,13 +406,13 @@ class SearchQuery(models.Model):
 
     def __str__(self):
         return (
-            "Query (id={}) run against index '{}'".format(self.id, self.index)
+            "Query (id={}) run against index '{}'".format(self.pk, self.index)
         )
 
     def __repr__(self):
         return (
             "<SearchQuery id={} user={} index='{}' total_hits={} >".format(
-                self.id,
+                self.pk,
                 self.user,
                 self.index,
                 self.total_hits

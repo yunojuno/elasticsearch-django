@@ -115,7 +115,7 @@ def _prune_hit(hit, model):
         )
         # we don't need the full obj for a delete action, just the id.
         # (the object itself may not even exist.)
-        return model(id=hit_id)
+        return model(pk=hit_id)
 
 
 def scan_index(index, model):
