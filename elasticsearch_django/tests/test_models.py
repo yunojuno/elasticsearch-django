@@ -207,7 +207,7 @@ class SearchDocumentManagerMixinTests(TestCase):
         obj = TestModel(id=1)
         TestModel.objects.in_search_queryset(obj.id)
         mock_qs.assert_called_once_with(index='_all')
-        mock_qs.return_value.filter.assert_called_once_with(id=1)
+        mock_qs.return_value.filter.assert_called_once_with(pk=1)
         mock_qs.return_value.filter.return_value.exists.assert_called_once_with()
 
     def test__raw_sql(self):
