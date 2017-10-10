@@ -129,9 +129,9 @@ The next step is to ensure that our models stay in sync with the index.
 Add model signal handlers to update index
 -----------------------------------------
 
-If the setting `auto_sync` is True, then on `AppConfig.ready` each model configured for use in an index has its `post_save` and `post_delete` signals connected. This means that they will be kept in sync across all indexes that they appear in whenever the relevant model method is called. (There is some very basic caching to prevent too many updates - the object document is cached for one minute, and if there is no change in the document the index update is ignored.)
+If the setting ``auto_sync`` is True, then on ``AppConfig.ready`` each model configured for use in an index has its ``post_save`` and ``post_delete`` signals connected. This means that they will be kept in sync across all indexes that they appear in whenever the relevant model method is called. (There is some very basic caching to prevent too many updates - the object document is cached for one minute, and if there is no change in the document the index update is ignored.)
 
-There is a VERY IMPORTANT caveat to the signal handling. It will **only** pick on changes the the model itself, and not on related (`ForeignKey`, `ManyToManyField`) model changes. If the search document it affected by such a change then you will need to implement additional signal handling yourself.
+There is a VERY IMPORTANT caveat to the signal handling. It will **only** pick up on changes to the model itself, and not on related (``ForeignKey``, ``ManyToManyField``) model changes. If the search document is affected by such a change then you will need to implement additional signal handling yourself.
 
 We now have documents in our search index, kept up to date with their Django counterparts. We are ready to start querying ES.
 
