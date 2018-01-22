@@ -43,10 +43,10 @@ This section shows how to set up Django to recognise ES indexes, and the models 
 Create index mapping file
 -------------------------
 
-The prerequisite to configuring Django to work with an index is having the mapping for the index available. This is a bit chicken-and-egg, but the underlying assumption is the you are capable of creating the index mappings outside of Django itself, as raw JSON - e.g. using the Chrome extension `Sense <https://chrome.google.com/webstore/detail/sense-beta/lhjgkmllcaadmopgmanpapmpjgmfcfig?hl=en>`_, or the API tool `Paw <https://paw.cloud/>`_.
+The prerequisite to configuring Django to work with an index is having the mapping for the index available. This is a bit chicken-and-egg, but the underlying assumption is that you are capable of creating the index mappings outside of Django itself, as raw JSON - e.g. using the Chrome extension `Sense <https://chrome.google.com/webstore/detail/sense-beta/lhjgkmllcaadmopgmanpapmpjgmfcfig?hl=en>`_, or the API tool `Paw <https://paw.cloud/>`_.
 (The easiest way to spoof this is to POST a JSON document representing your document type at URL on your ES instance (``POST http://ELASTICSEARCH_URL/{{index_name}}``) and then retrieving the auto-magic mapping that ES created via ``GET http://ELASTICSEARCH_URL/{{index_name}}/_mapping``.)
 
-Once you have the JSON mapping, you should save it as ``search/mappings/{{index_name}}.json``.
+Once you have the JSON mapping, you should save it in the root of the Django project as ``search/mappings/{{index_name}}.json``.
 
 Configure Django settings
 -------------------------
@@ -78,7 +78,7 @@ The Django settings for search are contained in a dictionary called ``SEARCH_SET
         }
     }
 
-The ``connections`` node is (hopefully) self-explanatory - we support multiple connections, but in practice you should only need the one - 'default' connection. This is the URL used to connect to your ES instance. The ``setting`` node contains site-wide search settings. The ``indexes`` nodes is where we configure how Django and ES play together, and is where most of the work happens.
+The ``connections`` node is (hopefully) self-explanatory - we support multiple connections, but in practice you should only need the one - 'default' connection. This is the URL used to connect to your ES instance. The ``settings`` node contains site-wide search settings. The ``indexes`` nodes is where we configure how Django and ES play together, and is where most of the work happens.
 
 **Index settings**
 
@@ -89,12 +89,12 @@ Inside the index node we have a collection of named indexes - in this case just 
 When the app boots up it validates the settings, which involves the following:
 
 1. Do each of the indexes specified have a mapping file?
-2. Do each of the models implement the required mixins
+2. Do each of the models implement the required mixins?
 
 Implement search document mixins
 --------------------------------
 
-So far we have configure Django to know the names of the indexes we want, and the models that we want to index. What it doesn't yet know is which objects to index, and how to convert an object to its search index document. This is done by implementing two separate mixins - ``SearchDocumentMixin`` and ``SearchDocumentManagerMixin``. The configuration validation routine will tell you if these are not implemented.
+So far we have configured Django to know the names of the indexes we want, and the models that we want to index. What it doesn't yet know is which objects to index, and how to convert an object to its search index document. This is done by implementing two separate mixins - ``SearchDocumentMixin`` and ``SearchDocumentManagerMixin``. The configuration validation routine will tell you if these are not implemented.
 
 **SearchDocumentMixin**
 
@@ -103,7 +103,7 @@ This mixin must be implemented by the model itself, and it requires a single met
 .. code:: python
 
     def as_search_document(self, index='_all'):
-        return {name: "foo"} if index == 'foo' else {name = "bar"}
+        return {'name': "foo"} if index == 'foo' else {'name': "bar"}
 
 **SearchDocumentManagerMixin**
 
@@ -111,8 +111,8 @@ This mixin must be implemented by the model's default manager (``objects``). It 
 
 .. code:: python
 
-    def get_search_queryset(self, index):
-        return self.get_queryset().filter(foo="bar")
+    def get_search_queryset(self, index='_all'):
+        return self.get_queryset().filter(foo='bar')
 
 We now have the bare bones of our search implementation. We can now use the included management commands to create and populate our search index:
 
@@ -131,7 +131,7 @@ Add model signal handlers to update index
 
 If the setting ``auto_sync`` is True, then on ``AppConfig.ready`` each model configured for use in an index has its ``post_save`` and ``post_delete`` signals connected. This means that they will be kept in sync across all indexes that they appear in whenever the relevant model method is called. (There is some very basic caching to prevent too many updates - the object document is cached for one minute, and if there is no change in the document the index update is ignored.)
 
-There is a VERY IMPORTANT caveat to the signal handling. It will **only** pick up on changes to the model itself, and not on related (``ForeignKey``, ``ManyToManyField``) model changes. If the search document is affected by such a change then you will need to implement additional signal handling yourself.
+There is a **VERY IMPORTANT** caveat to the signal handling. It will **only** pick up on changes to the model itself, and not on related (``ForeignKey``, ``ManyToManyField``) model changes. If the search document is affected by such a change then you will need to implement additional signal handling yourself.
 
 We now have documents in our search index, kept up to date with their Django counterparts. We are ready to start querying ES.
 
@@ -179,7 +179,7 @@ The ``elasticsearch_django.models.SearchQuery`` model wraps this functionality u
 Calling the ``SearchQuery.execute`` class method will execute the underlying search, log the query JSON, the number of hits, and the list of hit meta information for future analysis. The ``execute`` method also includes these additional kwargs:
 
 * ``user`` - the user who is making the query, useful for logging
-* ``reference`` - a free text reference field - used for grouping searches together - could be session id, or brief id.
+* ``reference`` - a free text reference field - used for grouping searches together - could be session id.
 *  ``save`` - by default the SearchQuery created will be saved, but passing in False will prevent this.
 
 In conclusion - running a search against an index means getting to grips with the ``elasticsearch_dsl`` library, and when playing with search in the shell there is no need to use anything else. However, in production, searches should always be executed using the ``SearchQuery.execute`` method.
