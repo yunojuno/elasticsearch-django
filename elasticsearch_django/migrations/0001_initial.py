@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 ('total_hits', models.IntegerField(default=0, help_text='Total number of matches found for the query (!= the hits returned).')),
                 ('reference', models.CharField(default='', help_text='Custom reference used to identify and group related searches.', max_length=100, blank=True)),
                 ('executed_at', models.DateTimeField(help_text='When the search was executed - set via execute() method.')),
-                ('user', models.ForeignKey(related_name='search_queries', blank=True, to=settings.AUTH_USER_MODEL, help_text='The user who made the search query (nullable).', null=True)),
+                ('user', models.ForeignKey(related_name='search_queries', blank=True, to=settings.AUTH_USER_MODEL, help_text='The user who made the search query (nullable).', null=True, on_delete=models.SET_NULL)),
             ],
         ),
     ]

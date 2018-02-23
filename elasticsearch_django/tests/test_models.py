@@ -220,12 +220,25 @@ class SearchDocumentManagerMixinTests(TestCase):
     @mock.patch('django.db.models.query.QuerySet')
     def test_from_search_query(self, mock_qs):
         """Test the from_search_query method."""
+        self.maxDiff = None
         sq = SearchQuery(hits=[{'id': 1, 'score': 1}, {'id': 2, 'score': 2}])
         qs = TestModel.objects.from_search_query(sq)
         self.assertEqual(
             str(qs.query),
             'SELECT "elasticsearch_django_testmodel"."id", '
             '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE 0 END) '  # noqa
+            'AS "search_score", (SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 '  # noqa
+            'THEN 1 ELSE 0 END) AS "search_rank" FROM "elasticsearch_django_testmodel" WHERE '
+            '"elasticsearch_django_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC'
+        )
+
+        # test with a null score - new in v5
+        sq = SearchQuery(hits=[{'id': 1, 'score': None}, {'id': 2, 'score': 2}])
+        qs = TestModel.objects.from_search_query(sq)
+        self.assertEqual(
+            str(qs.query),
+            'SELECT "elasticsearch_django_testmodel"."id", '
+            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 2 ELSE 0 END) '  # noqa
             'AS "search_score", (SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 '  # noqa
             'THEN 1 ELSE 0 END) AS "search_rank" FROM "elasticsearch_django_testmodel" WHERE '
             '"elasticsearch_django_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC'

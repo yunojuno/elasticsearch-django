@@ -117,7 +117,7 @@ class SearchDocumentManagerMixin(object):
 
         """
         hits = search_query.hits
-        score_sql = self._raw_sql([(h['id'], h['score']) for h in hits])
+        score_sql = self._raw_sql([(h['id'], h['score'] or 0) for h in hits])
         rank_sql = self._raw_sql([(hits[i]['id'], i) for i in range(len(hits))])
         return (
             self.get_queryset()
@@ -367,7 +367,8 @@ class SearchQuery(models.Model):
         settings.AUTH_USER_MODEL,
         related_name='search_queries',
         blank=True, null=True,
-        help_text="The user who made the search query (nullable)."
+        help_text="The user who made the search query (nullable).",
+        on_delete=models.SET_NULL
     )
     index = models.CharField(
         max_length=100,
