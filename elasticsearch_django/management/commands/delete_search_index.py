@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Delete a search index (and all documents therein)."""
 import logging
 

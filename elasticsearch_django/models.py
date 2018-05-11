@@ -1,18 +1,15 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import logging
 import time
 
 from django.conf import settings
+from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
-from django.db.models.fields import CharField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models.expressions import RawSQL
+from django.db.models.fields import CharField
 from django.utils.timezone import now as tz_now
 
-from .db.fields import JSONField
 from .settings import (
     get_client,
     get_model_indexes,

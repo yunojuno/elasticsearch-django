@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Update all documents in a search index."""
 from . import BaseSearchCommand
 from ...index import update_index

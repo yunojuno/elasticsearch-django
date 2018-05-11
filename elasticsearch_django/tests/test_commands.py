@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-from django.test import TestCase
+from unittest import mock
 
+from django.test import TestCase
 from elasticsearch.exceptions import TransportError
 
-from ..compat import mock
 from ..management.commands import (
     BaseSearchCommand,
     create_search_index,

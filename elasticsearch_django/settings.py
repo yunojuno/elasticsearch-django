@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Access to SEARCH_SETTINGS Django conf.
 
 The SEARCH_SETTINGS dict in the Django conf contains three

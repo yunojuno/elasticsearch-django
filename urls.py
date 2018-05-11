@@ -1,9 +1,11 @@
-# urls for the development project
-from django.conf.urls import include, url
-
 from django.contrib import admin
+try:
+    from django.urls import re_path, include
+except ImportError:
+    from django.conf.urls import url as re_path, include
+
 admin.autodiscover()
 
 urlpatterns = [
-    url(r'^admin/', include(admin.site.urls,)),
+    re_path(r'^admin/', admin.site.urls),
 ]

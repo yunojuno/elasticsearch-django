@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Search3 index-related functions."""
 import logging
 
 from elasticsearch import helpers
