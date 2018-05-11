@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-"""elasticsearch_django model admin."""
 import simplejson as json  # simplejson supports Decimal serialization
 import logging
 

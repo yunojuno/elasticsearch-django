@@ -1,11 +1,8 @@
-# -*- coding: utf-8 -*-
 """Base command for search-related management commands."""
+import builtins
 import logging
 
-import builtins
-
 from django.core.management.base import BaseCommand
-
 from elasticsearch.exceptions import TransportError
 
 logger = logging.getLogger(__name__)

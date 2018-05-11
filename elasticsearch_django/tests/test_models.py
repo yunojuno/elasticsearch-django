@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 import datetime
 import decimal
+from unittest import mock
 
 from django.db.models import Model
 from django.test import TestCase
 from django.utils.timezone import now as tz_now
-
 from elasticsearch_dsl.search import Search
 
-from ..compat import mock
 from ..models import (
     SearchDocumentMixin,
     SearchDocumentManagerMixin,

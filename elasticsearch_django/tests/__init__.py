@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # search.tests package identifier
 from django.db import models
 

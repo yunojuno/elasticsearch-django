@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Create a search index."""
 from . import BaseSearchCommand
 from ...index import create_index

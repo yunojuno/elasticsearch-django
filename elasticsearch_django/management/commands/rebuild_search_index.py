@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Create a search index."""
 import logging
 
