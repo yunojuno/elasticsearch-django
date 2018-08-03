@@ -48,7 +48,8 @@ class SearchQueryAdmin(admin.ModelAdmin):
     search_fields = (
         'search_terms',
         'user__first_name',
-        'user__last_name'
+        'user__last_name',
+        'reference'
     )
     # excluding because we are using a pretty version instead
     exclude = ('hits', 'query', 'page')
