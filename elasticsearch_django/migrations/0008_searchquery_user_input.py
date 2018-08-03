@@ -12,7 +12,11 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='searchquery',
-            name='user_input',
-            field=models.CharField(blank=True, help_text='Free text search terms used in the query.', max_length=400),
+            name='search_terms',
+            field=models.CharField(
+                blank=True,
+                help_text='Free text search terms used in the query, stored for easy reference.',
+                max_length=400
+            ),
         ),
     ]

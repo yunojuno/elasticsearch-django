@@ -181,7 +181,7 @@ The ``elasticsearch_django.models.SearchQuery`` model wraps this functionality u
 Calling the ``execute_search`` function will execute the underlying search, log the query JSON, the number of hits, and the list of hit meta information for future analysis. The ``execute`` method also includes these additional kwargs:
 
 * ``user`` - the user who is making the query, useful for logging
-* ``user_input`` - the search query supplied by the user (as opposed to the DSL)
+* ``search_terms`` - the search query supplied by the user (as opposed to the DSL) - not used by ES, but stored in the logs
 * ``reference`` - a free text reference field - used for grouping searches together - could be session id.
 * ``save`` - by default the SearchQuery created will be saved, but passing in False will prevent this.
 

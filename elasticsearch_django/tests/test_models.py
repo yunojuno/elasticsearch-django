@@ -284,6 +284,7 @@ class SearchQueryTests(TestCase):
         sq.save()
         sq.refresh_from_db()
         # invalid JSON values will have been converted
+        self.assertEqual(sq.search_terms, '')
         self.assertEqual(sq.query['today'], today.isoformat())
         self.assertEqual(sq.hits['hits'], '1.0')
 
@@ -337,3 +338,4 @@ class SearchQueryTests(TestCase):
         mock_save.reset_mock()
         sq = SearchQuery.execute(search, save=False)
         mock_save.assert_not_called()
+

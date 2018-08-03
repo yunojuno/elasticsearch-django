@@ -377,10 +377,10 @@ class SearchQuery(models.Model):
     # is no one way of mapping input text to the query itself. However, it's often helpful to
     # have the terms that the user themselves typed easily accessible without having to parse
     # JSON.
-    user_input = models.CharField(
+    search_terms = models.CharField(
         max_length=400,
         blank=True,
-        help_text="Free text search terms used in the query."
+        help_text="Free text search terms used in the query, stored for easy reference."
     )
     query = JSONField(
         help_text="The raw ElasticSearch DSL query.",
@@ -428,7 +428,7 @@ class SearchQuery(models.Model):
         )
 
     @classmethod
-    def execute(cls, search, user=None, user_input=None, reference=None, save=True):
+    def execute(cls, search, search_terms=None, user=None, reference=None, save=True):
         """Create a new SearchQuery instance and execute a search against ES."""
         warnings.warn(
             "Pending deprecation - please use `execute_search` function instead.",
@@ -436,15 +436,14 @@ class SearchQuery(models.Model):
         )
         return execute_search(
             search,
+            search_terms=search_terms,
             user=user,
-            user_input=user_input,
             reference=reference,
             save=save
         )
 
     def save(self, **kwargs):
         """Save and return the object (for chainging)."""
-        self.user_input = self.user_input or ''
         super().save(**kwargs)
         return self
 
@@ -497,7 +496,7 @@ class SearchQuery(models.Model):
         return 0 if self.hits is None else len(self.hits)
 
 
-def execute_search(search, user=None, user_input=None, reference=None, save=True):
+def execute_search(search, search_terms=None, user=None, reference=None, save=True):
     """
     Create a new SearchQuery instance and execute a search against ES.
 
@@ -505,7 +504,7 @@ def execute_search(search, user=None, user_input=None, reference=None, save=True
         search: elasticsearch.search.Search object, that internally contains
             the connection and query; this is the query that is executed. All
             we are doing is logging the input and parsing the output.
-        user_input: raw end user search terms input - what they typed into the search
+        search_terms: raw end user search terms input - what they typed into the search
             box.
         user: Django User object, the person making the query - used for logging
             purposes. Can be null.
@@ -521,7 +520,7 @@ def execute_search(search, user=None, user_input=None, reference=None, save=True
     duration = time.time() - start
     log = SearchQuery(
         user=user,
-        user_input=user_input,
+        search_terms=search_terms,
         index=', '.join(search._index or ['_all'])[:100],  # field length restriction
         query=search.to_dict(),
         hits=[h.meta.to_dict() for h in response.hits],
