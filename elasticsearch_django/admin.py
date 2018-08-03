@@ -70,11 +70,8 @@ class SearchQueryAdmin(admin.ModelAdmin):
     def search_terms_(self, instance):
         """Truncated version of search_terms."""
         raw = instance.search_terms
-        if raw:
-            # take first five words, and further truncate to 50 chars if necessary
-            return truncatechars(truncatewords(raw, 5), 50)
-        else:
-            return "(none)"
+        # take first five words, and further truncate to 50 chars if necessary
+        return truncatechars(truncatewords(raw, 5), 50)
 
     def query_(self, instance):
         """Pretty version of query JSON."""
