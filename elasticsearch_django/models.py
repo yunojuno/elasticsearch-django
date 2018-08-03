@@ -1,5 +1,6 @@
 import logging
 import time
+import warnings
 
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
@@ -372,6 +373,15 @@ class SearchQuery(models.Model):
         default='_all',
         help_text="The name of the ElasticSearch index(es) being queried."
     )
+    # The query property contains the raw DSL query, which can be arbitrarily complex - there
+    # is no one way of mapping input text to the query itself. However, it's often helpful to
+    # have the terms that the user themselves typed easily accessible without having to parse
+    # JSON.
+    user_input = models.CharField(
+        max_length=400,
+        blank=True,
+        help_text="Free text search terms used in the query."
+    )
     query = JSONField(
         help_text="The raw ElasticSearch DSL query.",
         encoder=DjangoJSONEncoder
@@ -418,41 +428,24 @@ class SearchQuery(models.Model):
         )
 
     @classmethod
-    def execute(cls, search, user=None, reference=None, save=True):
-        """
-        Create a new SearchQuery instance and execute a search against ES.
-
-        Args:
-            search: elasticsearch.search.Search object, that internally contains
-                the connection and query; this is the query that is executed. All
-                we are doing is logging the input and parsing the output.
-            user: Django User object, the person making the query - used for logging
-                purposes. Can be null.
-            reference: string, can be anything you like, used for identification,
-                grouping purposes.
-            save: bool, if True then save the new object immediately, can be
-                overridden to False to prevent logging absolutely everything.
-                Defaults to True
-
-        """
-        start = time.time()
-        response = search.execute()
-        duration = time.time() - start
-        log = SearchQuery(
-            user=user,
-            index=', '.join(search._index or ['_all'])[:100],  # field length restriction
-            query=search.to_dict(),
-            hits=[h.meta.to_dict() for h in response.hits],
-            total_hits=response.hits.total,
-            reference=reference or '',
-            executed_at=tz_now(),
-            duration=duration
+    def execute(cls, search, user=None, user_input=None, reference=None, save=True):
+        """Create a new SearchQuery instance and execute a search against ES."""
+        warnings.warn(
+            "Pending deprecation - please use `execute_search` function instead.",
+            PendingDeprecationWarning
         )
-        return log.save() if save else log
+        return execute_search(
+            search,
+            user=user,
+            user_input=user_input,
+            reference=reference,
+            save=save
+        )
 
     def save(self, **kwargs):
         """Save and return the object (for chainging)."""
-        super(SearchQuery, self).save(**kwargs)
+        self.user_input = self.user_input or ''
+        super().save(**kwargs)
         return self
 
     def _extract_set(self, _property):
@@ -502,3 +495,39 @@ class SearchQuery(models.Model):
     def page_size(self):
         """The number of hits returned in this specific page."""
         return 0 if self.hits is None else len(self.hits)
+
+
+def execute_search(search, user=None, user_input=None, reference=None, save=True):
+    """
+    Create a new SearchQuery instance and execute a search against ES.
+
+    Args:
+        search: elasticsearch.search.Search object, that internally contains
+            the connection and query; this is the query that is executed. All
+            we are doing is logging the input and parsing the output.
+        user_input: raw end user search terms input - what they typed into the search
+            box.
+        user: Django User object, the person making the query - used for logging
+            purposes. Can be null.
+        reference: string, can be anything you like, used for identification,
+            grouping purposes.
+        save: bool, if True then save the new object immediately, can be
+            overridden to False to prevent logging absolutely everything.
+            Defaults to True
+
+    """
+    start = time.time()
+    response = search.execute()
+    duration = time.time() - start
+    log = SearchQuery(
+        user=user,
+        user_input=user_input,
+        index=', '.join(search._index or ['_all'])[:100],  # field length restriction
+        query=search.to_dict(),
+        hits=[h.meta.to_dict() for h in response.hits],
+        total_hits=response.hits.total,
+        reference=reference or '',
+        executed_at=tz_now(),
+        duration=duration
+    )
+    return log.save() if save else log
