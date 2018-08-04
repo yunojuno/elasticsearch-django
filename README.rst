@@ -171,18 +171,19 @@ The ``elasticsearch_django.models.SearchQuery`` model wraps this functionality u
 .. code:: python
 
     from elasticsearch_django.settings import get_client
-    from elasticsearch_django.models import SearchQuery
+    from elasticsearch_django.models import execute_search
     from elasticsearch_dsl import Search
 
     # run a default match_all query
     search = Search(using=get_client(), index='blog')
-    sq = SearchQuery.execute(search)
+    sq = execute_search(search)
 
-Calling the ``SearchQuery.execute`` class method will execute the underlying search, log the query JSON, the number of hits, and the list of hit meta information for future analysis. The ``execute`` method also includes these additional kwargs:
+Calling the ``execute_search`` function will execute the underlying search, log the query JSON, the number of hits, and the list of hit meta information for future analysis. The ``execute`` method also includes these additional kwargs:
 
 * ``user`` - the user who is making the query, useful for logging
+* ``search_terms`` - the search query supplied by the user (as opposed to the DSL) - not used by ES, but stored in the logs
 * ``reference`` - a free text reference field - used for grouping searches together - could be session id.
-*  ``save`` - by default the SearchQuery created will be saved, but passing in False will prevent this.
+* ``save`` - by default the SearchQuery created will be saved, but passing in False will prevent this.
 
 In conclusion - running a search against an index means getting to grips with the ``elasticsearch_dsl`` library, and when playing with search in the shell there is no need to use anything else. However, in production, searches should always be executed using the ``SearchQuery.execute`` method.
 
@@ -197,6 +198,6 @@ Running a search against an index will return a page of results, each containing
 
     # run a default match_all query
     search = Search(using=get_client(), index='blog')
-    sq = SearchQuery.execute(search)
+    sq = execute_search(search)
     for obj in BlogPost.objects.from_search_query(sq):
         print obj.search_score, obj.search_rank

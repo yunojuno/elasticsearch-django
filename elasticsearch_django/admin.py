@@ -2,6 +2,7 @@ import simplejson as json  # simplejson supports Decimal serialization
 import logging
 
 from django.contrib import admin
+from django.template.defaultfilters import truncatewords, truncatechars
 from django.utils.safestring import mark_safe
 
 from .models import SearchQuery
@@ -31,8 +32,9 @@ def pprint(data):
 class SearchQueryAdmin(admin.ModelAdmin):
 
     list_display = (
+        'id',
         'user',
-        'index',
+        'search_terms_',
         'total_hits',
         'returned_',
         'min_',
@@ -43,11 +45,18 @@ class SearchQueryAdmin(admin.ModelAdmin):
     list_filter = (
         'index',
     )
+    search_fields = (
+        'search_terms',
+        'user__first_name',
+        'user__last_name',
+        'reference'
+    )
     # excluding because we are using a pretty version instead
     exclude = ('hits', 'query', 'page')
     readonly_fields = (
         'user',
         'index',
+        'search_terms',
         'total_hits',
         'returned_',
         'min_',
@@ -57,6 +66,12 @@ class SearchQueryAdmin(admin.ModelAdmin):
         'hits_',
         'executed_at',
     )
+
+    def search_terms_(self, instance):
+        """Truncated version of search_terms."""
+        raw = instance.search_terms
+        # take first five words, and further truncate to 50 chars if necessary
+        return truncatechars(truncatewords(raw, 5), 50)
 
     def query_(self, instance):
         """Pretty version of query JSON."""
