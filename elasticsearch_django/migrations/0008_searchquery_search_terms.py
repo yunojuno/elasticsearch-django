@@ -15,6 +15,7 @@ class Migration(migrations.Migration):
             name='search_terms',
             field=models.CharField(
                 blank=True,
+                default='',
                 help_text='Free text search terms used in the query, stored for easy reference.',
                 max_length=400
             ),

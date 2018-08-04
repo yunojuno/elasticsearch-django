@@ -379,6 +379,7 @@ class SearchQuery(models.Model):
     # JSON.
     search_terms = models.CharField(
         max_length=400,
+        default='',
         blank=True,
         help_text="Free text search terms used in the query, stored for easy reference."
     )
@@ -428,7 +429,7 @@ class SearchQuery(models.Model):
         )
 
     @classmethod
-    def execute(cls, search, search_terms=None, user=None, reference=None, save=True):
+    def execute(cls, search, search_terms='', user=None, reference=None, save=True):
         """Create a new SearchQuery instance and execute a search against ES."""
         warnings.warn(
             "Pending deprecation - please use `execute_search` function instead.",
@@ -496,7 +497,7 @@ class SearchQuery(models.Model):
         return 0 if self.hits is None else len(self.hits)
 
 
-def execute_search(search, search_terms=None, user=None, reference=None, save=True):
+def execute_search(search, search_terms='', user=None, reference=None, save=True):
     """
     Create a new SearchQuery instance and execute a search against ES.
 

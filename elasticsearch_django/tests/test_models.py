@@ -325,6 +325,7 @@ class SearchQueryTests(TestCase):
         search = Search()
         sq = SearchQuery.execute(search)
         self.assertEqual(sq.user, None)
+        self.assertEqual(sq.search_terms, '')
         self.assertEqual(sq.index, '_all')
         self.assertEqual(sq.query, search.to_dict())
         self.assertEqual(sq.hits, [])
