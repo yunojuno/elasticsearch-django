@@ -10,6 +10,7 @@ from django.db import models
 from django.db.models.expressions import RawSQL
 from django.db.models.fields import CharField
 from django.utils.timezone import now as tz_now
+from elasticsearch_dsl.search import Search
 
 from .settings import (
     get_client,
@@ -19,7 +20,7 @@ from .settings import (
 logger = logging.getLogger(__name__)
 
 
-class SearchDocumentQuerySetMixin(object):
+class SearchDocumentQuerySetMixin:
 
     """
     QuerySet mixin that adds a single method for annotating a QuerySet
@@ -27,8 +28,8 @@ class SearchDocumentQuerySetMixin(object):
     """
 
     def add_search_highlights(
-        self,
-        results: SearchQuery,
+        self: models.QuerySet,
+        results: 'SearchQuery',
         attr_name='highlights'
     ) -> models.QuerySet:
         """Add any text highlights from search response to each object in the QuerySet."""
@@ -41,7 +42,7 @@ class SearchDocumentQuerySetMixin(object):
         return self
 
 
-class SearchDocumentManagerMixin(object):
+class SearchDocumentManagerMixin:
 
     """
     Model manager mixin that adds search document methods.
@@ -95,7 +96,7 @@ class SearchDocumentManagerMixin(object):
         """
         return self.get_search_queryset(index=index).filter(pk=instance_id).exists()
 
-    def from_search_query(self, search_query):
+    def from_search_query(self, search_query: 'SearchQuery') -> models.QuerySet:
         """
         Return queryset of objects from SearchQuery.results, **in order**.
 
@@ -162,7 +163,7 @@ class SearchDocumentManagerMixin(object):
         return 'SELECT CASE {}."{}" {} ELSE 0 END'.format(table_name, primary_key, when_clauses)
 
 
-class SearchDocumentMixin(object):
+class SearchDocumentMixin:
 
     """
     Mixin used by models that are indexed for ES.
@@ -369,7 +370,7 @@ class SearchDocumentMixin(object):
 class SearchQuery(models.Model):
 
     """
-    Model used to capture ES queries and responses.
+    Model used to capture ES responses.
 
     For low-traffic sites it's useful to be able to replay
     searches, and to track how a user filtered and searched.
@@ -378,7 +379,7 @@ class SearchQuery(models.Model):
 
     >>> from elasticsearch_dsl import Search
     >>> search = Search(using=client)
-    >>> sq = SearchQuery.execute(search).save()
+    >>> query = SearchQuery(search).execute().save()
 
     """
 
@@ -434,6 +435,11 @@ class SearchQuery(models.Model):
         verbose_name = "Search query"
         verbose_name_plural = "Search queries"
 
+    def __init__(self, search: Search):
+        self.search = search
+        self.index = ', '.join(search._index or ['_all'])[:100]
+        self.query = search.to_dict()
+
     def __str__(self):
         return (
             "Query (id={}) run against index '{}'".format(self.pk, self.index)
@@ -449,25 +455,8 @@ class SearchQuery(models.Model):
             )
         )
 
-    @classmethod
-    def execute(cls, search, search_terms='', user=None, reference=None, save=True):
-        """Create a new SearchQuery instance and execute a search against ES."""
-        warnings.warn(
-            "Pending deprecation - please use `execute_search` function instead.",
-            PendingDeprecationWarning
-        )
-        return execute_search(
-            search,
-            search_terms=search_terms,
-            user=user,
-            reference=reference,
-            save=save
-        )
-
     def save(self, **kwargs):
         """Save and return the object (for chaining)."""
-        if self.search_terms is None:
-            self.search_terms = ''
         super().save(**kwargs)
         return self
 
@@ -519,40 +508,49 @@ class SearchQuery(models.Model):
         """The number of hits returned in this specific page."""
         return 0 if self.hits is None else len(self.hits)
 
+    def execute(self, search_terms=None, user=None, reference=None):
+        """
+        Create a new SearchQuery instance and execute a search against ES.
 
-def execute_search(search, search_terms='', user=None, reference=None, save=True):
-    """
-    Create a new SearchQuery instance and execute a search against ES.
+        This method does *not* save the object, it just runs the search. This
+        behaviour is by design as it allows clients to run multiple searches
+        easily, whilst benefitting from the parsing capabilities of the model.
 
-    Args:
-        search: elasticsearch.search.Search object, that internally contains
-            the connection and query; this is the query that is executed. All
-            we are doing is logging the input and parsing the output.
-        search_terms: raw end user search terms input - what they typed into the search
-            box.
-        user: Django User object, the person making the query - used for logging
-            purposes. Can be null.
-        reference: string, can be anything you like, used for identification,
-            grouping purposes.
-        save: bool, if True then save the new object immediately, can be
-            overridden to False to prevent logging absolutely everything.
-            Defaults to True
+        >>> query = SearchQuery(search)
+        >>> print(
+        ...     query.index,
+        ...     query.query
+        ... )
+        >>> results = query.execute()  # NOT saved
+        >>> print(
+        ...     results.hits,
+        ...     results.total_hits,
+        ...     results.duration,
+        ...     results.executed_at
+        ... )
 
-    """
-    start = time.time()
-    response = search.execute()
-    duration = time.time() - start
-    log = SearchQuery(
+        """
+        self.search_terms = search_terms or ''
+        self.reference = reference or '',
+        start = time.time()
+        self.response = self.search.execute()
+        self.duration = time.time() - start
+        self.hits = [h.meta.to_dict() for h in self.response.hits]
+        self.total_hits = self.response.hits.total
+        self.executed_at = tz_now()
+        return self
+
+
+def execute_search(
+        search: Search,
+        *,
+        user:settings.AUTH_USER_MODEL = None,
+        search_terms:str = None,
+        reference:str = None
+):
+    """Create, execute and save a SearchQuery object."""
+    return SearchQuery(search).execute(
         user=user,
         search_terms=search_terms,
-        index=', '.join(search._index or ['_all'])[:100],  # field length restriction
-        query=search.to_dict(),
-        hits=[h.meta.to_dict() for h in response.hits],
-        total_hits=response.hits.total,
-        reference=reference or '',
-        executed_at=tz_now(),
-        duration=duration
-    )
-    # add as ephemeral attr so that client has access (at least temporarily)
-    log.response = response
-    return log.save() if save else log
+        reference=reference
+    ).save()
