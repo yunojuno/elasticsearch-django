@@ -1,0 +1,16 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+tox = "*"
+dj-database-url = "*"
+pylint = "*"
+pylint-django = "*"
+
+[packages]
+elasticsearch-django = {editable = true,path = "."}
+
+[requires]
+python_version = "3"
