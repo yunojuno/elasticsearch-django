@@ -16,8 +16,29 @@ from .settings import (
     get_model_indexes,
 )
 
-
 logger = logging.getLogger(__name__)
+
+
+class SearchDocumentQuerySetMixin(object):
+
+    """
+    QuerySet mixin that adds a single method for annotating a QuerySet
+    with 'highlights' from a SearchQuery.
+    """
+
+    def add_search_highlights(
+        self,
+        results: SearchQuery,
+        attr_name='highlights'
+    ) -> models.QuerySet:
+        """Add any text highlights from search response to each object in the QuerySet."""
+        highlights = {
+            h['id']: h['highlight']
+            for h in results.hits if 'highlight' in h
+        }
+        for obj in self:
+            setattr(obj, attr_name, highlights.get(str(obj.pk), {}))
+        return self
 
 
 class SearchDocumentManagerMixin(object):
@@ -532,4 +553,6 @@ def execute_search(search, search_terms='', user=None, reference=None, save=True
         executed_at=tz_now(),
         duration=duration
     )
+    # add as ephemeral attr so that client has access (at least temporarily)
+    log.response = response
     return log.save() if save else log
