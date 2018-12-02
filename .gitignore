@@ -1,5 +1,6 @@
-*.pyc 
+*.pyc
 .tox
 *.egg-info
 .coverage
+.vscode
 staticfiles
