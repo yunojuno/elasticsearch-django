@@ -3,6 +3,7 @@ from unittest import mock
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
 
+from .. import tests
 from ..apps import (
     ElasticAppConfig,
     _validate_config,
@@ -11,9 +12,7 @@ from ..apps import (
     _connect_signals,
     _on_model_delete,
     _on_model_save,
-    _update_search_index,
 )
-from .. import tests
 from ..models import SearchDocumentMixin
 from ..tests import TestModel
 

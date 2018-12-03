@@ -10,6 +10,7 @@ from elasticsearch_dsl.search import Search
 from ..models import (
     SearchDocumentMixin,
     SearchDocumentManagerMixin,
+    SearchDocumentQuerySetMixin,
     SearchQuery,
 )
 from ..tests import (
@@ -339,4 +340,3 @@ class SearchQueryTests(TestCase):
         mock_save.reset_mock()
         sq = SearchQuery.execute(search, save=False)
         mock_save.assert_not_called()
-
