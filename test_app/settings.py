@@ -22,6 +22,7 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.staticfiles',
     'elasticsearch_django',
+    'test_app'
 )
 
 MIDDLEWARE = [
@@ -52,7 +53,7 @@ TEMPLATES = [
 
 SECRET_KEY = "elasticsearch_django"
 
-ROOT_URLCONF = 'urls'
+ROOT_URLCONF = 'test_app.urls'
 
 APPEND_SLASH = True
 
@@ -109,16 +110,21 @@ LOGGING = {
         #     'handlers': ['console'],
         #     'propagate': False,
         # },
-        # 'elasticsearch': {
-        #     'handlers': ['console'],
-        #     'level': getenv('LOGGING_LEVEL_SEARCH', 'WARNING'),
-        #     'propagate': False,
-        # },
-        # 'elasticsearch.trace': {
-        #     'handlers': ['console'],
-        #     'level': getenv('LOGGING_LEVEL_SEARCH', 'WARNING'),
-        #     'propagate': False,
-        # },
+        'elasticsearch': {
+            'handlers': ['console'],
+            'level': getenv('LOGGING_LEVEL_SEARCH', 'WARNING'),
+            'propagate': False,
+        },
+        'elasticsearch.trace': {
+            'handlers': ['console'],
+            'level': getenv('LOGGING_LEVEL_SEARCH', 'WARNING'),
+            'propagate': False,
+        },
+        'test_app': {
+            'handlers': ['console'],
+            'propagate': False,
+            'level': 'DEBUG',
+        },
         # 'requests': {
         #     'handlers': ['console'],
         #     'level': getenv('LOGGING_LEVEL_REQUESTS', 'WARNING'),
@@ -142,13 +148,13 @@ SEARCH_SETTINGS = {
         'default': getenv('ELASTICSEARCH_URL'),
     },
     'indexes': {
-        # # name of the index
-        # 'articles': {
-        #     'models': [
-        #         # model used to populate the index, in app.model format
-        #         'app.Model',
-        #     ]
-        # },
+        # name of the index
+        'books': {
+            'models': [
+                # model used to populate the index, in app.model format
+                'test_app.Book',
+            ]
+        },
     },
     'settings': {
         # batch size for ES bulk api operations
@@ -156,7 +162,7 @@ SEARCH_SETTINGS = {
         # default page size for search results
         'page_size': 25,
         # set to False to prevent automatic signal connections
-        'auto_sync': True,
+        'auto_sync': ["test_app.Book"],
         # if True, raise ImproperlyConfigured if an index has no mapping file
         'strict_validation': False,
         # path/to/mappings/dir - where mapping files will be expected

@@ -25,11 +25,16 @@ TEST_SETTINGS = {
     },
     "indexes": {
         "baz": {
-            "models": ["elasticsearch_django.TestModel"]
+            "models": [
+                "elasticsearch_django.TestModel"
+            ]
         }
     },
     "settings": {
-        "foo": "bar"
+        "foo": "bar",
+        "auto_sync": [
+            "elasticsearch_django.TestModel",
+        ]
     }
 }
 

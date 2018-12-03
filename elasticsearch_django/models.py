@@ -1,5 +1,6 @@
 import logging
 import time
+from typing import List
 import warnings
 
 from django.conf import settings
@@ -10,17 +11,145 @@ from django.db import models
 from django.db.models.expressions import RawSQL
 from django.db.models.fields import CharField
 from django.utils.timezone import now as tz_now
+from elasticsearch_dsl.search import Search
 
-from .settings import (
-    get_client,
-    get_model_indexes,
-)
-
+from .exceptions import SearchIndexError
+from .settings import get_client, get_model_indexes
 
 logger = logging.getLogger(__name__)
 
 
-class SearchDocumentManagerMixin(object):
+class SearchDocumentQuerySetMixin:
+
+    """
+    QuerySet mixin that adds a single method for annotating a QuerySet
+    with 'highlights' from a SearchQuery.
+    """
+
+    def get_search_queryset(self, index='_all'):
+        """
+        Return the dataset used to populate the search index.
+
+        Kwargs:
+            index: string, the name of the index we are interested in -
+                this allows us to have different sets of objects in
+                different indexes. Defaults to '_all', in which case
+                all indexes index the same set of objects.
+
+        This must return a queryset object.
+
+        """
+        raise NotImplementedError(
+            "{} does not implement 'get_search_queryset'.".format(
+                self.__class__.__name__
+            )
+        )
+
+    def in_search_queryset(self, instance_id, index='_all'):
+        """
+        Return True if an object is part of the search index queryset.
+
+        Sometimes it's useful to know if an object _should_ be indexed. If
+        an object is saved, how do you know if you should push that change
+        to the search index? The simplest (albeit not most efficient) way
+        is to check if it appears in the underlying search queryset.
+
+        NB this method doesn't evaluate the entire dataset, it chains an
+        additional queryset filter expression on the end. That's why it's
+        important that the `get_search_queryset` method returns a queryset.
+
+        Args:
+            instance_id: the id of model object that we are looking for.
+
+        Kwargs:
+            index: string, the name of the index in which to check.
+                Defaults to '_all'.
+
+        """
+        return self.get_search_queryset(index=index).filter(pk=instance_id).exists()
+
+    def from_search_query(self, search_query: 'SearchQuery') -> models.QuerySet:
+        """
+        Return queryset of objects from SearchQuery.results, **in order**.
+
+        EXPERIMENTAL: this will only work with results from a single index,
+        with a single doc_type - as we are returning a single QuerySet.
+
+        This method takes the hits JSON and converts that into a queryset
+        of all the relevant objects. The key part of this is the ordering -
+        the order in which search results are returned is based on relevance,
+        something that only ES can calculate, and that cannot be replicated
+        in the database.
+
+        It does this by adding custom SQL which annotates each record with
+        the score from the search 'hit'. This is brittle, caveat emptor.
+
+        The RawSQL clause is in the form:
+
+            SELECT CASE {{model}}.id WHEN {{id}} THEN {{score}} END
+
+        The "WHEN x THEN y" is repeated for every hit. The resulting SQL, in
+        full is like this:
+
+            SELECT "freelancer_freelancerprofile"."id",
+                (SELECT CASE freelancer_freelancerprofile.id
+                    WHEN 25 THEN 1.0
+                    WHEN 26 THEN 1.0
+                    [...]
+                    ELSE 0
+                END) AS "search_score"
+            FROM "freelancer_freelancerprofile"
+            WHERE "freelancer_freelancerprofile"."id" IN (25, 26, [...])
+            ORDER BY "search_score" DESC
+
+        It should be very fast, as there is no table lookup, but there is an
+        assumption at the heart of this, which is that the search query doesn't
+        contain the entire database - i.e. that it has been paged. (ES itself
+        caps the results at 10,000.)
+
+        """
+        hits = search_query.hits
+        score_sql = self._raw_sql([(h['id'], h['score'] or 0) for h in hits])
+        rank_sql = self._raw_sql([(hits[i]['id'], i) for i in range(len(hits))])
+        return (
+            self.get_queryset()
+            .filter(pk__in=[h['id'] for h in hits])
+            # add the query relevance score
+            .annotate(search_score=RawSQL(score_sql, ()))
+            # add the ordering number (0-based)
+            .annotate(search_rank=RawSQL(rank_sql, ()))
+            .order_by('search_rank')
+        )
+
+    def _when(self, x, y):
+        return "WHEN {} THEN {}".format(x, y)
+
+    def _raw_sql(self, values):
+        """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
+        if isinstance(self.model._meta.pk, CharField):
+            when_clauses = ' '.join([self._when("'{}'".format(x), y) for (x, y) in values])
+        else:
+            when_clauses = ' '.join([self._when(x, y) for (x, y) in values])
+        table_name = self.model._meta.db_table
+        primary_key = self.model._meta.pk.column
+        return 'SELECT CASE {}."{}" {} ELSE 0 END'.format(table_name, primary_key, when_clauses)
+
+    def add_search_highlights(
+        self: models.QuerySet,
+        results: 'SearchQuery',
+        attr_name='highlights'
+    ) -> models.QuerySet:
+        """Add any text highlights from search response to each object in the QuerySet."""
+        highlights = {
+            h['id']: h['highlight']
+            for h in results.hits if 'highlight' in h
+        }
+        for obj in self:
+            setattr(obj, attr_name, highlights.get(str(obj.pk), {}))
+        return self
+
+
+class SearchDocumentManagerMixin:
 
     """
     Model manager mixin that adds search document methods.
@@ -74,7 +203,7 @@ class SearchDocumentManagerMixin(object):
         """
         return self.get_search_queryset(index=index).filter(pk=instance_id).exists()
 
-    def from_search_query(self, search_query):
+    def from_search_query(self, search_query: 'SearchQuery') -> models.QuerySet:
         """
         Return queryset of objects from SearchQuery.results, **in order**.
 
@@ -141,7 +270,7 @@ class SearchDocumentManagerMixin(object):
         return 'SELECT CASE {}."{}" {} ELSE 0 END'.format(table_name, primary_key, when_clauses)
 
 
-class SearchDocumentMixin(object):
+class SearchDocumentMixin:
 
     """
     Mixin used by models that are indexed for ES.
@@ -180,20 +309,53 @@ class SearchDocumentMixin(object):
         referred to getting the local representation of the search document,
         or actually fetching it from the index.
 
-        Kwargs:
-            index: string, the name of the index in which the object is to
-                appear - this allows different representations in different
-                indexes. Defaults to '_all', in which case all indexes use
-                the same search document structure.
+        An object may be represented in different indexes as different
+        documents.
 
         Returns a dictionary.
 
         """
         raise NotImplementedError(
-            "{} does not implement 'get_search_document'.".format(self.__class__.__name__)
+            "{} does not implement 'as_search_document'.".format(self.__class__.__name__)
         )
 
-    def as_search_action(self, index, action):
+    def as_search_document_partial(
+        self,
+        update_fields: List[str],  # this should be passed directly from save() method
+        index: str = '_all'
+    ):
+        """
+        Return the object as a custom partial update to a named index.
+
+        This method is invoked when the object `save` method is called with the
+        `update_fields` kwarg. In this instance we are, by definition, only updating
+        certain fields, and so we have this method to allow subclasses to provide
+        partial update docs, which are a different format to the full doc.
+
+        By default this method will simply infer that the fields updated map 1:1
+        onto a document node of the same name - e.g. obj.foo maps to {"foo": <...>}
+        in the search document.
+
+        Subclass as required.
+
+        >>> obj.foo = "bar"
+        >>> obj.save(update_fields=['foo'])
+        >>> obj.as_search_document_partial(['foo'])
+        {
+            "doc":{
+                "foo": "bar"
+            }
+        }
+
+        See this document for details:
+
+        https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+
+        """
+        doc = {f: getattr(self, f) for f in update_fields}
+        return dict(doc=doc)
+
+    def as_search_action(self, index: str, action: str, update_fields: List[str] = None):
         """
         Return an object as represented in a bulk api operation.
 
@@ -225,7 +387,7 @@ class SearchDocumentMixin(object):
         if action == 'index':
             document['_source'] = self.as_search_document(index)
         elif action == 'update':
-            document['doc'] = self.as_search_document(index)
+            document['doc'] = self.as_search_document_partial_update(index, update_fields)
         return document
 
     def fetch_search_document(self, index):
@@ -238,7 +400,8 @@ class SearchDocumentMixin(object):
             id=self.pk
         )
 
-    def update_search_index(self, action, index='_all', force=False):
+
+    def update_search_index(self, action, index='_all', update_fields=None):
         """
         Update the object in a remote index.
 
@@ -271,84 +434,81 @@ class SearchDocumentMixin(object):
         Returns the HTTP response.
 
         """
-        assert action in ('index', 'update', 'delete'), ("Action must be 'index', 'update' or 'delete'.")  # noqa
-        assert self.pk, "Object must have a primary key before being indexed."
+        if not self.pk:
+            raise SearchIndexError("Object must have a primary key before being indexed.")
 
-        if force is True:
-            logger.debug("Forcing search index update: {} {}".format(action, self))
-        elif not self.__class__.objects.in_search_queryset(self.pk, index=index):
+        if not self.__class__.objects.in_search_queryset(self.pk, index=index):
             logger.debug(
-                "{} is not in the source queryset for '{}', aborting update.".format(self, index)
+                "%s is not in the source queryset for '%s', aborting update.",
+                self,
+                index
             )
             return None
-
-        if action == 'update':
-            logger.warning(
-                "'update' action is unsupported - switching to 'index' instead."
-            )
-            action = 'index'
 
         # use all configured indexes if none was passed in, else whatever we were given
         indexes = self.search_indexes if index == '_all' else [index]
         responses = []
         for i in indexes:
-            responses.append(self._do_search_action(i, action, force=force))
+            if action == 'index':
+                responses.append(self._do_search_index_update(i))
+            if action == 'update':
+                responses.append(self._do_search_index_partial(i, update_fields=update_fields))
+            if action == 'delete':
+                responses.append(self._do_search_index_delete(i))
         return responses
 
-    def _do_search_action(self, index, action, force=False):
-        """
-        Call the relevant api function.
-
-        This is where the API itself is used (for single document actions),
-        but it shouldn't be used directly - the public method is `update_search_index`.
-
-        Args:
-            index: string, the name of the index to update.
-            action: string, must be either 'index' or 'delete'.
-            force: bool, if True then ignore cache and force the update
-
-        Returns the HTTP response from the API call.
-
-        NB this contains one of the core assumptions - that the model name is
-        used as the search index document type name.
-
-        """
-        assert self.pk, "Object must have a primary key before being indexed."
-        assert action in ('index', 'delete'), (
-            "Search action '{}' is invalid; must be 'index' or 'delete'.".format(action)
-        )
+    def _do_search_index_update(self, index):
+        """Call API and do a full document update."""
         client = get_client()
         cache_key = self.search_document_cache_key
-        if action == 'index':
-            # if the locally cached search doc is the same as the new one,
-            # then don't bother pushing to ES.
-            new_doc = self.as_search_document(index)
-            if not force:
-                cached_doc = cache.get(cache_key)
-                if new_doc == cached_doc:
-                    logger.debug("Search document for %r is unchanged, ignoring update.", self)
-                    return []
-            cache.set(cache_key, new_doc, timeout=60)  # TODO: remove hard-coded timeout
-            return client.index(
-                index=index,
-                doc_type=self.search_doc_type,
-                body=new_doc,
-                id=self.pk
-            )
+        # if the locally cached search doc is the same as the new one,
+        # then don't bother pushing to ES.
+        new_doc = self.as_search_document(index)
+        cached_doc = cache.get(cache_key)
+        if new_doc == cached_doc:
+            logger.debug("Search document for %r is unchanged, ignoring update.", self)
+            return []
+        cache.set(cache_key, new_doc, timeout=60)  # TODO: remove hard-coded timeout
+        return get_client().index(
+            index=index,
+            doc_type=self.search_doc_type,
+            body=new_doc,
+            id=self.pk
+        )
 
-        if action == 'delete':
-            cache.delete(cache_key)
-            return client.delete(
-                index=index,
-                doc_type=self.search_doc_type,
-                id=self.pk
-            )
+    def _do_search_index_partial(self, index, update_fields):
+        """
+        Call API and do a partial update.
+
+        For a partial update we assume that the document has altered (
+        else why update), but we don't know yet what has changed so we
+        kill the existing cached entry (as it's now out of date), but
+        leave it empty (as we don't yet have the full document).
+
+        """
+        cache.delete(self.search_document_cache_key)
+        update = self.as_search_document_partial(update_fields=update_fields, index=index)
+        return get_client().update(
+            index=index,
+            doc_type=self.search_doc_type,
+            body=update,
+            id=self.pk
+        )
+
+    def _do_search_index_delete(self, index):
+        """Call API and delete a remote document."""
+        cache.delete(self.search_document_cache_key)
+        return get_client().delete(
+            index=index,
+            doc_type=self.search_doc_type,
+            id=self.pk
+        )
 
 
 class SearchQuery(models.Model):
 
     """
-    Model used to capture ES queries and responses.
+    Model used to capture ES responses.
 
     For low-traffic sites it's useful to be able to replay
     searches, and to track how a user filtered and searched.
@@ -357,7 +517,7 @@ class SearchQuery(models.Model):
 
     >>> from elasticsearch_dsl import Search
     >>> search = Search(using=client)
-    >>> sq = SearchQuery.execute(search).save()
+    >>> query = SearchQuery(search).execute().save()
 
     """
 
@@ -413,6 +573,11 @@ class SearchQuery(models.Model):
         verbose_name = "Search query"
         verbose_name_plural = "Search queries"
 
+    def __init__(self, search: Search):
+        self.search = search
+        self.index = ', '.join(search._index or ['_all'])[:100]
+        self.query = search.to_dict()
+
     def __str__(self):
         return (
             "Query (id={}) run against index '{}'".format(self.pk, self.index)
@@ -428,25 +593,8 @@ class SearchQuery(models.Model):
             )
         )
 
-    @classmethod
-    def execute(cls, search, search_terms='', user=None, reference=None, save=True):
-        """Create a new SearchQuery instance and execute a search against ES."""
-        warnings.warn(
-            "Pending deprecation - please use `execute_search` function instead.",
-            PendingDeprecationWarning
-        )
-        return execute_search(
-            search,
-            search_terms=search_terms,
-            user=user,
-            reference=reference,
-            save=save
-        )
-
     def save(self, **kwargs):
         """Save and return the object (for chaining)."""
-        if self.search_terms is None:
-            self.search_terms = ''
         super().save(**kwargs)
         return self
 
@@ -498,38 +646,49 @@ class SearchQuery(models.Model):
         """The number of hits returned in this specific page."""
         return 0 if self.hits is None else len(self.hits)
 
+    def execute(self, search_terms=None, user=None, reference=None):
+        """
+        Create a new SearchQuery instance and execute a search against ES.
 
-def execute_search(search, search_terms='', user=None, reference=None, save=True):
-    """
-    Create a new SearchQuery instance and execute a search against ES.
+        This method does *not* save the object, it just runs the search. This
+        behaviour is by design as it allows clients to run multiple searches
+        easily, whilst benefitting from the parsing capabilities of the model.
 
-    Args:
-        search: elasticsearch.search.Search object, that internally contains
-            the connection and query; this is the query that is executed. All
-            we are doing is logging the input and parsing the output.
-        search_terms: raw end user search terms input - what they typed into the search
-            box.
-        user: Django User object, the person making the query - used for logging
-            purposes. Can be null.
-        reference: string, can be anything you like, used for identification,
-            grouping purposes.
-        save: bool, if True then save the new object immediately, can be
-            overridden to False to prevent logging absolutely everything.
-            Defaults to True
+        >>> query = SearchQuery(search)
+        >>> print(
+        ...     query.index,
+        ...     query.query
+        ... )
+        >>> results = query.execute()  # NOT saved
+        >>> print(
+        ...     results.hits,
+        ...     results.total_hits,
+        ...     results.duration,
+        ...     results.executed_at
+        ... )
 
-    """
-    start = time.time()
-    response = search.execute()
-    duration = time.time() - start
-    log = SearchQuery(
+        """
+        self.search_terms = search_terms or ''
+        self.reference = reference or '',
+        start = time.time()
+        self.response = self.search.execute()
+        self.duration = time.time() - start
+        self.hits = [h.meta.to_dict() for h in self.response.hits]
+        self.total_hits = self.response.hits.total
+        self.executed_at = tz_now()
+        return self
+
+
+def execute_search(
+        search: Search,
+        *,
+        user:settings.AUTH_USER_MODEL = None,
+        search_terms:str = None,
+        reference:str = None
+):
+    """Create, execute and save a SearchQuery object."""
+    return SearchQuery(search).execute(
         user=user,
         search_terms=search_terms,
-        index=', '.join(search._index or ['_all'])[:100],  # field length restriction
-        query=search.to_dict(),
-        hits=[h.meta.to_dict() for h in response.hits],
-        total_hits=response.hits.total,
-        reference=reference or '',
-        executed_at=tz_now(),
-        duration=duration
-    )
-    return log.save() if save else log
+        reference=reference
+    ).save()

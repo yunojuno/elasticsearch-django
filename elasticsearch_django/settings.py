@@ -64,7 +64,7 @@ def get_index_mapping(index):
         return json.load(f)
 
 
-def get_index_models(index):
+def get_index_models(index: str):
     """Return list of models configured for a named index.
 
     Args:

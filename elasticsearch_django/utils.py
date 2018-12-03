@@ -18,6 +18,6 @@ def disable_search_updates():
     """
     _settings = get_settings()
     _sync = _settings['auto_sync']
-    _settings['auto_sync'] = False
+    _settings['auto_sync'] = []
     yield
     _settings['auto_sync'] = _sync
