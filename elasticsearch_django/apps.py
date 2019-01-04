@@ -90,7 +90,8 @@ def _on_model_delete(sender, **kwargs):
 def _update_search_index(instance, action, force=False):
     """Process generic search index update actions."""
     # this allows us to turn off sync temporarily - e.g. when doing bulk updates
-    if not settings.get_setting('auto_sync'):
+
+    if not settings.get_setting('auto_sync') or type(instance) in settings.get_setting('never_auto_sync'):
         logger.debug("SEARCH_AUTO_SYNC disabled, ignoring update.")
         return
     for index in settings.get_model_indexes(instance.__class__):
