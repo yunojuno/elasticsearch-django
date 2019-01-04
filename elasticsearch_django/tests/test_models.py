@@ -111,19 +111,19 @@ class SearchDocumentMixinTests(TestCase):
         mock_manager.in_search_queryset.assert_called_once_with(obj.id, index='_all')
         self.assertIsNone(response)
 
-        # check that 'update' actions are converted to 'index'
+        # check that 'update' actions are converted to 'index' if update_fields is None
         mock_manager.reset_mock()
         mock_manager.in_search_queryset.return_value = True
-        response = obj.update_search_index(action='update', index='foo')
+        response = obj.update_search_index(action='update', index='foo', update_fields=None)
         mock_manager.in_search_queryset.assert_called_once_with(obj.id, index='foo')
-        mock_do_search.assert_called_once_with('foo', 'index', force=False)
+        mock_do_search.assert_called_once_with('foo', 'index', update_fields=None, force=False)
 
         # check that 'index' actions go through as 'index'
         mock_manager.reset_mock()
         mock_do_search.reset_mock()
         response = obj.update_search_index(action='index', index='bar')
         mock_manager.in_search_queryset.assert_called_once_with(obj.id, index='bar')
-        mock_do_search.assert_called_once_with('bar', 'index', force=False)
+        mock_do_search.assert_called_once_with('bar', 'index', update_fields=None, force=False)
 
         mock_manager.reset_mock()
         mock_do_search.reset_mock()
@@ -131,8 +131,8 @@ class SearchDocumentMixinTests(TestCase):
         response = obj.update_search_index(action='index')
         mock_manager.in_search_queryset.assert_called_once_with(obj.id, index='_all')
         mock_do_search.assert_has_calls([
-            mock.call('foo', 'index', force=False),
-            mock.call('bar', 'index', force=False)
+            mock.call('foo', 'index', update_fields=None, force=False),
+            mock.call('bar', 'index', update_fields=None, force=False)
         ])
 
         # test for issue 14 - deletes not being picked up
@@ -140,7 +140,7 @@ class SearchDocumentMixinTests(TestCase):
         mock_do_search.reset_mock()
         response = obj.update_search_index(action='delete', index='bar', force=True)
         mock_manager.in_search_queryset.assert_not_called()
-        mock_do_search.assert_called_once_with('bar', 'delete', force=True)
+        mock_do_search.assert_called_once_with('bar', 'delete', update_fields=None, force=True)
 
     @mock.patch('elasticsearch_django.models.cache')
     @mock.patch('elasticsearch_django.models.get_client')
@@ -157,6 +157,15 @@ class SearchDocumentMixinTests(TestCase):
         obj._do_search_action(index='foo', action='index')
         mock_index = mock_client.return_value.index
         mock_index.assert_called_once_with(
+            index='foo',
+            doc_type=obj._meta.model_name,
+            body=SEARCH_DOC,
+            id=obj.id
+        )
+
+        obj._do_search_action(index='foo', action='update', update_fields=['a', 'b'])
+        mock_update = mock_client.return_value.update
+        mock_update.assert_called_once_with(
             index='foo',
             doc_type=obj._meta.model_name,
             body=SEARCH_DOC,

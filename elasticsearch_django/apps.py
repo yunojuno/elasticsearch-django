@@ -72,7 +72,8 @@ def _connect_signals():
 
 def _on_model_save(sender, **kwargs):
     """Update documents in search index post_save."""
-    _update_search_index(kwargs.get('instance'), 'index')
+    _update_search_index(kwargs.get('instance'), 'index',
+                         update_fields=kwargs.get('update_fields'))
 
 
 def _on_model_delete(sender, **kwargs):
@@ -87,7 +88,7 @@ def _on_model_delete(sender, **kwargs):
     _update_search_index(kwargs.get('instance'), 'delete', force=True)
 
 
-def _update_search_index(instance, action, force=False):
+def _update_search_index(instance, action, update_fields=None, force=False):
     """Process generic search index update actions."""
     # this allows us to turn off sync temporarily - e.g. when doing bulk updates
     if not settings.get_setting('auto_sync'):
@@ -95,6 +96,7 @@ def _update_search_index(instance, action, force=False):
         return
     for index in settings.get_model_indexes(instance.__class__):
         try:
-            instance.update_search_index(action, index=index, force=force)
+            instance.update_search_index(action, index=index,
+                                         update_fields=update_fields, force=force)
         except Exception:
             logger.exception("Error handling '%s' signal for %s", action, instance)
