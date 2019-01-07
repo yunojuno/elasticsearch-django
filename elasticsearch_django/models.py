@@ -270,10 +270,6 @@ class SearchDocumentMixin(object):
             update_fields: list of strings, in the case of an 'update' action, it
                 lists which fields should be updated. 
 
-        NB In reality we only support 'index' and 'delete' - 'update' is really
-        a PATCH operation, updating partial documents in the search index - and
-        we don't currently support this - we only ever update the entire document.
-
         Returns the HTTP response.
 
         """
@@ -281,11 +277,6 @@ class SearchDocumentMixin(object):
             raise ValueError("Action must be 'index', 'update' or 'delete'.")
         if not self.pk:
             raise ValueError("Object must have a primary key before being indexed.")
-        if action == 'update' and not update_fields:
-            raise ValueError(
-                "update_fields must be set to a non-empty list of strings when action is 'update'."
-                " If you want to do a full update use 'index' instead of 'update'."
-            )
 
         if force is True:
             logger.debug("Forcing search index update: {} {}".format(action, self))
@@ -294,6 +285,14 @@ class SearchDocumentMixin(object):
                 "{} is not in the source queryset for '{}', aborting update.".format(self, index)
             )
             return None
+
+        if action == 'update' and not update_fields:
+            logger.warning(
+                "Switching action from 'update' to 'index' as `update_fields` is not specified. "
+                "Please use 'index' to replace the entire document, or pass the fields that you "
+                "wish to update as a partial update via the `update_fields` list argument."
+            )
+            action = 'index'
 
         # use all configured indexes if none was passed in, else whatever we were given
         indexes = self.search_indexes if index == '_all' else [index]

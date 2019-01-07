@@ -109,15 +109,18 @@ class SearchDocumentMixinTests(TestCase):
         mock_manager.assert_not_called()
 
         obj.id = 1
-        # check that 'update' actions raise a ValueError if update_fields is None
-        self.assertRaises(ValueError, obj.update_search_index, action='update', update_fields=None)
-        mock_manager.assert_not_called()
-
         # the object is not in the search queryset, should **not** call the update
         mock_manager.in_search_queryset.return_value = False
         response = obj.update_search_index(action='index')
         mock_manager.in_search_queryset.assert_called_once_with(obj.id, index='_all')
         self.assertIsNone(response)
+
+        # check that 'update' actions are converted to 'index' if update_fields is False
+        mock_manager.reset_mock()
+        mock_manager.in_search_queryset.return_value = True
+        response = obj.update_search_index(action='update', index='foo', update_fields=None)
+        mock_manager.in_search_queryset.assert_called_once_with(obj.id, index='foo')
+        mock_do_search.assert_called_once_with('foo', 'index', update_fields=None, force=False)
 
         # check that 'index' actions go through as 'index'
         mock_manager.reset_mock()
