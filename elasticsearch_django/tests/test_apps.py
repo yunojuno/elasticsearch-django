@@ -132,6 +132,11 @@ class SearchAppsValidationTests(TestCase):
         mock_update.assert_called_once_with('delete', index='foo', update_fields=None, force=False)
         mock_logger.exception.assert_called_once()
 
+        # check that if action is 'index' and 'update_fields' is not None, action becomes 'update'
+        mock_update.reset_mock()
+        _update_search_index(obj, 'index', update_fields=['foo'])
+        mock_update.assert_called_once_with('update', index='foo', update_fields=['foo'], force=False)
+
         # check that it calls for each configured index
         mock_update.reset_mock()
         mock_indexes.return_value = ['foo', 'bar']

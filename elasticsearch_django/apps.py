@@ -94,6 +94,8 @@ def _update_search_index(instance, action, update_fields=None, force=False):
     if not settings.get_setting('auto_sync'):
         logger.debug("SEARCH_AUTO_SYNC disabled, ignoring update.")
         return
+    if action=='index' and update_fields:
+        action = 'update'
     for index in settings.get_model_indexes(instance.__class__):
         try:
             instance.update_search_index(
