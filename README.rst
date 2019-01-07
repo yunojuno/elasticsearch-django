@@ -76,7 +76,7 @@ The Django settings for search are contained in a dictionary called ``SEARCH_SET
             # set to True to connect post_save/delete signals
             'auto_sync': True,
             # List of models which will never auto_sync even if auto_sync is True
-            'never_auto_sync': []
+            'never_auto_sync': [],
             # if true, then indexes must have mapping files
             'strict_validation': False
         }
