@@ -135,6 +135,8 @@ If the setting ``auto_sync`` is True, then on ``AppConfig.ready`` each model con
 
 There is a **VERY IMPORTANT** caveat to the signal handling. It will **only** pick up on changes to the model itself, and not on related (``ForeignKey``, ``ManyToManyField``) model changes. If the search document is affected by such a change then you will need to implement additional signal handling yourself.
 
+In addtion to ``object.save()``, SeachDocumentMixin also provides the ``update_search_index(self, action, index='_all', update_fields=None, force=False)`` method. Action should be 'index', 'update' or 'delete'. The difference between 'index' and 'update' is that 'update' is a parial update that only changes the fields specified, rather than re-updating the entire document. If ``action`` is 'update' whilst ``update_fields`` is None, action will be changed to ``index``. 
+
 We now have documents in our search index, kept up to date with their Django counterparts. We are ready to start querying ES.
 
 ----
