@@ -121,7 +121,7 @@ class SearchAppsValidationTests(TestCase):
     def test__update_search_index(self, mock_update, mock_indexes, mock_logger):
         """Test the _update_search_index function."""
         mock_indexes.return_value = ['foo']
-        obj = SearchDocumentMixin()
+        obj = TestModel()
         _update_search_index(obj, 'delete')
         mock_update.assert_called_once_with('delete', index='foo', force=False)
 
@@ -135,7 +135,7 @@ class SearchAppsValidationTests(TestCase):
         # check that it calls for each configured index
         mock_update.reset_mock()
         mock_indexes.return_value = ['foo', 'bar']
-        obj = SearchDocumentMixin()
+        obj = TestModel()
         _update_search_index(obj, 'delete')
         mock_update.assert_has_calls([
             mock.call('delete', index='foo', force=False),
@@ -147,4 +147,11 @@ class SearchAppsValidationTests(TestCase):
         with mock.patch('elasticsearch_django.settings.get_setting') as mock_settings:
             mock_settings.return_value = False
             _update_search_index(obj, 'delete', force=True)
+            mock_update.assert_not_called()
+
+        # confirm that it is not called if model is listed in 'never_auto_sync'
+        mock_update.reset_mock()
+        with mock.patch('elasticsearch_django.settings.get_setting') as mock_settings:
+            mock_settings.return_value = ['elasticsearch_django.testmodel']
+            _update_search_index(obj, 'update', force=True)
             mock_update.assert_not_called()
