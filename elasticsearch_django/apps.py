@@ -91,7 +91,13 @@ def _update_search_index(instance, action, force=False):
     """Process generic search index update actions."""
     # this allows us to turn off sync temporarily - e.g. when doing bulk updates
     model_name = "{}.{}".format(instance._meta.app_label, instance._meta.model_name)
-    if not settings.get_setting('auto_sync') or model_name in settings.get_setting('never_auto_sync'):
+    if not settings.get_setting('auto_sync'):
+        logger.debug("SEARCH_AUTO_SYNC disabled, ignoring update.")
+        return
+
+    if model_name in settings.get_setting('never_auto_sync'):
+        logger.debug("Model (%s) listed in never_auto_sync, ignoring update.", model_name)
+        return
         logger.debug("SEARCH_AUTO_SYNC disabled or model listed in never_auto_sync, ignoring update.")
         return
     for index in settings.get_model_indexes(instance.__class__):
