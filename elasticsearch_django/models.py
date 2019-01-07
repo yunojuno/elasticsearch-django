@@ -242,6 +242,25 @@ class SearchDocumentMixin(object):
             id=self.pk
         )
 
+    def is_update_necessary(self, index='_all', update_fields=None):
+        """
+        Check if an update is really needed.
+
+        This method provides the user with the option for custom criterion for
+        when an update is necessary. For example if a field is updated that is
+        not indexed, to avoid an unneccesary update.
+
+        Kwargs:
+            index: string, the name of the index to update. Defaults to '_all',
+                which is a reserved ES term meaning all indexes.
+            update_fields: list of strings, in the case of an 'update' action, it
+                lists which fields should be updated.
+
+        returns bool - if False, update will not happen.
+
+        """
+        return True
+
     def update_search_index(self, action, index='_all', update_fields=None, force=False):
         """
         Update the object in a remote index.
@@ -280,6 +299,11 @@ class SearchDocumentMixin(object):
 
         if force is True:
             logger.debug("Forcing search index update: {} {}".format(action, self))
+        elif (not self.is_update_necessary(index=index, update_fields=update_fields)
+             and action in ('update', 'index')):
+            logger.debug(
+                "No update needed for {}, aborting update".format(self)
+                )
         elif not self.__class__.objects.in_search_queryset(self.pk, index=index):
             logger.debug(
                 "{} is not in the source queryset for '{}', aborting update.".format(self, index)

@@ -93,6 +93,12 @@ class SearchDocumentMixinTests(TestCase):
         )
         self.assertEqual(response, mock_get.return_value)
 
+    def test_is_update_necessary(self):
+        """Test the is_update_necessary method."""
+        obj = TestModel()
+        response = obj.is_update_necessary()
+        self.assertEqual(response, True)
+
     @mock.patch('elasticsearch_django.tests.TestModel.objects')
     @mock.patch.object(TestModel, 'search_indexes', new_callable=mock.PropertyMock)
     @mock.patch.object(TestModel, '_do_search_action')
@@ -115,6 +121,14 @@ class SearchDocumentMixinTests(TestCase):
         mock_manager.in_search_queryset.assert_called_once_with(obj.id, index='_all')
         self.assertIsNone(response)
 
+        # check that if is_update_necessary returns false, then update is **not** called
+        mock_manager.reset_mock()
+        obj.is_update_necessary = lambda index, update_fields: False
+        obj.update_search_index(action='index')
+        mock_manager.assert_not_called()
+
+        obj = TestModel()
+        obj.id = 1
         # check that 'update' actions are converted to 'index' if update_fields is False
         mock_manager.reset_mock()
         mock_manager.in_search_queryset.return_value = True
