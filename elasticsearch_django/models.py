@@ -283,7 +283,8 @@ class SearchDocumentMixin(object):
             raise ValueError("Object must have a primary key before being indexed.")
         if action == 'update' and not update_fields:
             raise ValueError(
-                "update_fields must be set to a non-empty list of strings when action is 'update'"
+                "update_fields must be set to a non-empty list of strings when action is 'update'."
+                " If you want to do a full update use 'index' instead of 'update'."
             )
 
         if force is True:
