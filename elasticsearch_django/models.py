@@ -216,7 +216,8 @@ class SearchDocumentMixin(object):
         Returns a dictionary.
 
         """
-        assert action in ('index', 'update', 'delete'), ("Action must be 'index', 'update' or 'delete'.")  # noqa
+        if action not in ('index', 'update', 'delete'):
+            raise ValueError("Action must be 'index', 'update' or 'delete'.")
 
         document = {
             '_index': index,
@@ -276,8 +277,14 @@ class SearchDocumentMixin(object):
         Returns the HTTP response.
 
         """
-        assert action in ('index', 'update', 'delete'), ("Action must be 'index', 'update' or 'delete'.")  # noqa
-        assert self.pk, "Object must have a primary key before being indexed."
+        if action not in ('index', 'update', 'delete'):
+            raise ValueError("Action must be 'index', 'update' or 'delete'.")
+        if not self.pk:
+            raise ValueError("Object must have a primary key before being indexed.")
+        if action == 'update' and not update_fields:
+            raise ValueError(
+                "update_fields must be set to a non-empty list of strings when action is 'update'"
+            )
 
         if force is True:
             logger.debug("Forcing search index update: {} {}".format(action, self))
@@ -286,13 +293,6 @@ class SearchDocumentMixin(object):
                 "{} is not in the source queryset for '{}', aborting update.".format(self, index)
             )
             return None
-
-        if action == 'update':
-            if not update_fields:
-                logger.warning(
-                    "'update' action requires keyword argument update_fields - switching to 'index' instead."
-                )
-                action = 'index'
 
         # use all configured indexes if none was passed in, else whatever we were given
         indexes = self.search_indexes if index == '_all' else [index]
@@ -322,9 +322,11 @@ class SearchDocumentMixin(object):
 
         """
         assert self.pk, "Object must have a primary key before being indexed."
-        assert action in ('index', 'delete', 'update'), (
-            "Search action '{}' is invalid; must be 'index', 'update', or 'delete'.".format(action)
-        )
+        if action not in ('index', 'delete', 'update'):
+            raise ValueError(
+                "Search action '{}' is invalid; must be 'index', 'update', or 'delete'.".format(
+                    action)
+            )
         client = get_client()
         cache_key = self.search_document_cache_key
         if action == 'index':
@@ -350,7 +352,7 @@ class SearchDocumentMixin(object):
                 doc_type=self.search_doc_type,
                 body=self.as_search_document(index, update_fields=update_fields),
                 id=self.pk
-                )
+            )
 
         if action == 'delete':
             cache.delete(cache_key)

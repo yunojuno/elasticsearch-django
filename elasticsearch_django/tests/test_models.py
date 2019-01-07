@@ -39,6 +39,10 @@ class SearchDocumentMixinTests(TestCase):
     def test_as_search_action(self):
         """Test the as_search_action method."""
         obj = TestModel()
+
+        # invalid action 'bar'
+        self.assertRaises(ValueError, obj.as_search_action,  index="foo", action='bar')
+
         self.assertEqual(
             obj.as_search_action(index='foo', action='index'),
             {
@@ -97,30 +101,28 @@ class SearchDocumentMixinTests(TestCase):
         obj = TestModel()
 
         # invalid action 'foo'
-        self.assertRaises(AssertionError, obj.update_search_index, action='foo')
+        self.assertRaises(ValueError, obj.update_search_index, action='foo')
         mock_manager.assert_not_called()
 
         # valid action, but no id
-        self.assertRaises(AssertionError, obj.update_search_index, action='index')
+        self.assertRaises(ValueError, obj.update_search_index, action='index')
         mock_manager.assert_not_called()
 
         obj.id = 1
+        # check that 'update' actions raise a ValueError if update_fields is None
+        self.assertRaises(ValueError, obj.update_search_index, action='update', update_fields=None)
+        mock_manager.assert_not_called()
+
         # the object is not in the search queryset, should **not** call the update
         mock_manager.in_search_queryset.return_value = False
         response = obj.update_search_index(action='index')
         mock_manager.in_search_queryset.assert_called_once_with(obj.id, index='_all')
         self.assertIsNone(response)
 
-        # check that 'update' actions are converted to 'index' if update_fields is None
-        mock_manager.reset_mock()
-        mock_manager.in_search_queryset.return_value = True
-        response = obj.update_search_index(action='update', index='foo', update_fields=None)
-        mock_manager.in_search_queryset.assert_called_once_with(obj.id, index='foo')
-        mock_do_search.assert_called_once_with('foo', 'index', update_fields=None, force=False)
-
         # check that 'index' actions go through as 'index'
         mock_manager.reset_mock()
         mock_do_search.reset_mock()
+        mock_manager.in_search_queryset.return_value = True
         response = obj.update_search_index(action='index', index='bar')
         mock_manager.in_search_queryset.assert_called_once_with(obj.id, index='bar')
         mock_do_search.assert_called_once_with('bar', 'index', update_fields=None, force=False)
@@ -152,7 +154,7 @@ class SearchDocumentMixinTests(TestCase):
         self.assertRaises(AssertionError, obj._do_search_action, index='foo', action='index')
         # id is good, but invalid action
         obj.id = 1
-        self.assertRaises(AssertionError, obj._do_search_action, index='foo', action='foobar')
+        self.assertRaises(ValueError, obj._do_search_action, index='foo', action='foobar')
 
         obj._do_search_action(index='foo', action='index')
         mock_index = mock_client.return_value.index

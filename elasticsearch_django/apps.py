@@ -96,7 +96,11 @@ def _update_search_index(instance, action, update_fields=None, force=False):
         return
     for index in settings.get_model_indexes(instance.__class__):
         try:
-            instance.update_search_index(action, index=index,
-                                         update_fields=update_fields, force=force)
+            instance.update_search_index(
+                action,
+                index=index,
+                update_fields=update_fields,
+                force=force
+            )
         except Exception:
             logger.exception("Error handling '%s' signal for %s", action, instance)
