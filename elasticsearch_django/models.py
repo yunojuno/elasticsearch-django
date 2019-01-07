@@ -171,7 +171,7 @@ class SearchDocumentMixin(object):
         """Return the doc_type used for the model."""
         return self._meta.model_name
 
-    def as_search_document(self, index='_all'):
+    def as_search_document(self, index='_all', update_fields=None):
         """
         Return the object as represented in a named index.
 
@@ -185,6 +185,9 @@ class SearchDocumentMixin(object):
                 appear - this allows different representations in different
                 indexes. Defaults to '_all', in which case all indexes use
                 the same search document structure.
+            update_fields: List of strings, list of fields to be updated in
+                the case of a partial update - this allows a much faster
+                update when it is known only 1 field has changed for example.
 
         Returns a dictionary.
 
@@ -213,7 +216,8 @@ class SearchDocumentMixin(object):
         Returns a dictionary.
 
         """
-        assert action in ('index', 'update', 'delete'), ("Action must be 'index', 'update' or 'delete'.")  # noqa
+        if action not in ('index', 'update', 'delete'):
+            raise ValueError("Action must be 'index', 'update' or 'delete'.")
 
         document = {
             '_index': index,
@@ -238,7 +242,7 @@ class SearchDocumentMixin(object):
             id=self.pk
         )
 
-    def update_search_index(self, action, index='_all', force=False):
+    def update_search_index(self, action, index='_all', update_fields=None, force=False):
         """
         Update the object in a remote index.
 
@@ -263,16 +267,16 @@ class SearchDocumentMixin(object):
                 use the config to look up all configured indexes for the model.
             force: bool, if True then ignore the in_search_queryset check and run
                 the update regardless.
-
-        NB In reality we only support 'index' and 'delete' - 'update' is really
-        a PATCH operation, updating partial documents in the search index - and
-        we don't currently support this - we only ever update the entire document.
+            update_fields: list of strings, in the case of an 'update' action, it
+                lists which fields should be updated. 
 
         Returns the HTTP response.
 
         """
-        assert action in ('index', 'update', 'delete'), ("Action must be 'index', 'update' or 'delete'.")  # noqa
-        assert self.pk, "Object must have a primary key before being indexed."
+        if action not in ('index', 'update', 'delete'):
+            raise ValueError("Action must be 'index', 'update' or 'delete'.")
+        if not self.pk:
+            raise ValueError("Object must have a primary key before being indexed.")
 
         if force is True:
             logger.debug("Forcing search index update: {} {}".format(action, self))
@@ -282,9 +286,11 @@ class SearchDocumentMixin(object):
             )
             return None
 
-        if action == 'update':
+        if action == 'update' and not update_fields:
             logger.warning(
-                "'update' action is unsupported - switching to 'index' instead."
+                "Switching action from 'update' to 'index' as `update_fields` is not specified. "
+                "Please use 'index' to replace the entire document, or pass the fields that you "
+                "wish to update as a partial update via the `update_fields` list argument."
             )
             action = 'index'
 
@@ -292,10 +298,10 @@ class SearchDocumentMixin(object):
         indexes = self.search_indexes if index == '_all' else [index]
         responses = []
         for i in indexes:
-            responses.append(self._do_search_action(i, action, force=force))
+            responses.append(self._do_search_action(i, action, update_fields=update_fields, force=force))
         return responses
 
-    def _do_search_action(self, index, action, force=False):
+    def _do_search_action(self, index, action, update_fields=None, force=False):
         """
         Call the relevant api function.
 
@@ -304,8 +310,10 @@ class SearchDocumentMixin(object):
 
         Args:
             index: string, the name of the index to update.
-            action: string, must be either 'index' or 'delete'.
+            action: string, must be either 'index' or 'delete' or 'update'.
             force: bool, if True then ignore cache and force the update
+            update_fields: list of strings, in the case of an 'update' action, it
+                lists which fields should be updated. 
 
         Returns the HTTP response from the API call.
 
@@ -314,9 +322,11 @@ class SearchDocumentMixin(object):
 
         """
         assert self.pk, "Object must have a primary key before being indexed."
-        assert action in ('index', 'delete'), (
-            "Search action '{}' is invalid; must be 'index' or 'delete'.".format(action)
-        )
+        if action not in ('index', 'delete', 'update'):
+            raise ValueError(
+                "Search action '{}' is invalid; must be 'index', 'update', or 'delete'.".format(
+                    action)
+            )
         client = get_client()
         cache_key = self.search_document_cache_key
         if action == 'index':
@@ -333,6 +343,14 @@ class SearchDocumentMixin(object):
                 index=index,
                 doc_type=self.search_doc_type,
                 body=new_doc,
+                id=self.pk
+            )
+
+        if action == 'update':
+            return client.update(
+                index=index,
+                doc_type=self.search_doc_type,
+                body=self.as_search_document(index, update_fields=update_fields),
                 id=self.pk
             )
 

@@ -24,5 +24,5 @@ class TestModel(SearchDocumentMixin, models.Model):
 
     objects = TestModelManager()
 
-    def as_search_document(self, index='_all'):
+    def as_search_document(self, index='_all', update_fields=None):
         return SEARCH_DOC
