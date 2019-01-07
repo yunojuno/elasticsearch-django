@@ -30,6 +30,10 @@ def get_setting(key):
     """Return specific search setting from Django conf."""
     return get_settings()[key]
 
+def set_setting(key, value):
+    """Set specific search setting in Djano conf settings."""
+    get_settings()[key] = value
+
 
 def get_connection_string(connection='default'):
     """Return index settings from Django conf."""
