@@ -157,6 +157,9 @@ SEARCH_SETTINGS = {
         'page_size': 25,
         # set to False to prevent automatic signal connections
         'auto_sync': True,
+        # List of models which will never auto_sync even if auto_sync is True
+        # Use the same app.model format as in 'indexes' above.
+        'never_auto_sync': [],
         # if True, raise ImproperlyConfigured if an index has no mapping file
         'strict_validation': False,
         # path/to/mappings/dir - where mapping files will be expected
