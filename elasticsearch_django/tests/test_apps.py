@@ -156,16 +156,9 @@ class SearchAppsValidationTests(TestCase):
             mock.call('delete', index='bar', update_fields=None, force=False)
         ])
 
-        # confirm that it is **not** called if auto_sync is off
+        # confirm that it is **not** called if auto_sync returns false
         mock_update.reset_mock()
-        with mock.patch('elasticsearch_django.settings.get_setting') as mock_settings:
-            mock_settings.return_value = False
+        with mock.patch('elasticsearch_django.settings.auto_sync') as mock_auto_sync:
+            mock_auto_sync.return_value = False
             _update_search_index(obj, 'delete', force=True)
-            mock_update.assert_not_called()
-
-        # confirm that it is not called if model is listed in 'never_auto_sync'
-        mock_update.reset_mock()
-        with mock.patch('elasticsearch_django.settings.get_setting') as mock_settings:
-            mock_settings.return_value = ['elasticsearch_django.testmodel']
-            _update_search_index(obj, 'update', force=True)
             mock_update.assert_not_called()
