@@ -127,6 +127,6 @@ def auto_sync(instance):
     if not get_setting('auto_sync'):
         return False
     model_name = "{}.{}".format(instance._meta.app_label, instance._meta.model_name)
-    if model_name in get_setting('never_auto_sync'):
+    if model_name in get_setting('never_auto_sync', []):
         return False
     return True

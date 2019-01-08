@@ -63,8 +63,8 @@ class SettingsFunctionTests(TestCase):
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_setting_with_default(self):
         """Test the get_setting method."""
-        self.assertEqual(get_setting('bar', 'baz'), 'baz')
         self.assertRaises(KeyError, get_setting, 'bar')
+        self.assertEqual(get_setting('bar', 'baz'), 'baz')
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_connection_string(self):
@@ -121,7 +121,8 @@ class SettingsFunctionTests(TestCase):
         # Check that if the setting auto_sync is False, the function auto_sync also returns false.
         TEST_SETTINGS['settings']['auto_sync'] = False
         self.assertEqual(auto_sync(obj), False)
-        # Check that if a model is in never_auto_sync, then auto_sync returns false
         TEST_SETTINGS['settings']['auto_sync'] = True
+        self.assertEqual(auto_sync(obj), True)
+        # Check that if a model is in never_auto_sync, then auto_sync returns false
         TEST_SETTINGS['settings']['never_auto_sync'].append('elasticsearch_django.testmodel')
         self.assertEqual(auto_sync(obj), False)

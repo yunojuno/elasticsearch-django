@@ -41,13 +41,6 @@ class SearchAppsConfigTests(TestCase):
         mock_config.assert_called_once_with(mock_setting.return_value)
         mock_signals.assert_not_called()
 
-        # check that never_auto_sync property is added if missing
-        mock_set_setting.reset_mock()
-        mock_settings.return_value = {'foo':'bar'}
-        config.ready()
-        mock_set_setting.assert_called_once_with('never_auto_sync', [])
-
-
 
 class SearchAppsValidationTests(TestCase):
 
