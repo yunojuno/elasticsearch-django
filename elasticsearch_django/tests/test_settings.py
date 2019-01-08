@@ -7,13 +7,15 @@ from ..settings import (
     get_client,
     get_setting,
     get_settings,
+    set_setting,
     get_connection_string,
     get_index_config,
     get_index_names,
     get_index_models,
     get_model_indexes,
     get_document_models,
-    get_document_model
+    get_document_model,
+    auto_sync
 )
 from ..tests import TestModel
 
@@ -29,7 +31,9 @@ TEST_SETTINGS = {
         }
     },
     "settings": {
-        "foo": "bar"
+        "foo": "bar",
+        "auto_sync": True,
+        "never_auto_sync": []
     }
 }
 
@@ -55,6 +59,12 @@ class SettingsFunctionTests(TestCase):
     def test_get_setting(self):
         """Test the get_setting method."""
         self.assertEqual(get_setting('foo'), 'bar')
+
+    @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
+    def test_set_setting(self):
+        """Test the set_setting method."""
+        set_setting('bar', 'foo')
+        self.assertEqual(TEST_SETTINGS['settings']['bar'], 'foo')
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_connection_string(self):
@@ -102,3 +112,17 @@ class SettingsFunctionTests(TestCase):
     def test_get_document_model(self):
         """Test the get_document_model function."""
         self.assertEqual(get_document_model('baz', 'testmodel'), TestModel)
+
+    @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
+    def test_auto_sync(self):
+        """Test the auto_sync function."""
+        obj = TestModel()
+        self.assertEqual(auto_sync(obj), True)
+        # Check that if the setting auto_sync is False, the function auto_sync also returns false.
+        TEST_SETTINGS['settings']['auto_sync'] = False
+        self.assertEqual(auto_sync(obj), False)
+        # Check that if a model is in never_auto_sync, then auto_sync returns false
+        TEST_SETTINGS['settings']['auto_sync'] = True
+        TEST_SETTINGS['settings']['never_auto_sync'].append('elasticsearch_django.testmodel')
+        self.assertEqual(auto_sync(obj), False)
+

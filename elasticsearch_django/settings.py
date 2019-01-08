@@ -31,6 +31,11 @@ def get_setting(key):
     return get_settings()[key]
 
 
+def set_setting(key, value):
+    """Set specific search setting in Django conf settings."""
+    get_settings()[key] = value
+
+
 def get_connection_string(connection='default'):
     """Return index settings from Django conf."""
     return settings.SEARCH_SETTINGS['connections'][connection]
@@ -111,3 +116,14 @@ def get_document_models():
 def get_document_model(index, doc_type):
     """Return dict of index.doc_type: model."""
     return get_document_models().get('%s.%s' % (index, doc_type))
+
+
+def auto_sync(instance):
+    """Returns bool if auto_sync is on for the model (instance)"""
+    # this allows us to turn off sync temporarily - e.g. when doing bulk updates
+    if not get_setting('auto_sync'):
+        return False
+    model_name = "{}.{}".format(instance._meta.app_label, instance._meta.model_name)
+    if model_name in get_setting('never_auto_sync'):
+        return False
+    return True

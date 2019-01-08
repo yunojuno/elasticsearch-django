@@ -25,6 +25,8 @@ class ElasticAppConfig(AppConfig):
             _connect_signals()
         else:
             logger.debug("SEARCH_AUTO_SYNC has been disabled.")
+        if 'never_auto_sync' not in settings.get_settings().keys():
+            settings.set_setting('never_auto_sync', [])
 
 
 def _validate_config(strict=False):
@@ -90,15 +92,8 @@ def _on_model_delete(sender, **kwargs):
 
 def _update_search_index(instance, action, update_fields=None, force=False):
     """Process generic search index update actions."""
-    # this allows us to turn off sync temporarily - e.g. when doing bulk updates
-    model_name = "{}.{}".format(instance._meta.app_label, instance._meta.model_name)
-    
-    if not settings.get_setting('auto_sync'):
-        logger.debug("SEARCH_AUTO_SYNC disabled, ignoring update.")
-        return
-
-    if model_name in settings.get_setting('never_auto_sync'):
-        logger.debug("Model (%s) listed in never_auto_sync, ignoring update.", model_name)
+    if not settings.auto_sync(instance):
+        logger.debug("Auto sync disabled, ignoring update.")
         return
 
     if action == 'index' and update_fields:
