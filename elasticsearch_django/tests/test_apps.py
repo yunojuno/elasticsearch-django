@@ -23,9 +23,11 @@ class SearchAppsConfigTests(TestCase):
     """Tests for the apps module ready function."""
 
     @mock.patch('elasticsearch_django.apps.settings.get_setting')
+    @mock.patch('elasticsearch_django.apps.settings.get_settings')
+    @mock.patch('elasticsearch_django.apps.settings.set_setting')
     @mock.patch('elasticsearch_django.apps._validate_config')
     @mock.patch('elasticsearch_django.apps._connect_signals')
-    def test_ready(self, mock_signals, mock_config, mock_setting):
+    def test_ready(self, mock_signals, mock_config, mock_set_setting, mock_settings, mock_setting):
         """Test the AppConfig.ready method."""
         mock_setting.return_value = True  # auto-sync
         config = ElasticAppConfig('foo_bar', tests)
@@ -39,6 +41,13 @@ class SearchAppsConfigTests(TestCase):
         config.ready()
         mock_config.assert_called_once_with(mock_setting.return_value)
         mock_signals.assert_not_called()
+
+        # check that never_auto_sync property is added if missing
+        mock_set_setting.reset_mock()
+        mock_settings.return_value = {'foo':'bar'}
+        config.ready()
+        mock_set_setting.assert_called_once_with('never_auto_sync', [])
+
 
 
 class SearchAppsValidationTests(TestCase):

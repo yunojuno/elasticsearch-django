@@ -7,6 +7,7 @@ from ..settings import (
     get_client,
     get_setting,
     get_settings,
+    set_setting,
     get_connection_string,
     get_index_config,
     get_index_names,
@@ -55,6 +56,12 @@ class SettingsFunctionTests(TestCase):
     def test_get_setting(self):
         """Test the get_setting method."""
         self.assertEqual(get_setting('foo'), 'bar')
+
+    @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
+    def test_set_setting(self):
+        """Test the set_setting method."""
+        set_setting('bar', 'foo')
+        self.assertEqual(TEST_SETTINGS['settings']['bar'], 'foo')
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_connection_string(self):
