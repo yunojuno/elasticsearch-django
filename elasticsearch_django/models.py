@@ -248,7 +248,7 @@ class SearchDocumentMixin(object):
 
         This method provides the user with the option for custom criterion for
         when an update is necessary. For example if a field is updated that is
-        not indexed, to avoid an unneccesary update.
+        not indexed, to avoid an unnecessary update.
 
         Kwargs:
             index: string, the name of the index to update. Defaults to '_all',
