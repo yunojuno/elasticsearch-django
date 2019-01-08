@@ -32,7 +32,7 @@ def get_setting(key):
 
 
 def set_setting(key, value):
-    """Set specific search setting in Djano conf settings."""
+    """Set specific search setting in Django conf settings."""
     get_settings()[key] = value
 
 
