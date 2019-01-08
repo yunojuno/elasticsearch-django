@@ -79,12 +79,22 @@ def _connect_model_signals(model):
 
 
 def _on_model_save(sender, **kwargs):
-    """Update documents in search index post_save."""
-    _update_search_index(
-        kwargs['instance'],
-        'index',
-        update_fields=kwargs.get('update_fields')
-    )
+    """Update document in search index post_save."""
+    update_fields = kwargs['update_fields']
+    instance = kwargs['instance']
+    for index in instance.search_indexes:
+        _update_search_index(instance=instance, index=index, update_fields=update_fields)
+
+
+def _update_search_index(*, instance, index, update_fields):
+    """Process index / update search index update actions."""
+    try:
+        if update_fields:
+            instance.update_search_document(index=index, update_fields=update_fields)
+        else:
+            instance.index_search_document(index=index)
+    except Exception:
+        logger.exception("Error handling 'post_save' signal for %s", instance)
 
 
 def _on_model_delete(sender, **kwargs):
@@ -96,22 +106,9 @@ def _on_model_delete(sender, **kwargs):
     the object will no longer in exist in the database.
 
     """
-    _update_search_index(kwargs['instance'], 'delete', force=True)
-
-
-def _update_search_index(instance, action, update_fields=None, force=False):
-    """Process generic search index update actions."""
-    if action == 'index' and update_fields:
-        logger.debug("Action changed from 'index' to 'update' as update_fields were present.")
-        action = 'update'
-
-    for index in settings.get_model_indexes(instance.__class__):
+    instance = kwargs['instance']
+    for index in instance.search_indexes:
         try:
-            instance.update_search_index(
-                action,
-                index=index,
-                update_fields=update_fields,
-                force=force
-            )
+            instance.delete_search_document(index=index)
         except Exception:
-            logger.exception("Error handling '%s' signal for %s", action, instance)
+            logger.exception("Error handling 'on_delete' signal for %s", instance)
