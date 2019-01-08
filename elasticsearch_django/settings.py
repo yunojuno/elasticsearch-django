@@ -26,9 +26,12 @@ def get_settings():
     return settings.SEARCH_SETTINGS['settings']
 
 
-def get_setting(key):
+def get_setting(key, *default):
     """Return specific search setting from Django conf."""
-    return get_settings()[key]
+    if default:
+        return get_settings().get(key, default[0])
+    else:
+        return get_settings()[key]
 
 
 def set_setting(key, value):
@@ -124,6 +127,6 @@ def auto_sync(instance):
     if not get_setting('auto_sync'):
         return False
     model_name = "{}.{}".format(instance._meta.app_label, instance._meta.model_name)
-    if model_name in get_setting('never_auto_sync'):
+    if model_name in get_setting('never_auto_sync', []):
         return False
     return True

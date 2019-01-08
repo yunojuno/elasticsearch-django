@@ -25,8 +25,6 @@ class ElasticAppConfig(AppConfig):
             _connect_signals()
         else:
             logger.debug("SEARCH_AUTO_SYNC has been disabled.")
-        if 'never_auto_sync' not in settings.get_settings().keys():
-            settings.set_setting('never_auto_sync', [])
 
 
 def _validate_config(strict=False):
@@ -64,18 +62,29 @@ def _connect_signals():
     """Connect up post_save, post_delete signals for models."""
     for index in settings.get_index_names():
         for model in settings.get_index_models(index):
-            dispatch_uid = '%s.post_save' % model._meta.model_name
-            logger.debug("Connecting search index model sync signal: %s", dispatch_uid)
-            signals.post_save.connect(_on_model_save, sender=model, dispatch_uid=dispatch_uid)
-            dispatch_uid = '%s.post_delete' % model._meta.model_name
-            logger.debug("Connecting search index model sync signal: %s", dispatch_uid)
-            signals.post_delete.connect(_on_model_delete, sender=model, dispatch_uid=dispatch_uid)
+            _connect_model_signals(model)
+
+
+def _connect_model_signals(model):
+    """Connect signals for a single model."""
+    if settings.auto_sync(model):
+        dispatch_uid = '%s.post_save' % model._meta.model_name
+        logger.debug("Connecting search index model sync signal: %s", dispatch_uid)
+        signals.post_save.connect(_on_model_save, sender=model, dispatch_uid=dispatch_uid)
+        dispatch_uid = '%s.post_delete' % model._meta.model_name
+        logger.debug("Connecting search index model sync signal: %s", dispatch_uid)
+        signals.post_delete.connect(_on_model_delete, sender=model, dispatch_uid=dispatch_uid)
+    else:
+        logger.debug("Auto sync disabled for '%s', ignoring update.", model._meta.model_name)
 
 
 def _on_model_save(sender, **kwargs):
     """Update documents in search index post_save."""
-    _update_search_index(kwargs.get('instance'), 'index',
-                         update_fields=kwargs.get('update_fields'))
+    _update_search_index(
+        kwargs['instance'],
+        'index',
+        update_fields=kwargs.get('update_fields')
+    )
 
 
 def _on_model_delete(sender, **kwargs):
@@ -87,15 +96,11 @@ def _on_model_delete(sender, **kwargs):
     the object will no longer in exist in the database.
 
     """
-    _update_search_index(kwargs.get('instance'), 'delete', force=True)
+    _update_search_index(kwargs['instance'], 'delete', force=True)
 
 
 def _update_search_index(instance, action, update_fields=None, force=False):
     """Process generic search index update actions."""
-    if not settings.auto_sync(instance):
-        logger.debug("Auto sync disabled, ignoring update.")
-        return
-
     if action == 'index' and update_fields:
         logger.debug("Action changed from 'index' to 'update' as update_fields were present.")
         action = 'update'
