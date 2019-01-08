@@ -26,14 +26,12 @@ def get_settings():
     return settings.SEARCH_SETTINGS['settings']
 
 
-def get_setting(key):
+def get_setting(key, *default):
     """Return specific search setting from Django conf."""
-    return get_settings()[key]
-
-
-def set_setting(key, value):
-    """Set specific search setting in Django conf settings."""
-    get_settings()[key] = value
+    if default:
+        return get_settings().get(key, default[0])
+    else:
+        return get_settings()[key]
 
 
 def get_connection_string(connection='default'):
