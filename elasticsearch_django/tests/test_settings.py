@@ -7,6 +7,7 @@ from ..settings import (
     get_client,
     get_setting,
     get_settings,
+    set_setting,
     get_connection_string,
     get_index_config,
     get_index_names,

@@ -25,6 +25,8 @@ class ElasticAppConfig(AppConfig):
             _connect_signals()
         else:
             logger.debug("SEARCH_AUTO_SYNC has been disabled.")
+        if 'never_auto_sync' not in settings.get_settings().keys():
+            settings.set_setting('never_auto_sync', [])
 
 
 def _validate_config(strict=False):
