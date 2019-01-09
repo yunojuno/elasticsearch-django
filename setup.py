@@ -8,12 +8,12 @@ chdir(path.normpath(path.join(path.abspath(__file__), pardir)))
 
 setup(
     name="elasticsearch-django",
-    version="5.2",
+    version="5.3-dev0",
     packages=find_packages(),
     install_requires=[
         'Django>=1.11',
-        'elasticsearch>=5',
-        'elasticsearch-dsl>=5',
+        'elasticsearch>=5,<6',
+        'elasticsearch-dsl>=5,<6',
         'psycopg2-binary>=2.6',
         'simplejson>=3.8'
     ],
@@ -37,7 +37,6 @@ setup(
         'Framework :: Django :: 2.1',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3.6',
-        'Topic :: Internet :: WWW/HTTP',
-        'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
+        'Programming Language :: Python :: 3.7',
     ],
 )
