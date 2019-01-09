@@ -13,9 +13,9 @@ from django.utils.timezone import now as tz_now
 
 from .settings import (
     get_client,
+    get_setting,
     get_model_indexes,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -242,125 +242,61 @@ class SearchDocumentMixin(object):
             id=self.pk
         )
 
-    def update_search_index(self, action, index='_all', update_fields=None, force=False):
+    def index_search_document(self, *, index):
         """
-        Update the object in a remote index.
+        Create or replace search document in named index.
 
-        This method is used to run index, update and delete actions on
-        the index. We have a single method rather than individual methods
-        in order to preserve the semantics of what we are doing. Irrespective
-        of whether we are creating a new document, or deleting an existing
-        document, from the point of view of the client we are updating the
-        state of the remote search index.
-
-        Before attempting to update the index, this method will check to see
-        if the object is in the search queryset to determine whether it should
-        be indexed at all.
-
-        Args:
-            action: string ['index' | 'update' | 'delete'] - the action to
-                take - resolves to a POST, PUT, DELETE action
-
-        Kwargs:
-            index: string, the name of the index to update. Defaults to '_all',
-                which is a reserved ES term meaning all indexes. In this case we
-                use the config to look up all configured indexes for the model.
-            force: bool, if True then ignore the in_search_queryset check and run
-                the update regardless.
-            update_fields: list of strings, in the case of an 'update' action, it
-                lists which fields should be updated. 
-
-        Returns the HTTP response.
+        Checks the local cache to see if the document has changed,
+        and if not aborts the update, else pushes to ES, and then
+        resets the local cache. Cache timeout is set as CACHE_EXPIRY
+        in the settings, and defaults to 60s.
 
         """
-        if action not in ('index', 'update', 'delete'):
-            raise ValueError("Action must be 'index', 'update' or 'delete'.")
-        if not self.pk:
-            raise ValueError("Object must have a primary key before being indexed.")
-
-        if force is True:
-            logger.debug("Forcing search index update: {} {}".format(action, self))
-        elif not self.__class__.objects.in_search_queryset(self.pk, index=index):
-            logger.debug(
-                "{} is not in the source queryset for '{}', aborting update.".format(self, index)
-            )
-            return None
-
-        if action == 'update' and not update_fields:
-            logger.warning(
-                "Switching action from 'update' to 'index' as `update_fields` is not specified. "
-                "Please use 'index' to replace the entire document, or pass the fields that you "
-                "wish to update as a partial update via the `update_fields` list argument."
-            )
-            action = 'index'
-
-        # use all configured indexes if none was passed in, else whatever we were given
-        indexes = self.search_indexes if index == '_all' else [index]
-        responses = []
-        for i in indexes:
-            responses.append(self._do_search_action(i, action, update_fields=update_fields, force=force))
-        return responses
-
-    def _do_search_action(self, index, action, update_fields=None, force=False):
-        """
-        Call the relevant api function.
-
-        This is where the API itself is used (for single document actions),
-        but it shouldn't be used directly - the public method is `update_search_index`.
-
-        Args:
-            index: string, the name of the index to update.
-            action: string, must be either 'index' or 'delete' or 'update'.
-            force: bool, if True then ignore cache and force the update
-            update_fields: list of strings, in the case of an 'update' action, it
-                lists which fields should be updated. 
-
-        Returns the HTTP response from the API call.
-
-        NB this contains one of the core assumptions - that the model name is
-        used as the search index document type name.
-
-        """
-        assert self.pk, "Object must have a primary key before being indexed."
-        if action not in ('index', 'delete', 'update'):
-            raise ValueError(
-                "Search action '{}' is invalid; must be 'index', 'update', or 'delete'.".format(
-                    action)
-            )
-        client = get_client()
         cache_key = self.search_document_cache_key
-        if action == 'index':
-            # if the locally cached search doc is the same as the new one,
-            # then don't bother pushing to ES.
-            new_doc = self.as_search_document(index)
-            if not force:
-                cached_doc = cache.get(cache_key)
-                if new_doc == cached_doc:
-                    logger.debug("Search document for %r is unchanged, ignoring update.", self)
-                    return []
-            cache.set(cache_key, new_doc, timeout=60)  # TODO: remove hard-coded timeout
-            return client.index(
-                index=index,
-                doc_type=self.search_doc_type,
-                body=new_doc,
-                id=self.pk
-            )
+        new_doc = self.as_search_document(index)
+        cached_doc = cache.get(cache_key)
+        if new_doc == cached_doc:
+            logger.debug("Search document for %r is unchanged, ignoring update.", self)
+            return []
+        cache.set(cache_key, new_doc, timeout=get_setting('CACHE_EXPIRY', 60))
+        get_client().index(
+            index=index,
+            doc_type=self.search_doc_type,
+            body=new_doc,
+            id=self.pk
+        )
 
-        if action == 'update':
-            return client.update(
-                index=index,
-                doc_type=self.search_doc_type,
-                body=self.as_search_document(index, update_fields=update_fields),
-                id=self.pk
-            )
+    def update_search_document(self, *, index, update_fields):
+        """
+        Partial update of a document in named index.
 
-        if action == 'delete':
-            cache.delete(cache_key)
-            return client.delete(
-                index=index,
-                doc_type=self.search_doc_type,
-                id=self.pk
-            )
+        Partial updates are invoked via a call to save the document
+        with 'update_fields'. These fields are passed to the
+        as_search_document method so that it can build a partial
+        document. NB we don't just call as_search_document and then
+        strip the fields _not_ in update_fields as we are trying
+        to avoid possibly expensive operations in building the
+        source document. The canonical example for this method
+        is updating a single timestamp on a model - we don't want
+        to have to walk the model relations and build a document
+        in this case - we just want to push the timestamp.
+
+        """
+        get_client().update(
+            index=index,
+            doc_type=self.search_doc_type,
+            body=self.as_search_document(index, update_fields=update_fields),
+            id=self.pk
+        )
+
+    def delete_search_document(self, *, index):
+        """Delete document from named index."""
+        cache.delete(self.search_document_cache_key)
+        get_client().delete(
+            index=index,
+            doc_type=self.search_doc_type,
+            id=self.pk
+        )
 
 
 class SearchQuery(models.Model):
