@@ -8,7 +8,7 @@ chdir(path.normpath(path.join(path.abspath(__file__), pardir)))
 
 setup(
     name="elasticsearch-django",
-    version="5.3-dev0",
+    version="5.3-dev1",
     packages=find_packages(),
     install_requires=[
         'Django>=1.11',
