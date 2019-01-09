@@ -1,6 +1,8 @@
 from os import path, chdir, pardir
 from setuptools import setup, find_packages
 
+from elasticsearch_django import __version__
+
 README = open(path.join(path.dirname(__file__), 'README.rst')).read()
 
 # allow setup.py to be run from any path
@@ -8,7 +10,7 @@ chdir(path.normpath(path.join(path.abspath(__file__), pardir)))
 
 setup(
     name="elasticsearch-django",
-    version="5.3-dev1",
+    version=__version__,
     packages=find_packages(),
     install_requires=[
         'Django>=1.11',
