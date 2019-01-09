@@ -2,6 +2,7 @@ import datetime
 import decimal
 from unittest import mock
 
+from django.core.cache import cache
 from django.db.models import Model
 from django.test import TestCase
 from django.utils.timezone import now as tz_now
@@ -35,6 +36,66 @@ class SearchDocumentMixinTests(TestCase):
         """Test the as_search_document method."""
         obj = SearchDocumentMixin()
         self.assertRaises(NotImplementedError, obj.as_search_document)
+
+    @mock.patch('elasticsearch_django.settings.get_connection_string', lambda: 'http://testserver')
+    @mock.patch('elasticsearch_django.models.get_client')
+    def test_index_search_document(self, mock_client):
+        """Test the index_search_document sets the cache."""
+        obj = TestModel(pk=1)
+        doc = obj.as_search_document(index='_all')
+        key = obj.search_document_cache_key
+        self.assertIsNone(cache.get(key))
+        obj.index_search_document(index='_all')
+        self.assertEqual(cache.get(key), doc)
+        mock_client.return_value.index.assert_called_once_with(
+            body=doc,
+            doc_type='testmodel',
+            id=1,
+            index='_all'
+        )
+
+    @mock.patch('elasticsearch_django.settings.get_connection_string', lambda: 'http://testserver')
+    @mock.patch('elasticsearch_django.models.get_client')
+    def test_index_search_document_cached(self, mock_client):
+        """Test the index_search_document does not update if doc is a duplicate."""
+        obj = TestModel(pk=1)
+        doc = obj.as_search_document(index='_all')
+        key = obj.search_document_cache_key
+        cache.set(key, doc, timeout=1)
+        self.assertEqual(cache.get(key), doc)
+        obj.index_search_document(index='_all')
+        self.assertEqual(mock_client.call_count, 0)
+
+    @mock.patch('elasticsearch_django.settings.get_connection_string', lambda: 'http://testserver')
+    @mock.patch('elasticsearch_django.models.get_client')
+    def test_update_search_document(self, mock_client):
+        """Test the update_search_document wraps up doc correctly."""
+        obj = TestModel(pk=1)
+        doc = obj.as_search_document(index='_all')
+        obj.update_search_document(index='_all', update_fields=['foo'])
+        mock_client.return_value.update.assert_called_once_with(
+            body={'doc': doc},
+            doc_type='testmodel',
+            id=1,
+            index='_all'
+        )
+
+    @mock.patch('elasticsearch_django.settings.get_connection_string', lambda: 'http://testserver')
+    @mock.patch('elasticsearch_django.models.get_client')
+    def test_delete_search_document(self, mock_client):
+        """Test the delete_search_document clears the cache."""
+        obj = TestModel(pk=1)
+        doc = obj.as_search_document(index='_all')
+        key = obj.search_document_cache_key
+        cache.set(key, doc)
+        self.assertIsNotNone(cache.get(key))
+        obj.delete_search_document(index='_all')
+        self.assertIsNone(cache.get(key))
+        mock_client.return_value.delete.assert_called_once_with(
+            doc_type='testmodel',
+            id=1,
+            index='_all'
+        )
 
     def test_as_search_action(self):
         """Test the as_search_action method."""

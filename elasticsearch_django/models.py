@@ -281,11 +281,15 @@ class SearchDocumentMixin(object):
         to have to walk the model relations and build a document
         in this case - we just want to push the timestamp.
 
+        When POSTing a partial update the `as_search_document` doc
+        must be passed to the `client.update` wrapped in a "doc" node,
+        see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+
         """
         get_client().update(
             index=index,
             doc_type=self.search_doc_type,
-            body=self.as_search_document(index, update_fields=update_fields),
+            body=dict(doc=self.as_search_document(index, update_fields=update_fields)),
             id=self.pk
         )
 
