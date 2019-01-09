@@ -13,6 +13,8 @@ This is a lightweight Django app for people who are using Elasticsearch with Dja
 
 **NB the master branch is now based on ES5.x. If you are using ES2.x, please switch to the ES2 branch (released on PyPI as 2.x)**
 
+Status
+
 ----
 
 Search Index Lifecycle
