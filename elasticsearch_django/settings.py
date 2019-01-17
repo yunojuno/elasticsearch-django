@@ -16,14 +16,14 @@ from django.conf import settings
 from elasticsearch import Elasticsearch
 
 
-def get_client(connection='default'):
+def get_client(connection="default"):
     """Return configured elasticsearch client."""
     return Elasticsearch(get_connection_string(connection))
 
 
 def get_settings():
     """Return settings from Django conf."""
-    return settings.SEARCH_SETTINGS['settings']
+    return settings.SEARCH_SETTINGS["settings"]
 
 
 def get_setting(key, *default):
@@ -39,19 +39,19 @@ def set_setting(key, value):
     get_settings()[key] = value
 
 
-def get_connection_string(connection='default'):
+def get_connection_string(connection="default"):
     """Return index settings from Django conf."""
-    return settings.SEARCH_SETTINGS['connections'][connection]
+    return settings.SEARCH_SETTINGS["connections"][connection]
 
 
 def get_index_config(index):
     """Return index settings from Django conf."""
-    return settings.SEARCH_SETTINGS['indexes'][index]
+    return settings.SEARCH_SETTINGS["indexes"][index]
 
 
 def get_index_names():
     """Return list of the names of all configured indexes."""
-    return list(settings.SEARCH_SETTINGS['indexes'].keys())
+    return list(settings.SEARCH_SETTINGS["indexes"].keys())
 
 
 def get_index_mapping(index):
@@ -65,10 +65,10 @@ def get_index_mapping(index):
 
     """
     # app_path = apps.get_app_config('elasticsearch_django').path
-    mappings_dir = get_setting('mappings_dir')
-    filename = '%s.json' % index
+    mappings_dir = get_setting("mappings_dir")
+    filename = "%s.json" % index
     path = os.path.join(mappings_dir, filename)
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         return json.load(f)
 
 
@@ -80,8 +80,8 @@ def get_index_models(index):
 
     """
     models = []
-    for app_model in get_index_config(index).get('models'):
-        app, model = app_model.split('.')
+    for app_model in get_index_config(index).get("models"):
+        app, model = app_model.split(".")
         models.append(apps.get_model(app, model))
     return models
 
@@ -111,22 +111,22 @@ def get_document_models():
     mappings = {}
     for i in get_index_names():
         for m in get_index_models(i):
-            key = '%s.%s' % (i, m._meta.model_name)
+            key = "%s.%s" % (i, m._meta.model_name)
             mappings[key] = m
     return mappings
 
 
 def get_document_model(index, doc_type):
     """Return dict of index.doc_type: model."""
-    return get_document_models().get('%s.%s' % (index, doc_type))
+    return get_document_models().get("%s.%s" % (index, doc_type))
 
 
 def auto_sync(instance):
     """Returns bool if auto_sync is on for the model (instance)"""
     # this allows us to turn off sync temporarily - e.g. when doing bulk updates
-    if not get_setting('auto_sync'):
+    if not get_setting("auto_sync"):
         return False
     model_name = "{}.{}".format(instance._meta.app_label, instance._meta.model_name)
-    if model_name in get_setting('never_auto_sync', []):
+    if model_name in get_setting("never_auto_sync", []):
         return False
     return True

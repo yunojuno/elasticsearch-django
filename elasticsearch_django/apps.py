@@ -13,15 +13,15 @@ class ElasticAppConfig(AppConfig):
 
     """AppConfig for Search3."""
 
-    name = 'elasticsearch_django'
+    name = "elasticsearch_django"
     verbose_name = "Elasticsearch"
     configs = []
 
     def ready(self):
         """Validate config and connect signals."""
         super(ElasticAppConfig, self).ready()
-        _validate_config(settings.get_setting('strict_validation'))
-        if settings.get_setting('auto_sync'):
+        _validate_config(settings.get_setting("strict_validation"))
+        if settings.get_setting("auto_sync"):
             _connect_signals()
         else:
             logger.debug("SEARCH_AUTO_SYNC has been disabled.")
@@ -48,11 +48,9 @@ def _validate_mapping(index, strict=False):
 
 def _validate_model(model):
     """Check that a model configured for an index subclasses the required classes."""
-    if not hasattr(model, 'as_search_document'):
-        raise ImproperlyConfigured(
-            "'%s' must implement `as_search_document`." % model
-        )
-    if not hasattr(model.objects, 'get_search_queryset'):
+    if not hasattr(model, "as_search_document"):
+        raise ImproperlyConfigured("'%s' must implement `as_search_document`." % model)
+    if not hasattr(model.objects, "get_search_queryset"):
         raise ImproperlyConfigured(
             "'%s.objects must implement `get_search_queryset`." % model
         )
@@ -68,22 +66,30 @@ def _connect_signals():
 def _connect_model_signals(model):
     """Connect signals for a single model."""
     if settings.auto_sync(model):
-        dispatch_uid = '%s.post_save' % model._meta.model_name
+        dispatch_uid = "%s.post_save" % model._meta.model_name
         logger.debug("Connecting search index model sync signal: %s", dispatch_uid)
-        signals.post_save.connect(_on_model_save, sender=model, dispatch_uid=dispatch_uid)
-        dispatch_uid = '%s.post_delete' % model._meta.model_name
+        signals.post_save.connect(
+            _on_model_save, sender=model, dispatch_uid=dispatch_uid
+        )
+        dispatch_uid = "%s.post_delete" % model._meta.model_name
         logger.debug("Connecting search index model sync signal: %s", dispatch_uid)
-        signals.post_delete.connect(_on_model_delete, sender=model, dispatch_uid=dispatch_uid)
+        signals.post_delete.connect(
+            _on_model_delete, sender=model, dispatch_uid=dispatch_uid
+        )
     else:
-        logger.debug("Auto sync disabled for '%s', ignoring update.", model._meta.model_name)
+        logger.debug(
+            "Auto sync disabled for '%s', ignoring update.", model._meta.model_name
+        )
 
 
 def _on_model_save(sender, **kwargs):
     """Update document in search index post_save."""
-    update_fields = kwargs['update_fields']
-    instance = kwargs['instance']
+    update_fields = kwargs["update_fields"]
+    instance = kwargs["instance"]
     for index in instance.search_indexes:
-        _update_search_index(instance=instance, index=index, update_fields=update_fields)
+        _update_search_index(
+            instance=instance, index=index, update_fields=update_fields
+        )
 
 
 def _update_search_index(*, instance, index, update_fields):
@@ -106,7 +112,7 @@ def _on_model_delete(sender, **kwargs):
     the object will no longer in exist in the database.
 
     """
-    instance = kwargs['instance']
+    instance = kwargs["instance"]
     for index in instance.search_indexes:
         try:
             instance.delete_search_document(index=index)
