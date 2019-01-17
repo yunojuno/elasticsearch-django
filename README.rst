@@ -238,6 +238,9 @@ The ``elasticsearch_django.models.SearchQuery`` model wraps this functionality u
     # run a default match_all query
     search = Search(using=get_client(), index='blog')
     sq = execute_search(search)
+    # the raw response is stored on the return object,
+    # but is not stored on the object in the database.
+    print(sq.response)
 
 Calling the ``execute_search`` function will execute the underlying search, log the query JSON, the number of hits, and the list of hit meta information for future analysis. The ``execute`` method also includes these additional kwargs:
 
