@@ -298,6 +298,7 @@ class SearchQueryTests(TestCase):
         self.assertEqual(sq.reference, '')
         self.assertTrue(sq.duration > 0)
         self.assertEqual(sq.executed_at, mock_now.return_value)
+        self.assertEqual(sq.response, mock_execute.return_value)
         mock_save.assert_called_once_with()
 
         # try without saving

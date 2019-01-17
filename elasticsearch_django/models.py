@@ -490,4 +490,5 @@ def execute_search(search, search_terms='', user=None, reference=None, save=True
         executed_at=tz_now(),
         duration=duration
     )
+    log.response = response
     return log.save() if save else log
