@@ -194,11 +194,13 @@ class SearchDocumentMixin(object):
         )
 
     def as_search_document_update(self, *, index, update_fields):
-        """Return a partial update document based on which fields have been updated.
+        """
+        Return a partial update document based on which fields have been updated.
 
         If an object is saved with the `update_fields` argument passed
         through, then it is assumed that this is a 'partial update'. In
-        this scenario
+        this scenario we need a {property: value} dictionary containing
+        just the fields we want to update.
 
         """
         raise NotImplementedError(
