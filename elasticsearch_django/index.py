@@ -2,12 +2,7 @@ import logging
 
 from elasticsearch import helpers
 
-from .settings import (
-    get_setting,
-    get_index_mapping,
-    get_index_models,
-    get_client
-)
+from .settings import get_setting, get_index_mapping, get_index_models, get_client
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +22,8 @@ def update_index(index):
     for model in get_index_models(index):
         logger.info("Updating search index model: '%s'", model.search_doc_type)
         objects = model.objects.get_search_queryset(index).iterator()
-        actions = bulk_actions(objects, index=index, action='index')
-        response = helpers.bulk(client, actions, chunk_size=get_setting('chunk_size'))
+        actions = bulk_actions(objects, index=index, action="index")
+        response = helpers.bulk(client, actions, chunk_size=get_setting("chunk_size"))
         responses.append(response)
     return responses
 
@@ -68,11 +63,15 @@ def prune_index(index):
                 prunes.append(obj)
         logger.info(
             "Found %s objects of type '%s' for deletion from '%s'.",
-            len(prunes), model, index
+            len(prunes),
+            model,
+            index,
         )
         if len(prunes) > 0:
-            actions = bulk_actions(prunes, index, 'delete')
-            response = helpers.bulk(client, actions, chunk_size=get_setting('chunk_size'))
+            actions = bulk_actions(prunes, index, "delete")
+            response = helpers.bulk(
+                client, actions, chunk_size=get_setting("chunk_size")
+            )
             responses.append(response)
     return responses
 
@@ -98,18 +97,19 @@ def _prune_hit(hit, model):
         a 'delete' action.
 
     """
-    hit_id = hit['_id']
-    hit_index = hit['_index']
+    hit_id = hit["_id"]
+    hit_index = hit["_index"]
     if model.objects.in_search_queryset(hit_id, index=hit_index):
         logger.debug(
-            "%s with id=%s exists in the '%s' index queryset.",
-            model, hit_id, hit_index
+            "%s with id=%s exists in the '%s' index queryset.", model, hit_id, hit_index
         )
         return None
     else:
         logger.debug(
             "%s with id=%s does not exist in the '%s' index queryset and will be pruned.",
-            model, hit_id, hit_index
+            model,
+            hit_id,
+            hit_index,
         )
         # we don't need the full obj for a delete action, just the id.
         # (the object itself may not even exist.)
@@ -158,7 +158,9 @@ def bulk_actions(objects, index, action):
             how the final document is formatted.
 
     """
-    assert index != '_all', "index arg must be a valid index name. '_all' is a reserved term."
+    assert (
+        index != "_all"
+    ), "index arg must be a valid index name. '_all' is a reserved term."
     logger.info("Creating bulk '%s' actions for '%s'", action, index)
     for obj in objects:
         try:

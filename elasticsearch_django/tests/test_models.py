@@ -35,7 +35,12 @@ class SearchDocumentMixinTests(TestCase):
     def test_as_search_document(self):
         """Test the as_search_document method."""
         obj = SearchDocumentMixin()
-        self.assertRaises(NotImplementedError, obj.as_search_document)
+        self.assertRaises(NotImplementedError, obj.as_search_document, index='_all')
+
+    def test_as_search_document_update(self):
+        """Test the as_search_document_update method."""
+        obj = SearchDocumentMixin()
+        self.assertRaises(NotImplementedError, obj.as_search_document_update, index='_all', update_fields=[])
 
     @mock.patch('elasticsearch_django.settings.get_connection_string', lambda: 'http://testserver')
     @mock.patch('elasticsearch_django.models.get_client')

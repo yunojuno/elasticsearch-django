@@ -19,12 +19,7 @@ def pprint(data):
     until someone builds a custom syntax function.
 
     """
-    pretty = json.dumps(
-        data,
-        sort_keys=True,
-        indent=4,
-        separators=(',', ': ')
-    )
+    pretty = json.dumps(data, sort_keys=True, indent=4, separators=(",", ": "))
     html = pretty.replace(" ", "&nbsp;").replace("\n", "<br>")
     return mark_safe("<code>%s</code>" % html)
 
@@ -32,39 +27,32 @@ def pprint(data):
 class SearchQueryAdmin(admin.ModelAdmin):
 
     list_display = (
-        'id',
-        'user',
-        'search_terms_',
-        'total_hits',
-        'returned_',
-        'min_',
-        'max_',
-        'reference',
-        'executed_at',
+        "id",
+        "user",
+        "search_terms_",
+        "total_hits",
+        "returned_",
+        "min_",
+        "max_",
+        "reference",
+        "executed_at",
     )
-    list_filter = (
-        'index',
-    )
-    search_fields = (
-        'search_terms',
-        'user__first_name',
-        'user__last_name',
-        'reference'
-    )
+    list_filter = ("index",)
+    search_fields = ("search_terms", "user__first_name", "user__last_name", "reference")
     # excluding because we are using a pretty version instead
-    exclude = ('hits', 'query', 'page')
+    exclude = ("hits", "query", "page")
     readonly_fields = (
-        'user',
-        'index',
-        'search_terms',
-        'total_hits',
-        'returned_',
-        'min_',
-        'max_',
-        'duration',
-        'query_',
-        'hits_',
-        'executed_at',
+        "user",
+        "index",
+        "search_terms",
+        "total_hits",
+        "returned_",
+        "min_",
+        "max_",
+        "duration",
+        "query_",
+        "hits_",
+        "executed_at",
     )
 
     def search_terms_(self, instance):
@@ -79,18 +67,20 @@ class SearchQueryAdmin(admin.ModelAdmin):
 
     def max_(self, instance):
         """Pretty version of max_score."""
-        return '-' if instance.page_size == 0 else instance.max_score
+        return "-" if instance.page_size == 0 else instance.max_score
+
     max_.short_description = "Max score"
 
     def min_(self, instance):
         """Pretty version of min_score."""
-        return '-' if instance.page_size == 0 else instance.min_score
+        return "-" if instance.page_size == 0 else instance.min_score
+
     min_.short_description = "Min score"
 
     def returned_(self, instance):
         """Number of hits returned in the page."""
         if instance.page_size == 0:
-            return '-'
+            return "-"
         else:
             return "%i - %i" % (instance.page_from, instance.page_to)
 
@@ -99,5 +89,6 @@ class SearchQueryAdmin(admin.ModelAdmin):
     def hits_(self, instance):
         """Pretty version of hits JSON."""
         return pprint(instance.hits)
+
 
 admin.site.register(SearchQuery, SearchQueryAdmin)

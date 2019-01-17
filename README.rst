@@ -11,9 +11,7 @@ Elasticsearch for Django
 
 This is a lightweight Django app for people who are using Elasticsearch with Django, and want to manage their indexes.
 
-**NB the master branch is now based on ES5.x. If you are using ES2.x, please switch to the ES2 branch (released on PyPI as 2.x)**
-
-Status
+**NB the master branch is now based on ES6. If you are using ES2/ES5, please switch to the relevant branch (released on PyPI as 2.x, 5.x)**
 
 ----
 
@@ -104,12 +102,69 @@ So far we have configured Django to know the names of the indexes we want, and t
 
 **SearchDocumentMixin**
 
-This mixin must be implemented by the model itself, and it requires a single method implementation - ``as_search_document()``. This should return a dict that is the index representation of the object; the ``index`` kwarg can be used to provide different representations for different indexes. By default this is ``_all`` which means that all indexes receive the same document for a given object.
+This mixin is responsible for the seaerch index document format. We are indexing JSON representations of each object, and we have two methods on the mixin responsible for outputting the correct format - ``as_search_document`` and ``as_search_document_update``.
+
+An aside on the mechanics of the ``auto_sync`` process, which is hooked up using Django's ``post_save`` and ``post_delete`` model signals. ES supports partial updates to documents that already exist, and we make a fundamental assumption about indexing models - that **if you pass the ``update_fields`` kwarg to a ``model.save`` method call, then you are performing a partial update**, and this will be propagated to ES as a partial update only.
+
+To this end, we have two methods for generating the model's JSON representation - ``as_search_document``, which should return a dict that represents the entire object; and ``as_search_document_update``, which takes the ``update_fields`` kwarg, and should return a dict that contains just the fields that are being updated. (NB this is not automated as the field being updated may itself be an object, which needs specific formatting - see below for an example).
+
+To better understand this, let us say that we have a model (``MyModel``) that is configured to be included in an index called ``myindex``. If we save an object, without passing ``update_fields``, then this is considered a full document update, which triggers the object's ``index_search_document`` method:
 
 .. code:: python
 
-    def as_search_document(self, index='_all'):
+    obj = MyModel.objects.first()
+    obj.save()
+    ...
+    # AUTO_SYNC=true will trigger a re-index of the complete object document:
+    obj.index_search_document(index='myindex')
+
+However, if we only want to update a single field (say the ``timestamp``), and we pass this in to the save method, then this will trigger the ``update_search_document`` method, passing in the names of the fields that we want updated.
+
+.. code:: python
+
+    # save a single field on the object
+    obj.save(update_fields=['timestamp'])
+    ...
+    # AUTO_SYNC=true will trigger a partial update of the object document
+    obj.update_search_document(index, update_fields=['timestamp'])
+
+We pass the name of the index being updated as the first arg, as objects may have different representations in different indexes:
+
+.. code:: python
+
+    def as_search_document(self, index):
         return {'name': "foo"} if index == 'foo' else {'name': "bar"}
+
+In the case of the second method, the simplest possible implementation would be a dictionary containing the names of the fields being updated and their new values. However, if the value is itself an object, it will have to serialized properly. As an example:
+
+.. code:: python
+
+    def as_search_document_update(self, index, update_fields):
+        # create a basic attr: value dict from the fields that were updated
+        doc = {f: getattr(self, f) for f in update_fields}
+        # if the 'user' attr was updated, we need to convert this from
+        # a User object to something ES can index - in this case just the full name
+        # (NB GPDR klaxon sounding at this point - do you have permission to do this?)
+        if 'user' in doc:
+            doc['user'] = self.user.get_full_name()
+        return doc
+
+The reason we have split out the update from the full-document index comes from a real problem that we ourselves suffered. The full object representation that we were using was quite DB intensive - we were storing properties of the model that required walking the ORM tree. However, because we were also touching the objects (see below) to record activity timestamps, we ended up flooding the database with queries simply to update a single field in the output document. Partial updates solves this issue:
+
+.. code:: python
+
+    def touch(self):
+        self.timestamp = now()
+        self.save(update_fields=['timestamp'])
+
+    def as_search_document_update(self, index, update_fields):
+        if update_fields == ['timestamp']:
+            # only propagate changes if it's +1hr since the last timestamp change
+            if now() - self.timestamp < timedelta(hours=1):
+                return {}
+            else:
+                return {'timestamp': self.timestamp}
+        ....
 
 **SearchDocumentManagerMixin**
 

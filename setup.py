@@ -14,8 +14,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         'Django>=1.11',
-        'elasticsearch>=5,<6',
-        'elasticsearch-dsl>=5,<6',
+        'elasticsearch>=6,<7',
+        'elasticsearch-dsl>=6,<7',
         'psycopg2-binary>=2.6',
         'simplejson>=3.8'
     ],

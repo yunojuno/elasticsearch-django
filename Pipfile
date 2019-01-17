@@ -6,9 +6,13 @@ verify_ssl = true
 [dev-packages]
 tox = "*"
 coverage = "*"
+black = "*"
 
 [packages]
 elasticsearch-django = {path = ".",editable = true}
 
 [requires]
 python_version = "3.7"
+
+[pipenv]
+allow_prereleases = true
