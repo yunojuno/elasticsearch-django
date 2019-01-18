@@ -165,6 +165,6 @@ def bulk_actions(objects, index, action):
     for obj in objects:
         try:
             logger.debug("Appending '%s' action for '%r'", action, obj)
-            yield obj.as_search_action(index, action)
+            yield obj.as_search_action(index=index, action=action)
         except Exception:
             logger.exception("Unable to create search action for %s", obj)
