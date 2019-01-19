@@ -106,7 +106,7 @@ This mixin is responsible for the seaerch index document format. We are indexing
 
 An aside on the mechanics of the ``auto_sync`` process, which is hooked up using Django's ``post_save`` and ``post_delete`` model signals. ES supports partial updates to documents that already exist, and we make a fundamental assumption about indexing models - that **if you pass the ``update_fields`` kwarg to a ``model.save`` method call, then you are performing a partial update**, and this will be propagated to ES as a partial update only.
 
-To this end, we have two methods for generating the model's JSON representation - ``as_search_document``, which should return a dict that represents the entire object; and ``as_search_document_update``, which takes the ``update_fields`` kwarg, and should return a dict that contains just the fields that are being updated. (NB this is not automated as the field being updated may itself be an object, which needs specific formatting - see below for an example).
+To this end, we have two methods for generating the model's JSON representation - ``as_search_document``, which should return a dict that represents the entire object; and ``as_search_document_update``, which takes the ``update_fields`` kwarg, and should return a dict that contains just the fields that are being updated.
 
 To better understand this, let us say that we have a model (``MyModel``) that is configured to be included in an index called ``myindex``. If we save an object, without passing ``update_fields``, then this is considered a full document update, which triggers the object's ``index_search_document`` method:
 
