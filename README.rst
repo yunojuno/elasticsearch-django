@@ -106,7 +106,15 @@ This mixin is responsible for the seaerch index document format. We are indexing
 
 An aside on the mechanics of the ``auto_sync`` process, which is hooked up using Django's ``post_save`` and ``post_delete`` model signals. ES supports partial updates to documents that already exist, and we make a fundamental assumption about indexing models - that **if you pass the ``update_fields`` kwarg to a ``model.save`` method call, then you are performing a partial update**, and this will be propagated to ES as a partial update only.
 
-To this end, we have two methods for generating the model's JSON representation - ``as_search_document``, which should return a dict that represents the entire object; and ``as_search_document_update``, which takes the ``update_fields`` kwarg, and should return a dict that contains just the fields that are being updated.
+To this end, we have two methods for generating the model's JSON representation - ``as_search_document``, which should return a dict that represents the entire object; and ``as_search_document_update``, which takes the ``update_fields`` kwarg. This method handler
+two partial update 'strategies', defined in the ``SEARCH_SETTINGS``, 'full' and 'partial'. The
+default 'full' strategy simply proxies the ``as_search_document`` method - i.e. partial updates
+are treated as a full document update. The 'partial' strategy is more intelligent - it will
+map the update_fields specified to the field names defined in the index mapping files. If a
+field name is passed into the save method but is not in the mapping file, it is ignored. In
+addition, if the underlying Django model field is a related object, a ``ValueError`` will be
+raised, as we cannot serialize this automatically. In this scenario, you will need to
+override the method in your subclass - see the code for more details.
 
 To better understand this, let us say that we have a model (``MyModel``) that is configured to be included in an index called ``myindex``. If we save an object, without passing ``update_fields``, then this is considered a full document update, which triggers the object's ``index_search_document`` method:
 
@@ -143,15 +151,13 @@ relates to a complex object (e.g. a related object) then this method will raise 
 .. code:: python
 
     def as_search_document_update(self, index, update_fields):
-        # create a basic attr: value dict from the fields that were updated,
-        # this is the default implementation
-        doc = {f: getattr(self, f) for f in update_fields}
-        # if the 'user' attr was updated, we need to convert this from
-        # a User object to something ES can index - in this case just the full name
-        # (NB GPDR klaxon sounding at this point - do you have permission to do this?)
-        if 'user' in doc:
+        if 'user' in update_fields:
+            # remove so that it won't raise a ValueError
+            update_fields.remove('user')
+            doc = super().as_search_document_update(index, update_fields)
             doc['user'] = self.user.get_full_name()
-        return doc
+            return doc
+        return super().as_search_document_update(index, update_fields)
 
 The reason we have split out the update from the full-document index comes from a real problem that we ourselves suffered. The full object representation that we were using was quite DB intensive - we were storing properties of the model that required walking the ORM tree. However, because we were also touching the objects (see below) to record activity timestamps, we ended up flooding the database with queries simply to update a single field in the output document. Partial updates solves this issue:
 
