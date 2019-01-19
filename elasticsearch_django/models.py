@@ -347,12 +347,7 @@ class SearchDocumentMixin(object):
             return
 
         get_client().update(
-            index=index,
-            doc_type=self.search_doc_type,
-            body={
-                "doc": doc
-            },
-            id=self.pk,
+            index=index, doc_type=self.search_doc_type, body={"doc": doc}, id=self.pk
         )
 
     def delete_search_document(self, *, index):
