@@ -13,6 +13,8 @@ from ..models import (
     SearchDocumentMixin,
     SearchDocumentManagerMixin,
     SearchQuery,
+    UPDATE_STRATEGY_FULL,
+    UPDATE_STRATEGY_PARTIAL,
 )
 from ..tests import TestModel, TestModelManager, SEARCH_DOC
 
@@ -40,22 +42,51 @@ class SearchDocumentMixinTests(TestCase):
         self.assertTrue(obj._is_field_serializable("simple_field_1"))
         self.assertFalse(obj._is_field_serializable("complex_field"))
 
-    def test__validate_update_fields(self):
+    @mock.patch("elasticsearch_django.models.get_model_index_properties")
+    def test_clean_update_fields(self, mock_properties):
+        """Test that only fields in the mapping file are cleaned."""
         obj = TestModel()
-        obj._validate_update_fields(["simple_field_1", "simple_field_2"])
-        self.assertRaises(
-            InvalidUpdateFields, obj._validate_update_fields, ["complex_field"]
+        mock_properties.return_value = ["simple_field_1", "complex_field"]
+        self.assertEqual(
+            obj.clean_update_fields(
+                index="", update_fields=["simple_field_1", "simple_field_2"]
+            ),
+            ["simple_field_1"],
         )
 
-    def test_as_search_document_update(self):
+    @mock.patch("elasticsearch_django.models.get_model_index_properties")
+    def test_clean_update_fields_complex_object(self, mock_properties):
+        """Test that unserializable fields raise a ValueError."""
+        obj = TestModel()
+        mock_properties.return_value = ["simple_field_1", "complex_field"]
+        self.assertRaises(
+            ValueError,
+            obj.clean_update_fields,
+            index="",
+            update_fields=["simple_field_1", "complex_field"],
+        )
+
+    @mock.patch("elasticsearch_django.models.get_model_index_properties")
+    def test_as_search_document_update_full(self, mock_properties):
         """Test the as_search_document_update method."""
         obj = TestModel(simple_field_1=1, simple_field_2="foo")
-        self.assertEqual(
-            obj.as_search_document_update(
-                index="_all", update_fields=["simple_field_1"]
-            ),
-            {"simple_field_1": obj.simple_field_1},
-        )
+        mock_properties.return_value = ["simple_field_1"]
+        with mock.patch(
+            "elasticsearch_django.models.UPDATE_STRATEGY", UPDATE_STRATEGY_FULL
+        ):
+            self.assertEqual(
+                obj.as_search_document_update(
+                    index="_all", update_fields=["simple_field_1"]
+                ),
+                obj.as_search_document(index="_all"),
+            )
+
+    @mock.patch("elasticsearch_django.models.UPDATE_STRATEGY", UPDATE_STRATEGY_PARTIAL)
+    @mock.patch("elasticsearch_django.models.get_model_index_properties")
+    def test_as_search_document_update_partial(self, mock_properties):
+        """Test the as_search_document_update method."""
+        obj = TestModel(simple_field_1=1, simple_field_2="foo")
+        mock_properties.return_value = ["simple_field_1", "simple_field_2"]
         self.assertEqual(
             obj.as_search_document_update(
                 index="_all", update_fields=["simple_field_1", "simple_field_2"]
@@ -65,15 +96,13 @@ class SearchDocumentMixinTests(TestCase):
                 "simple_field_2": obj.simple_field_2,
             },
         )
-
-    def test_as_search_document_update_error(self):
-        """Test the as_search_document_update method."""
-        obj = TestModel()
-        self.assertRaises(
-            InvalidUpdateFields,
-            obj.as_search_document_update,
-            index="_all",
-            update_fields=["complex_field"],
+        # remove simple_field_2 from the mapping - should no longer be included
+        mock_properties.return_value = ["simple_field_1"]
+        self.assertEqual(
+            obj.as_search_document_update(
+                index="_all", update_fields=["simple_field_1", "simple_field_2"]
+            ),
+            {"simple_field_1": obj.simple_field_1},
         )
 
     @mock.patch(
@@ -132,12 +161,11 @@ class SearchDocumentMixinTests(TestCase):
     def test_update_search_document_empty(self, mock_client):
         """Test the update_search_document ignores empty updates."""
         obj = TestModel(pk=1, simple_field_1=1)
-        # this will return an empty dictionary as the partial update doc
-        obj.update_search_document(index="_all", update_fields=[])
-        self.assertEqual(
-            obj.as_search_document_update(index="_all", update_fields=[]), {}
-        )
-        mock_client.return_value.update.assert_not_called()
+        with mock.patch.object(TestModel, "as_search_document_update") as mock_update:
+            mock_update.return_value = {}
+            # this will return an empty dictionary as the partial update doc
+            obj.update_search_document(index="_all", update_fields=[])
+            mock_client.return_value.update.assert_not_called()
 
     @mock.patch(
         "elasticsearch_django.settings.get_connection_string",

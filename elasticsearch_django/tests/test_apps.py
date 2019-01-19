@@ -78,10 +78,23 @@ class SearchAppsValidationTests(TestCase):
     def test__validate_config(self, mock_mapping, mock_model, mock_settings):
         """Test _validate_model function."""
         mock_settings.get_index_names.return_value = ["foo"]
+        mock_settings.get_setting.return_value = "full"
         mock_settings.get_index_models.return_value = [TestModel]
         _validate_config()
         mock_mapping.assert_called_once_with("foo", strict=False)
         mock_model.assert_called_once_with(TestModel)
+
+    @mock.patch("elasticsearch_django.apps.settings")
+    @mock.patch("elasticsearch_django.apps._validate_model")
+    @mock.patch("elasticsearch_django.apps._validate_mapping")
+    def test__validate_config_invalid_strategy(
+        self, mock_mapping, mock_model, mock_settings
+    ):
+        """Test _validate_model function with an invalid update_strategy."""
+        mock_settings.get_index_names.return_value = ["foo"]
+        mock_settings.get_setting.return_value = "foo"
+        mock_settings.get_index_models.return_value = [TestModel]
+        self.assertRaises(ImproperlyConfigured, _validate_config)
 
     @mock.patch("elasticsearch_django.apps.signals")
     @mock.patch("elasticsearch_django.apps.settings")

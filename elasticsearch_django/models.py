@@ -11,9 +11,18 @@ from django.db.models.expressions import RawSQL
 from django.db.models.fields import CharField
 from django.utils.timezone import now as tz_now
 
-from .settings import get_client, get_setting, get_model_indexes
+from .settings import (
+    get_client,
+    get_setting,
+    get_model_indexes,
+    get_model_index_properties,
+)
 
 logger = logging.getLogger(__name__)
+
+UPDATE_STRATEGY_FULL = "full"
+UPDATE_STRATEGY_PARTIAL = "partial"
+UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
 
 
 class InvalidUpdateFields(Exception):
@@ -230,13 +239,32 @@ class SearchDocumentMixin(object):
             in self.SIMPLE_UPDATE_FIELD_TYPES
         )
 
-    def _validate_update_fields(self, update_fields):
-        """Raise InvalidUpdateFields if any field is unserializable."""
-        invalid_fields = [
-            f for f in update_fields if not self._is_field_serializable(f)
-        ]
-        if invalid_fields:
-            raise InvalidUpdateFields(invalid_fields)
+    def clean_update_fields(self, index, update_fields):
+        """
+        Clean the list of update_fields based on the index being updated.\
+
+        If any field in the update_fields list is not in the set of properties
+        defined by the index mapping for this model, then we ignore it. If
+        a field _is_ in the mapping, but the underlying model field is a
+        related object, and thereby not directly serializable, then this
+        method will raise a ValueError.
+
+        """
+        search_fields = get_model_index_properties(self, index)
+        clean_fields = [f for f in update_fields if f in search_fields]
+        ignore = [f for f in update_fields if f not in search_fields]
+        if ignore:
+            logger.debug(
+                "Ignoring fields from partial update: %s",
+                [f for f in update_fields if f not in search_fields],
+            )
+        for f in clean_fields:
+            if not self._is_field_serializable(f):
+                raise ValueError(
+                    "'%s' cannot be automatically serialized into a search document property. Please override as_search_document_update.",
+                    f,
+                )
+        return clean_fields
 
     def as_search_document_update(self, *, index, update_fields):
         """
@@ -247,16 +275,47 @@ class SearchDocumentMixin(object):
         this scenario we need a {property: value} dictionary containing
         just the fields we want to update.
 
-        This method will automatically return the dictionary if all of the
-        fields passed are 'simple' types - i.e. they can be serialized
-        and passed into the JSON doc update. If the field is not simple -
-        e.g. a ForeignKey, or a OneToOne field, then an InvalidUpdateFields
-        exception will be thrown. In these cases, you should override this
-        method in your subclass, and handle the update yourself.
+        This method handles two possible update strategies - 'full' or 'partial'.
+        The default 'full' strategy simply returns the value of `as_search_document`
+        - thereby replacing the entire document each time. The 'partial' strategy is
+        more intelligent - it will determine whether the fields passed are in the
+        search document mapping, and return a partial update document that contains
+        only those that are. In addition, if any field that _is_ included cannot
+        be automatically serialized (e.g. a RelatedField object), then this method
+        will raise a ValueError. In this scenario, you should override this method
+        in your subclass.
+
+        >>> def as_search_document_update(self, index, update_fields):
+        ...     if 'user' in update_fields:
+        ...         update_fields.remove('user')
+        ...         doc = super().as_search_document_update(index, update_fields)
+        ...         doc['user'] = self.user.get_full_name()
+        ...         return doc
+        ...     return super().as_search_document_update(index, update_fields)
+
+        You may also wish to subclass this method to perform field-specific logic
+        - in this example if only the timestamp is being saved, then ignore the
+        update if the timestamp is later than a certain time.
+
+        >>> def as_search_document_update(self, index, update_fields):
+        ...     if update_fields == ['timestamp']:
+        ...         if self.timestamp > today():
+        ...            return {}
+        ...     return super().as_search_document_update(index, update_fields)
 
         """
-        self._validate_update_fields(update_fields)
-        return {k: getattr(self, k) for k in update_fields}
+        if UPDATE_STRATEGY == UPDATE_STRATEGY_FULL:
+            return self.as_search_document(index=index)
+
+        if UPDATE_STRATEGY == UPDATE_STRATEGY_PARTIAL:
+            # in partial mode we update the intersection of update_fields and
+            # properties found in the mapping file.
+            return {
+                k: getattr(self, k)
+                for k in self.clean_update_fields(
+                    index=index, update_fields=update_fields
+                )
+            }
 
     def as_search_action(self, *, index, action):
         """
