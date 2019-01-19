@@ -15,6 +15,10 @@ class TestModel(SearchDocumentMixin, models.Model):
 
     """Model class for use in tests."""
 
+    simple_field_1 = models.IntegerField()
+    simple_field_2 = models.CharField(max_length=100)
+    complex_field = models.FileField()
+
     class Meta:
         # should prevent db errors during tests
         managed = False
@@ -22,7 +26,4 @@ class TestModel(SearchDocumentMixin, models.Model):
     objects = TestModelManager()
 
     def as_search_document(self, index):
-        return SEARCH_DOC
-
-    def as_search_document_update(self, index, update_fields):
         return SEARCH_DOC

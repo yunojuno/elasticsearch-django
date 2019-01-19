@@ -8,7 +8,12 @@ from django.test import TestCase
 from django.utils.timezone import now as tz_now
 from elasticsearch_dsl.search import Search
 
-from ..models import SearchDocumentMixin, SearchDocumentManagerMixin, SearchQuery
+from ..models import (
+    InvalidUpdateFields,
+    SearchDocumentMixin,
+    SearchDocumentManagerMixin,
+    SearchQuery,
+)
 from ..tests import TestModel, TestModelManager, SEARCH_DOC
 
 
@@ -29,14 +34,46 @@ class SearchDocumentMixinTests(TestCase):
         obj = SearchDocumentMixin()
         self.assertRaises(NotImplementedError, obj.as_search_document, index="_all")
 
+    def test__is_field_serializable(self):
+        obj = TestModel()
+        self.assertTrue(obj._is_field_serializable("simple_field_1"))
+        self.assertTrue(obj._is_field_serializable("simple_field_1"))
+        self.assertFalse(obj._is_field_serializable("complex_field"))
+
+    def test__validate_update_fields(self):
+        obj = TestModel()
+        obj._validate_update_fields(["simple_field_1", "simple_field_2"])
+        self.assertRaises(
+            InvalidUpdateFields, obj._validate_update_fields, ["complex_field"]
+        )
+
     def test_as_search_document_update(self):
         """Test the as_search_document_update method."""
-        obj = SearchDocumentMixin()
+        obj = TestModel(simple_field_1=1, simple_field_2="foo")
+        self.assertEqual(
+            obj.as_search_document_update(
+                index="_all", update_fields=["simple_field_1"]
+            ),
+            {"simple_field_1": obj.simple_field_1},
+        )
+        self.assertEqual(
+            obj.as_search_document_update(
+                index="_all", update_fields=["simple_field_1", "simple_field_2"]
+            ),
+            {
+                "simple_field_1": obj.simple_field_1,
+                "simple_field_2": obj.simple_field_2,
+            },
+        )
+
+    def test_as_search_document_update_error(self):
+        """Test the as_search_document_update method."""
+        obj = TestModel()
         self.assertRaises(
-            NotImplementedError,
+            InvalidUpdateFields,
             obj.as_search_document_update,
             index="_all",
-            update_fields=[],
+            update_fields=["complex_field"],
         )
 
     @mock.patch(
@@ -78,12 +115,29 @@ class SearchDocumentMixinTests(TestCase):
     @mock.patch("elasticsearch_django.models.get_client")
     def test_update_search_document(self, mock_client):
         """Test the update_search_document wraps up doc correctly."""
-        obj = TestModel(pk=1)
-        doc = obj.as_search_document(index="_all")
-        obj.update_search_document(index="_all", update_fields=["foo"])
+        obj = TestModel(pk=1, simple_field_1=1)
+        doc = obj.as_search_document_update(
+            index="_all", update_fields=["simple_field_1"]
+        )
+        obj.update_search_document(index="_all", update_fields=["simple_field_1"])
         mock_client.return_value.update.assert_called_once_with(
             body={"doc": doc}, doc_type="testmodel", id=1, index="_all"
         )
+
+    @mock.patch(
+        "elasticsearch_django.settings.get_connection_string",
+        lambda: "http://testserver",
+    )
+    @mock.patch("elasticsearch_django.models.get_client")
+    def test_update_search_document_empty(self, mock_client):
+        """Test the update_search_document ignores empty updates."""
+        obj = TestModel(pk=1, simple_field_1=1)
+        # this will return an empty dictionary as the partial update doc
+        obj.update_search_document(index="_all", update_fields=[])
+        self.assertEqual(
+            obj.as_search_document_update(index="_all", update_fields=[]), {}
+        )
+        mock_client.return_value.update.assert_not_called()
 
     @mock.patch(
         "elasticsearch_django.settings.get_connection_string",
@@ -187,11 +241,11 @@ class SearchDocumentManagerMixinTests(TestCase):
         qs = TestModel.objects.from_search_query(sq)
         self.assertEqual(
             str(qs.query),
-            'SELECT "elasticsearch_django_testmodel"."id", '
-            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE 0 END) '  # noqa
-            'AS "search_score", (SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 '  # noqa
-            'THEN 1 ELSE 0 END) AS "search_rank" FROM "elasticsearch_django_testmodel" WHERE '
-            '"elasticsearch_django_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',
+            'SELECT "elasticsearch_django_testmodel"."id", "elasticsearch_django_testmodel"."simple_field_1", '  # noqa
+            '"elasticsearch_django_testmodel"."simple_field_2", "elasticsearch_django_testmodel"."complex_field", '  # noqa
+            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
+            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
+            'FROM "elasticsearch_django_testmodel" WHERE "elasticsearch_django_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
         )
 
         # test with a null score - new in v5
@@ -199,11 +253,11 @@ class SearchDocumentManagerMixinTests(TestCase):
         qs = TestModel.objects.from_search_query(sq)
         self.assertEqual(
             str(qs.query),
-            'SELECT "elasticsearch_django_testmodel"."id", '
-            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 2 ELSE 0 END) '  # noqa
-            'AS "search_score", (SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 '  # noqa
-            'THEN 1 ELSE 0 END) AS "search_rank" FROM "elasticsearch_django_testmodel" WHERE '
-            '"elasticsearch_django_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',
+            'SELECT "elasticsearch_django_testmodel"."id", "elasticsearch_django_testmodel"."simple_field_1", '  # noqa
+            '"elasticsearch_django_testmodel"."simple_field_2", "elasticsearch_django_testmodel"."complex_field", '  # noqa
+            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
+            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
+            'FROM "elasticsearch_django_testmodel" WHERE "elasticsearch_django_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
         )
 
 

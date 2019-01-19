@@ -16,6 +16,18 @@ from .settings import get_client, get_setting, get_model_indexes
 logger = logging.getLogger(__name__)
 
 
+class InvalidUpdateFields(Exception):
+    """Custom exception raised when passing model fields to the
+    save method as 'update_fields' that cannot be simply serialized."""
+
+    def __init__(self, invalid_fields):
+        message = (
+            f"Unserializable update_fields value - please override "
+            f"as_search_document_update: {invalid_fields}"
+        )
+        super().__init__(message)
+
+
 class SearchDocumentManagerMixin(object):
 
     """
@@ -152,6 +164,24 @@ class SearchDocumentMixin(object):
 
     """
 
+    # Django model field types that can be serialized directly into
+    # a known format. All other types will need custom serialization.
+    # Used by as_search_document_update method
+    SIMPLE_UPDATE_FIELD_TYPES = [
+        "AutoField",
+        "BooleanField",
+        "CharField",
+        "DateField",
+        "DateTimeField",
+        "DecimalField",
+        "EmailField",
+        "FloatField",
+        "IntegerField",
+        "TextField",
+        "URLField",
+        "UUIDField",
+    ]
+
     @property
     def search_indexes(self):
         """Return the list of indexes for which this model is configured."""
@@ -193,6 +223,21 @@ class SearchDocumentMixin(object):
             )
         )
 
+    def _is_field_serializable(self, field_name):
+        """Return True if the field can be serialized into a JSON doc."""
+        return (
+            self._meta.get_field(field_name).get_internal_type()
+            in self.SIMPLE_UPDATE_FIELD_TYPES
+        )
+
+    def _validate_update_fields(self, update_fields):
+        """Raise InvalidUpdateFields if any field is unserializable."""
+        invalid_fields = [
+            f for f in update_fields if not self._is_field_serializable(f)
+        ]
+        if invalid_fields:
+            raise InvalidUpdateFields(invalid_fields)
+
     def as_search_document_update(self, *, index, update_fields):
         """
         Return a partial update document based on which fields have been updated.
@@ -202,12 +247,16 @@ class SearchDocumentMixin(object):
         this scenario we need a {property: value} dictionary containing
         just the fields we want to update.
 
+        This method will automatically return the dictionary if all of the
+        fields passed are 'simple' types - i.e. they can be serialized
+        and passed into the JSON doc update. If the field is not simple -
+        e.g. a ForeignKey, or a OneToOne field, then an InvalidUpdateFields
+        exception will be thrown. In these cases, you should override this
+        method in your subclass, and handle the update yourself.
+
         """
-        raise NotImplementedError(
-            "{} does not implement 'as_search_document_update'.".format(
-                self.__class__.__name__
-            )
-        )
+        self._validate_update_fields(update_fields)
+        return {k: getattr(self, k) for k in update_fields}
 
     def as_search_action(self, *, index, action):
         """
@@ -292,13 +341,16 @@ class SearchDocumentMixin(object):
         see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
 
         """
+        doc = self.as_search_document_update(index=index, update_fields=update_fields)
+        if not doc:
+            logger.debug("Ignoring object update as document is empty.")
+            return
+
         get_client().update(
             index=index,
             doc_type=self.search_doc_type,
             body={
-                "doc": self.as_search_document_update(
-                    index=index, update_fields=update_fields
-                )
+                "doc": doc
             },
             id=self.pk,
         )
