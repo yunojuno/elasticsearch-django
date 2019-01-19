@@ -10,9 +10,9 @@ class UtilsTests(TestCase):
 
     def test_disable_updates(self):
 
-        self.assertTrue(get_setting('auto_sync'))
+        self.assertTrue(get_setting("auto_sync"))
 
         with disable_search_updates():
-            self.assertFalse(get_setting('auto_sync'))
+            self.assertFalse(get_setting("auto_sync"))
 
-        self.assertTrue(get_setting('auto_sync'))
+        self.assertTrue(get_setting("auto_sync"))

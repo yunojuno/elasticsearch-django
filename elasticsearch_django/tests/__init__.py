@@ -1,10 +1,7 @@
 # search.tests package identifier
 from django.db import models
 
-from ..models import (
-    SearchDocumentMixin,
-    SearchDocumentManagerMixin
-)
+from ..models import SearchDocumentMixin, SearchDocumentManagerMixin
 
 
 SEARCH_DOC = {"foo": "bar"}

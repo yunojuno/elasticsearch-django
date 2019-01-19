@@ -27,7 +27,7 @@ class _JsonAdapter(Json):
         super(_JsonAdapter, self).__init__(adapted, dumps=dumps)
 
     def dumps(self, obj):
-        options = {'cls': self.encoder} if self.encoder else {}
+        options = {"cls": self.encoder} if self.encoder else {}
         return base_json.dumps(obj, **options)
 
 
@@ -51,7 +51,7 @@ class _JSONField(django.contrib.postgres.fields.JSONField):
 # the encoder kwarg, which means we can use DjangoJSONEncode; 1.10
 # and 1.9 must use our hacked together version (which is a direct
 # copy+paste from the 1.11 codebase).
-if (django.VERSION[0] == 1 and django.VERSION[1] == 11):
+if django.VERSION[0] == 1 and django.VERSION[1] == 11:
     from django.contrib.postgres.fields import JSONField
 else:
     # HACK: but it works
