@@ -5,19 +5,17 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('elasticsearch_django', '0007_update_json_field_encoders'),
-    ]
+    dependencies = [("elasticsearch_django", "0007_update_json_field_encoders")]
 
     operations = [
         migrations.AddField(
-            model_name='searchquery',
-            name='search_terms',
+            model_name="searchquery",
+            name="search_terms",
             field=models.CharField(
                 blank=True,
-                default='',
-                help_text='Free text search terms used in the query, stored for easy reference.',
-                max_length=400
+                default="",
+                help_text="Free text search terms used in the query, stored for easy reference.",
+                max_length=400,
             ),
-        ),
+        )
     ]

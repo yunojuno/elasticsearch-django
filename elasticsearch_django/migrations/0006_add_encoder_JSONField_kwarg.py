@@ -8,25 +8,22 @@ from ..db.fields import JSONField
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('elasticsearch_django', '0005_convert_JSONFields'),
-    ]
+    dependencies = [("elasticsearch_django", "0005_convert_JSONFields")]
 
     operations = [
         migrations.AlterField(
-            model_name='searchquery',
-            name='hits',
+            model_name="searchquery",
+            name="hits",
             field=JSONField(
                 encoder=DjangoJSONEncoder,
-                help_text='The list of meta info for each of the query matches returned.'
+                help_text="The list of meta info for each of the query matches returned.",
             ),
         ),
         migrations.AlterField(
-            model_name='searchquery',
-            name='query',
+            model_name="searchquery",
+            name="query",
             field=JSONField(
-                encoder=DjangoJSONEncoder,
-                help_text='The raw ElasticSearch DSL query.'
+                encoder=DjangoJSONEncoder, help_text="The raw ElasticSearch DSL query."
             ),
         ),
     ]

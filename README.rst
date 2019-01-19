@@ -106,7 +106,7 @@ This mixin is responsible for the seaerch index document format. We are indexing
 
 An aside on the mechanics of the ``auto_sync`` process, which is hooked up using Django's ``post_save`` and ``post_delete`` model signals. ES supports partial updates to documents that already exist, and we make a fundamental assumption about indexing models - that **if you pass the ``update_fields`` kwarg to a ``model.save`` method call, then you are performing a partial update**, and this will be propagated to ES as a partial update only.
 
-To this end, we have two methods for generating the model's JSON representation - ``as_search_document``, which should return a dict that represents the entire object; and ``as_search_document_update``, which takes the ``update_fields`` kwarg, and should return a dict that contains just the fields that are being updated. (NB this is not automated as the field being updated may itself be an object, which needs specific formatting - see below for an example).
+To this end, we have two methods for generating the model's JSON representation - ``as_search_document``, which should return a dict that represents the entire object; and ``as_search_document_update``, which takes the ``update_fields`` kwarg, and should return a dict that contains just the fields that are being updated.
 
 To better understand this, let us say that we have a model (``MyModel``) that is configured to be included in an index called ``myindex``. If we save an object, without passing ``update_fields``, then this is considered a full document update, which triggers the object's ``index_search_document`` method:
 
@@ -135,12 +135,16 @@ We pass the name of the index being updated as the first arg, as objects may hav
     def as_search_document(self, index):
         return {'name': "foo"} if index == 'foo' else {'name': "bar"}
 
-In the case of the second method, the simplest possible implementation would be a dictionary containing the names of the fields being updated and their new values. However, if the value is itself an object, it will have to serialized properly. As an example:
+In the case of the second method, the simplest possible implementation would be a dictionary containing the names of the fields being updated and their new values, and this is the default
+implementation. If the fields passed in are simple fields (numbers, dates, strings, etc.) then
+a simple ``{'field_name': getattr(obj, field_name}`` is returned. However, if the field name
+relates to a complex object (e.g. a related object) then this method will raise an ``InvalidUpdateFields`` exception. In this scenario you should override the default implementationwith one of your own.
 
 .. code:: python
 
     def as_search_document_update(self, index, update_fields):
-        # create a basic attr: value dict from the fields that were updated
+        # create a basic attr: value dict from the fields that were updated,
+        # this is the default implementation
         doc = {f: getattr(self, f) for f in update_fields}
         # if the 'user' attr was updated, we need to convert this from
         # a User object to something ES can index - in this case just the full name
@@ -158,7 +162,7 @@ The reason we have split out the update from the full-document index comes from 
         self.save(update_fields=['timestamp'])
 
     def as_search_document_update(self, index, update_fields):
-        if update_fields == ['timestamp']:
+        if list(update_fields) == ['timestamp']:
             # only propagate changes if it's +1hr since the last timestamp change
             if now() - self.timestamp < timedelta(hours=1):
                 return {}
