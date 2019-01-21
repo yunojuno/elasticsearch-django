@@ -1,7 +1,9 @@
 import warnings
 
 warnings.warn(
-    "Utils module is deprecated, please import disable_search_updates "
-    "please import disable_search_updates from decorators instead.",
-    DeprecationWarning,
+    "Utils module is pending deprecation, please import disable_search_updates "
+    "from decorators module instead.",
+    PendingDeprecationWarning,
 )
+
+from .decorators import disable_search_updates
