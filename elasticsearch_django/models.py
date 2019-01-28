@@ -25,18 +25,6 @@ UPDATE_STRATEGY_PARTIAL = "partial"
 UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
 
 
-class InvalidUpdateFields(Exception):
-    """Custom exception raised when passing model fields to the
-    save method as 'update_fields' that cannot be simply serialized."""
-
-    def __init__(self, invalid_fields):
-        message = (
-            f"Unserializable update_fields value - please override "
-            f"as_search_document_update: {invalid_fields}"
-        )
-        super().__init__(message)
-
-
 class SearchDocumentManagerMixin(object):
 
     """

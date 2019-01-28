@@ -176,6 +176,61 @@ The reason we have split out the update from the full-document index comes from 
                 return {'timestamp': self.timestamp}
         ....
 
+**Processing updates async**
+
+If you are generating a lot of index updates you may want to run them async (via some kind
+of queueing mechanism). There is no built-in method to do this, given the range of queueing
+libraries and patterns available, however it is possible using the ``pre_index``, ``pre_update``
+and ``pre_delete`` signals. In this case, you should also turn off ``AUTO_SYNC`` (as this will
+run the updates synchronously), and process the updates yourself. The signals pass in the kwargs
+required by the relevant model methods, as well as the ``instance`` involved:
+
+.. code:: python
+
+    # ensure that SEARCH_AUTO_SYNC=False
+
+    from django.dispatch import receiver
+    import django_rq
+    from elasticsearch_django.signals import (
+        pre_index,
+        pre_update,
+        pre_delete
+    )
+
+    queue = django_rq.get_queue("elasticsearch")
+
+
+    @receiver(pre_index, dispatch_uid="async_index_document")
+    def index_search_document_async(sender, **kwargs):
+        """Queue up search index document update via RQ."""
+        instance = kwargs.pop("instance")
+        queue.enqueue(
+            instance.update_search_document,
+            index=kwargs.pop("index"),
+        )
+
+
+    @receiver(pre_update, dispatch_uid="async_update_document")
+    def update_search_document_async(sender, **kwargs):
+        """Queue up search index document update via RQ."""
+        instance = kwargs.pop("instance")
+        queue.enqueue(
+            instance.index_search_document,
+            index=kwargs.pop("index"),
+            update_fields=kwargs.pop("update_fields"),
+        )
+
+
+    @receiver(pre_delete, dispatch_uid="async_delete_document")
+    def delete_search_document_async(sender, **kwargs):
+        """Queue up search index document deletion via RQ."""
+        instance = kwargs.pop("instance")
+        queue.enqueue(
+            instance.delete_search_document,
+            index=kwargs.pop("index"),
+        )
+
+
 **SearchDocumentManagerMixin**
 
 This mixin must be implemented by the model's default manager (``objects``). It also requires a single method implementation - ``get_search_queryset()`` - which returns a queryset of objects that are to be indexed. This can also use the ``index`` kwarg to provide different sets of objects to different indexes.
