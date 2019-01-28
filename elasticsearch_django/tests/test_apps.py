@@ -24,24 +24,14 @@ class SearchAppsConfigTests(TestCase):
     """Tests for the apps module ready function."""
 
     @mock.patch("elasticsearch_django.apps.settings.get_setting")
-    @mock.patch("elasticsearch_django.apps.settings.get_settings")
     @mock.patch("elasticsearch_django.apps._validate_config")
     @mock.patch("elasticsearch_django.apps._connect_signals")
-    def test_ready(self, mock_signals, mock_config, mock_settings, mock_setting):
+    def test_ready(self, mock_signals, mock_config, mock_setting):
         """Test the AppConfig.ready method."""
-        mock_setting.return_value = True  # auto-sync
         config = ElasticAppConfig("foo_bar", tests)
         config.ready()
         mock_config.assert_called_once_with(mock_setting.return_value)
         mock_signals.assert_called_once_with()
-
-        mock_setting.return_value = False  # auto-sync
-        mock_signals.reset_mock()
-        mock_config.reset_mock()
-        config.ready()
-        mock_config.assert_called_once_with(mock_setting.return_value)
-        mock_signals.assert_not_called()
-
 
 class SearchAppsValidationTests(TestCase):
 
