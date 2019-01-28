@@ -22,10 +22,7 @@ class ElasticAppConfig(AppConfig):
         """Validate config and connect signals."""
         super(ElasticAppConfig, self).ready()
         _validate_config(settings.get_setting("strict_validation"))
-        if settings.get_setting("auto_sync"):
-            _connect_signals()
-        else:
-            logger.debug("SEARCH_AUTO_SYNC has been disabled.")
+        _connect_signals()
 
 
 def _validate_config(strict=False):
