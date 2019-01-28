@@ -5,6 +5,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db.models import signals
 
 from . import settings
+from .signals import pre_index, pre_update, pre_delete
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,7 @@ class ElasticAppConfig(AppConfig):
         """Validate config and connect signals."""
         super(ElasticAppConfig, self).ready()
         _validate_config(settings.get_setting("strict_validation"))
-        if settings.get_setting("auto_sync"):
-            _connect_signals()
-        else:
-            logger.debug("SEARCH_AUTO_SYNC has been disabled.")
+        _connect_signals()
 
 
 def _validate_config(strict=False):
@@ -69,56 +67,63 @@ def _connect_signals():
 
 def _connect_model_signals(model):
     """Connect signals for a single model."""
-    if settings.auto_sync(model):
-        dispatch_uid = "%s.post_save" % model._meta.model_name
-        logger.debug("Connecting search index model sync signal: %s", dispatch_uid)
-        signals.post_save.connect(
-            _on_model_save, sender=model, dispatch_uid=dispatch_uid
-        )
-        dispatch_uid = "%s.post_delete" % model._meta.model_name
-        logger.debug("Connecting search index model sync signal: %s", dispatch_uid)
-        signals.post_delete.connect(
-            _on_model_delete, sender=model, dispatch_uid=dispatch_uid
-        )
-    else:
-        logger.debug(
-            "Auto sync disabled for '%s', ignoring update.", model._meta.model_name
-        )
+    dispatch_uid = "%s.post_save" % model._meta.model_name
+    logger.debug("Connecting search index model post_save signal: %s", dispatch_uid)
+    signals.post_save.connect(_on_model_save, sender=model, dispatch_uid=dispatch_uid)
+    dispatch_uid = "%s.post_delete" % model._meta.model_name
+    logger.debug("Connecting search index model post_delete signal: %s", dispatch_uid)
+    signals.post_delete.connect(
+        _on_model_delete, sender=model, dispatch_uid=dispatch_uid
+    )
 
 
 def _on_model_save(sender, **kwargs):
     """Update document in search index post_save."""
-    update_fields = kwargs["update_fields"]
-    instance = kwargs["instance"]
+    instance = kwargs.pop("instance")
+    update_fields = kwargs.pop("update_fields")
     for index in instance.search_indexes:
-        _update_search_index(
-            instance=instance, index=index, update_fields=update_fields
-        )
+        try:
+            _update_search_index(
+                instance=instance, index=index, update_fields=update_fields
+            )
+        except Exception:
+            logger.exception("Error handling 'on_save' signal for %s", instance)
+
+
+def _on_model_delete(sender, **kwargs):
+    """Remove documents from search indexes post_delete."""
+    instance = kwargs.pop("instance")
+    for index in instance.search_indexes:
+        try:
+            _delete_from_search_index(instance=instance, index=index)
+        except Exception:
+            logger.exception("Error handling 'on_delete' signal for %s", instance)
 
 
 def _update_search_index(*, instance, index, update_fields):
     """Process index / update search index update actions."""
     try:
         if update_fields:
-            instance.update_search_document(index=index, update_fields=update_fields)
+            pre_update.send(
+                sender=instance.__class__,
+                instance=instance,
+                index=index,
+                update_fields=update_fields,
+            )
+            if settings.auto_sync(instance):
+                instance.update_search_document(
+                    index=index, update_fields=update_fields
+                )
         else:
-            instance.index_search_document(index=index)
+            pre_index.send(sender=instance.__class__, instance=instance, index=index)
+            if settings.auto_sync(instance):
+                instance.index_search_document(index=index)
     except Exception:
         logger.exception("Error handling 'post_save' signal for %s", instance)
 
 
-def _on_model_delete(sender, **kwargs):
-    """
-    Remove documents from search index post_delete.
-
-    When deleting a document from the search index, always use force=True
-    to ignore the in_search_queryset check - as by definition on a delete
-    the object will no longer in exist in the database.
-
-    """
-    instance = kwargs["instance"]
-    for index in instance.search_indexes:
-        try:
-            instance.delete_search_document(index=index)
-        except Exception:
-            logger.exception("Error handling 'on_delete' signal for %s", instance)
+def _delete_from_search_index(*, instance, index):
+    """Remove a document from a search index."""
+    pre_delete.send(sender=instance.__class__, instance=instance, index=index)
+    if settings.auto_sync(instance):
+        instance.delete_search_document(index=index)

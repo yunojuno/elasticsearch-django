@@ -9,7 +9,6 @@ from django.utils.timezone import now as tz_now
 from elasticsearch_dsl.search import Search
 
 from ..models import (
-    InvalidUpdateFields,
     SearchDocumentMixin,
     SearchDocumentManagerMixin,
     SearchQuery,
