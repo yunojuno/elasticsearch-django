@@ -353,7 +353,7 @@ class SearchDocumentMixin(object):
 
         Checks the local cache to see if the document has changed,
         and if not aborts the update, else pushes to ES, and then
-        resets the local cache. Cache timeout is set as CACHE_EXPIRY
+        resets the local cache. Cache timeout is set as "cache_expiry"
         in the settings, and defaults to 60s.
 
         """
@@ -363,7 +363,7 @@ class SearchDocumentMixin(object):
         if new_doc == cached_doc:
             logger.debug("Search document for %r is unchanged, ignoring update.", self)
             return []
-        cache.set(cache_key, new_doc, timeout=get_setting("CACHE_EXPIRY", 60))
+        cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
         get_client().index(
             index=index, doc_type=self.search_doc_type, body=new_doc, id=self.pk
         )
