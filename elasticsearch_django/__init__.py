@@ -1,3 +1,3 @@
 default_app_config = "elasticsearch_django.apps.ElasticAppConfig"
 
-__version__ = "6.3.1"
+__version__ = "6.3.2"

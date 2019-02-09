@@ -155,10 +155,26 @@ class SearchAppsValidationTests(TestCase):
             instance=obj, index="foo", update_fields=["bar"]
         )
 
+    @mock.patch("elasticsearch_django.apps._in_search_queryset")
     @mock.patch("elasticsearch_django.apps.settings.auto_sync")
-    def test__update_search_index_True(self, mock_auto_sync):
+    def test__update_search_index__auto_sync(self, mock_auto_sync, mock_in_qs):
         """Test the _update_search_index function with an index action."""
         mock_auto_sync.return_value = True
+        mock_in_qs.return_value = False
+        obj = mock.Mock(spec=SearchDocumentMixin)
+        _update_search_index(instance=obj, index="foo", update_fields=None)
+        self.assertEqual(obj.index_search_document.call_count, 0)
+        self.assertEqual(obj.update_search_document.call_count, 0)
+        obj.index_search_document.assert_not_called()
+        obj.update_search_document.assert_not_called()
+        obj.delete_search_document.assert_not_called()
+
+    @mock.patch("elasticsearch_django.apps._in_search_queryset")
+    @mock.patch("elasticsearch_django.apps.settings.auto_sync")
+    def test__update_search_index__not_in_qs(self, mock_auto_sync, mock_in_qs):
+        """Test the _update_search_index function with an index action."""
+        mock_auto_sync.return_value = True
+        mock_in_qs.return_value = True
         obj = mock.Mock(spec=SearchDocumentMixin)
         _update_search_index(instance=obj, index="foo", update_fields=None)
         self.assertEqual(obj.index_search_document.call_count, 1)
@@ -167,10 +183,12 @@ class SearchAppsValidationTests(TestCase):
         obj.update_search_document.assert_not_called()
         obj.delete_search_document.assert_not_called()
 
+    @mock.patch("elasticsearch_django.apps._in_search_queryset")
     @mock.patch("elasticsearch_django.apps.settings.auto_sync")
-    def test__update_search_index_False(self, mock_auto_sync):
+    def test__update_search_index__no_auto_sync(self, mock_auto_sync, mock_in_qs):
         """Test the _update_search_index function with an index action."""
         mock_auto_sync.return_value = False
+        mock_in_qs.return_value = True
         obj = mock.Mock(spec=SearchDocumentMixin)
         _update_search_index(instance=obj, index="foo", update_fields=None)
         self.assertEqual(obj.index_search_document.call_count, 0)

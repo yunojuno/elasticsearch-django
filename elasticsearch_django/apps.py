@@ -100,8 +100,21 @@ def _on_model_delete(sender, **kwargs):
             logger.exception("Error handling 'on_delete' signal for %s", instance)
 
 
+def _in_search_queryset(*, instance, index) -> bool:
+    """Wrapper around the instance manager method."""
+    try:
+        return instance.__class__.objects.in_search_queryset(instance.id, index=index)
+    except Exception:
+        logger.exception("Error checking object in_search_queryset.")
+        return False
+
+
 def _update_search_index(*, instance, index, update_fields):
     """Process index / update search index update actions."""
+    if not _in_search_queryset(instance=instance, index=index):
+        logger.debug("Object (%r) is not in search queryset, ignoring update.", instance)
+        return
+
     try:
         if update_fields:
             pre_update.send(
