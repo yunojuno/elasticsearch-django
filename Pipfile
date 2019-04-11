@@ -10,7 +10,7 @@ black = "*"
 pylint = "*"
 
 [packages]
-elasticsearch-django = {path = ".",editable = true}
+e1839a8 = {editable = true,path = "."}
 
 [requires]
 python_version = "3"

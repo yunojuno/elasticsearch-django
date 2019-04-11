@@ -45,6 +45,7 @@ class SearchQueryAdmin(admin.ModelAdmin):
         "user",
         "index",
         "search_terms",
+        "query_type",
         "total_hits",
         "returned_",
         "min_",

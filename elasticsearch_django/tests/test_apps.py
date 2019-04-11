@@ -33,6 +33,7 @@ class SearchAppsConfigTests(TestCase):
         mock_config.assert_called_once_with(mock_setting.return_value)
         mock_signals.assert_called_once_with()
 
+
 class SearchAppsValidationTests(TestCase):
 
     """Tests for the apps module validation functions."""
@@ -102,16 +103,13 @@ class SearchAppsValidationTests(TestCase):
             _on_model_delete, sender=TestModel, dispatch_uid="testmodel.post_delete"
         )
 
-    @mock.patch('elasticsearch_django.apps._delete_from_search_index')
+    @mock.patch("elasticsearch_django.apps._delete_from_search_index")
     def test__on_model_delete(self, mock_delete):
         """Test the _on_model_delete function."""
         obj = mock.Mock(spec=SearchDocumentMixin, search_indexes=["foo", "bar"])
         _on_model_delete(None, instance=obj)
         self.assertEqual(mock_delete.call_count, 2)
-        mock_delete.assert_called_with(
-            instance=obj,
-            index="bar"
-        )
+        mock_delete.assert_called_with(instance=obj, index="bar")
 
     @mock.patch("elasticsearch_django.apps.settings.auto_sync")
     @mock.patch("elasticsearch_django.apps.pre_delete")
