@@ -25,18 +25,6 @@ UPDATE_STRATEGY_PARTIAL = "partial"
 UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
 
 
-class InvalidUpdateFields(Exception):
-    """Custom exception raised when passing model fields to the
-    save method as 'update_fields' that cannot be simply serialized."""
-
-    def __init__(self, invalid_fields):
-        message = (
-            f"Unserializable update_fields value - please override "
-            f"as_search_document_update: {invalid_fields}"
-        )
-        super().__init__(message)
-
-
 class SearchDocumentManagerMixin(object):
 
     """
@@ -365,7 +353,7 @@ class SearchDocumentMixin(object):
 
         Checks the local cache to see if the document has changed,
         and if not aborts the update, else pushes to ES, and then
-        resets the local cache. Cache timeout is set as CACHE_EXPIRY
+        resets the local cache. Cache timeout is set as "cache_expiry"
         in the settings, and defaults to 60s.
 
         """
@@ -375,7 +363,7 @@ class SearchDocumentMixin(object):
         if new_doc == cached_doc:
             logger.debug("Search document for %r is unchanged, ignoring update.", self)
             return []
-        cache.set(cache_key, new_doc, timeout=get_setting("CACHE_EXPIRY", 60))
+        cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
         get_client().index(
             index=index, doc_type=self.search_doc_type, body=new_doc, id=self.pk
         )

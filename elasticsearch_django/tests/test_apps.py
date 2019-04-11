@@ -5,6 +5,7 @@ from django.test import TestCase
 
 from ..apps import (
     ElasticAppConfig,
+    _delete_from_search_index,
     _validate_config,
     _validate_model,
     _validate_mapping,
@@ -23,24 +24,14 @@ class SearchAppsConfigTests(TestCase):
     """Tests for the apps module ready function."""
 
     @mock.patch("elasticsearch_django.apps.settings.get_setting")
-    @mock.patch("elasticsearch_django.apps.settings.get_settings")
     @mock.patch("elasticsearch_django.apps._validate_config")
     @mock.patch("elasticsearch_django.apps._connect_signals")
-    def test_ready(self, mock_signals, mock_config, mock_settings, mock_setting):
+    def test_ready(self, mock_signals, mock_config, mock_setting):
         """Test the AppConfig.ready method."""
-        mock_setting.return_value = True  # auto-sync
         config = ElasticAppConfig("foo_bar", tests)
         config.ready()
         mock_config.assert_called_once_with(mock_setting.return_value)
         mock_signals.assert_called_once_with()
-
-        mock_setting.return_value = False  # auto-sync
-        mock_signals.reset_mock()
-        mock_config.reset_mock()
-        config.ready()
-        mock_config.assert_called_once_with(mock_setting.return_value)
-        mock_signals.assert_not_called()
-
 
 class SearchAppsValidationTests(TestCase):
 
@@ -111,21 +102,40 @@ class SearchAppsValidationTests(TestCase):
             _on_model_delete, sender=TestModel, dispatch_uid="testmodel.post_delete"
         )
 
-    @mock.patch.object(SearchDocumentMixin, "search_indexes", ["foo"])
-    @mock.patch.object(SearchDocumentMixin, "delete_search_document")
+    @mock.patch('elasticsearch_django.apps._delete_from_search_index')
     def test__on_model_delete(self, mock_delete):
         """Test the _on_model_delete function."""
-        obj = SearchDocumentMixin()
-        _on_model_delete(None, instance=obj)
-        mock_delete.assert_called_once_with(index="foo")
-
-    @mock.patch.object(SearchDocumentMixin, "search_indexes", ["foo", "bar"])
-    @mock.patch.object(SearchDocumentMixin, "delete_search_document")
-    def test__on_model_delete__multiple_indexes(self, mock_delete):
-        """Test the _on_model_delete function with multiple indexes."""
-        obj = SearchDocumentMixin()
+        obj = mock.Mock(spec=SearchDocumentMixin, search_indexes=["foo", "bar"])
         _on_model_delete(None, instance=obj)
         self.assertEqual(mock_delete.call_count, 2)
+        mock_delete.assert_called_with(
+            instance=obj,
+            index="bar"
+        )
+
+    @mock.patch("elasticsearch_django.apps.settings.auto_sync")
+    @mock.patch("elasticsearch_django.apps.pre_delete")
+    def test__delete_from_search_index_True(self, mock_delete_signal, mock_auto_sync):
+        """Test the _delete_from_search_index function when AUTO_SYNC=True."""
+        mock_auto_sync.return_value = True
+        obj = mock.Mock(spec=SearchDocumentMixin)
+        _delete_from_search_index(instance=obj, index="foo")
+        mock_delete_signal.send.assert_called_once_with(
+            sender=obj.__class__, instance=obj, index="foo"
+        )
+        obj.delete_search_document.assert_called_once_with(index="foo")
+
+    @mock.patch("elasticsearch_django.apps.settings.auto_sync")
+    @mock.patch("elasticsearch_django.apps.pre_delete")
+    def test__delete_from_search_index_False(self, mock_delete_signal, mock_auto_sync):
+        """Test the _delete_from_search_index function when AUTO_SYNC=False."""
+        obj = mock.Mock(spec=SearchDocumentMixin)
+        mock_auto_sync.return_value = False
+        _delete_from_search_index(instance=obj, index="foo")
+        mock_delete_signal.send.assert_called_once_with(
+            sender=obj.__class__, instance=obj, index="foo"
+        )
+        obj.delete_search_document.assert_not_called()
 
     @mock.patch("elasticsearch_django.apps._update_search_index")
     def test__on_model_save__index(self, mock_update):
@@ -145,20 +155,44 @@ class SearchAppsValidationTests(TestCase):
             instance=obj, index="foo", update_fields=["bar"]
         )
 
-    def test__update_search_index(self):
+    @mock.patch("elasticsearch_django.apps._in_search_queryset")
+    @mock.patch("elasticsearch_django.apps.settings.auto_sync")
+    def test__update_search_index__auto_sync(self, mock_auto_sync, mock_in_qs):
         """Test the _update_search_index function with an index action."""
+        mock_auto_sync.return_value = True
+        mock_in_qs.return_value = False
+        obj = mock.Mock(spec=SearchDocumentMixin)
+        _update_search_index(instance=obj, index="foo", update_fields=None)
+        self.assertEqual(obj.index_search_document.call_count, 0)
+        self.assertEqual(obj.update_search_document.call_count, 0)
+        obj.index_search_document.assert_not_called()
+        obj.update_search_document.assert_not_called()
+        obj.delete_search_document.assert_not_called()
+
+    @mock.patch("elasticsearch_django.apps._in_search_queryset")
+    @mock.patch("elasticsearch_django.apps.settings.auto_sync")
+    def test__update_search_index__not_in_qs(self, mock_auto_sync, mock_in_qs):
+        """Test the _update_search_index function with an index action."""
+        mock_auto_sync.return_value = True
+        mock_in_qs.return_value = True
         obj = mock.Mock(spec=SearchDocumentMixin)
         _update_search_index(instance=obj, index="foo", update_fields=None)
         self.assertEqual(obj.index_search_document.call_count, 1)
         self.assertEqual(obj.update_search_document.call_count, 0)
         obj.index_search_document.assert_called_once_with(index="foo")
+        obj.update_search_document.assert_not_called()
+        obj.delete_search_document.assert_not_called()
 
-    def test__update_search_update(self):
-        """Test the _update_search_index function with an update action."""
+    @mock.patch("elasticsearch_django.apps._in_search_queryset")
+    @mock.patch("elasticsearch_django.apps.settings.auto_sync")
+    def test__update_search_index__no_auto_sync(self, mock_auto_sync, mock_in_qs):
+        """Test the _update_search_index function with an index action."""
+        mock_auto_sync.return_value = False
+        mock_in_qs.return_value = True
         obj = mock.Mock(spec=SearchDocumentMixin)
-        _update_search_index(instance=obj, index="foo", update_fields=["bar"])
-        self.assertEqual(obj.update_search_document.call_count, 1)
+        _update_search_index(instance=obj, index="foo", update_fields=None)
         self.assertEqual(obj.index_search_document.call_count, 0)
-        obj.update_search_document.assert_called_once_with(
-            index="foo", update_fields=["bar"]
-        )
+        self.assertEqual(obj.update_search_document.call_count, 0)
+        obj.index_search_document.assert_not_called()
+        obj.update_search_document.assert_not_called()
+        obj.delete_search_document.assert_not_called()
