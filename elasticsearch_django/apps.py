@@ -112,7 +112,9 @@ def _in_search_queryset(*, instance, index) -> bool:
 def _update_search_index(*, instance, index, update_fields):
     """Process index / update search index update actions."""
     if not _in_search_queryset(instance=instance, index=index):
-        logger.debug("Object (%r) is not in search queryset, ignoring update.", instance)
+        logger.debug(
+            "Object (%r) is not in search queryset, ignoring update.", instance
+        )
         return
 
     try:

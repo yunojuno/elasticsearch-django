@@ -37,7 +37,7 @@ class SearchQueryAdmin(admin.ModelAdmin):
         "reference",
         "executed_at",
     )
-    list_filter = ("index",)
+    list_filter = ("index", "query_type")
     search_fields = ("search_terms", "user__first_name", "user__last_name", "reference")
     # excluding because we are using a pretty version instead
     exclude = ("hits", "query", "page")
@@ -45,6 +45,7 @@ class SearchQueryAdmin(admin.ModelAdmin):
         "user",
         "index",
         "search_terms",
+        "query_type",
         "total_hits",
         "returned_",
         "min_",
