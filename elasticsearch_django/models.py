@@ -424,8 +424,8 @@ class SearchQuery(models.Model):
     QUERY_TYPE_SEARCH = "SEARCH"
     QUERY_TYPE_COUNT = "COUNT"
     QUERY_TYPE_CHOICES = (
-        (QUERY_TYPE_SEARCH, "Search API query"),
-        (QUERY_TYPE_COUNT, "Count API query"),
+        (QUERY_TYPE_SEARCH, "Search results"),
+        (QUERY_TYPE_COUNT, "Count only"),
     )
 
     user = models.ForeignKey(
@@ -606,6 +606,7 @@ def execute_search(
         search_terms=search_terms,
         index=", ".join(search._index or ["_all"])[:100],  # field length restriction
         query=search.to_dict(),
+        query_type=query_type,
         hits=hits,
         total_hits=total_hits,
         reference=reference or "",
