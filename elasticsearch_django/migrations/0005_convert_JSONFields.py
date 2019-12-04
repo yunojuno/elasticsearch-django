@@ -9,16 +9,16 @@ class Migration(migrations.Migration):
     dependencies = [("elasticsearch_django", "0004_auto_20161129_1135")]
 
     operations = [
-        migrations.AlterField(
-            model_name="searchquery",
-            name="hits",
-            field=JSONField(
-                help_text="The list of meta info for each of the query matches returned."
-            ),
-        ),
-        migrations.AlterField(
-            model_name="searchquery",
-            name="query",
-            field=JSONField(help_text="The raw ElasticSearch DSL query."),
-        ),
+        # migrations.AlterField(
+        #     model_name="searchquery",
+        #     name="hits",
+        #     field=JSONField(
+        #         help_text="The list of meta info for each of the query matches returned."
+        #     ),
+        # ),
+        # migrations.AlterField(
+        #     model_name="searchquery",
+        #     name="query",
+        #     field=JSONField(help_text="The raw ElasticSearch DSL query."),
+        # ),
     ]
