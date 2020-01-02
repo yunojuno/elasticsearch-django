@@ -1,17 +1,14 @@
-# search.tests package identifier
 from django.db import models
-
-from ..models import SearchDocumentMixin, SearchDocumentManagerMixin
-
+from elasticsearch_django.models import SearchDocumentManagerMixin, SearchDocumentMixin
 
 SEARCH_DOC = {"foo": "bar"}
 
 
-class TestModelManager(SearchDocumentManagerMixin, models.Manager):
+class IndexedModelManager(SearchDocumentManagerMixin, models.Manager):
     pass
 
 
-class TestModel(SearchDocumentMixin, models.Model):
+class IndexedModel(SearchDocumentMixin, models.Model):
 
     """Model class for use in tests."""
 
@@ -23,7 +20,7 @@ class TestModel(SearchDocumentMixin, models.Model):
         # should prevent db errors during tests
         managed = False
 
-    objects = TestModelManager()
+    objects = IndexedModelManager()
 
     def as_search_document(self, index):
         return SEARCH_DOC

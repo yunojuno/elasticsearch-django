@@ -12,7 +12,6 @@ import os
 
 from django.apps import apps
 from django.conf import settings
-
 from elasticsearch import Elasticsearch
 
 
@@ -129,7 +128,7 @@ def get_document_model(index, doc_type):
 
 
 def auto_sync(instance):
-    """Returns bool if auto_sync is on for the model (instance)"""
+    """Return bool if auto_sync is on for the model (instance)."""
     # this allows us to turn off sync temporarily - e.g. when doing bulk updates
     if not get_setting("auto_sync"):
         return False

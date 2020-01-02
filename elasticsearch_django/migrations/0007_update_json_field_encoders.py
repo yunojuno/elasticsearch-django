@@ -15,7 +15,9 @@ class Migration(migrations.Migration):
             name="hits",
             field=django.contrib.postgres.fields.jsonb.JSONField(
                 encoder=django.core.serializers.json.DjangoJSONEncoder,
-                help_text="The list of meta info for each of the query matches returned.",
+                help_text=(
+                    "The list of meta info for each of the query matches returned."
+                ),
             ),
         ),
         migrations.AlterField(

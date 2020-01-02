@@ -1,10 +1,9 @@
 """Create a search index."""
-from . import BaseSearchCommand
 from ...index import create_index
+from . import BaseSearchCommand
 
 
 class Command(BaseSearchCommand):
-
     """Run the management command."""
 
     help = "Create a new search index using the relevant mapping file."

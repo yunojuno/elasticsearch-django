@@ -5,18 +5,16 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db.models import signals
 
 from . import settings
-from .signals import pre_index, pre_update, pre_delete
+from .signals import pre_delete, pre_index, pre_update
 
 logger = logging.getLogger(__name__)
 
 
 class ElasticAppConfig(AppConfig):
-
     """AppConfig for Search3."""
 
     name = "elasticsearch_django"
     verbose_name = "Elasticsearch"
-    configs = []
 
     def ready(self):
         """Validate config and connect signals."""
@@ -33,7 +31,8 @@ def _validate_config(strict=False):
             _validate_model(model)
     if settings.get_setting("update_strategy", "full") not in ["full", "partial"]:
         raise ImproperlyConfigured(
-            "Invalid SEARCH_SETTINGS: 'update_strategy' value must be 'full' or 'partial'."
+            "Invalid SEARCH_SETTINGS: 'update_strategy' value must be 'full' "
+            "or 'partial'."
         )
 
 
@@ -86,7 +85,7 @@ def _on_model_save(sender, **kwargs):
             _update_search_index(
                 instance=instance, index=index, update_fields=update_fields
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             logger.exception("Error handling 'on_save' signal for %s", instance)
 
 
@@ -96,15 +95,15 @@ def _on_model_delete(sender, **kwargs):
     for index in instance.search_indexes:
         try:
             _delete_from_search_index(instance=instance, index=index)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             logger.exception("Error handling 'on_delete' signal for %s", instance)
 
 
 def _in_search_queryset(*, instance, index) -> bool:
-    """Wrapper around the instance manager method."""
+    """Wrap the instance manager method."""
     try:
         return instance.__class__.objects.in_search_queryset(instance.id, index=index)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         logger.exception("Error checking object in_search_queryset.")
         return False
 
@@ -133,7 +132,7 @@ def _update_search_index(*, instance, index, update_fields):
             pre_index.send(sender=instance.__class__, instance=instance, index=index)
             if settings.auto_sync(instance):
                 instance.index_search_document(index=index)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         logger.exception("Error handling 'post_save' signal for %s", instance)
 
 

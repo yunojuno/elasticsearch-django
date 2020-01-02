@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 class BaseSearchCommand(BaseCommand):
-
     """Base class for commands that interact with the search index."""
 
     description = "Base search command."

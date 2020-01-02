@@ -1,5 +1,5 @@
-from django.db import models, migrations
 from django.conf import settings
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
@@ -23,7 +23,9 @@ class Migration(migrations.Migration):
                     "index",
                     models.CharField(
                         default="_all",
-                        help_text="The name of the ElasticSearch index(es) being queried.",
+                        help_text=(
+                            "The name of the ElasticSearch index(es) " "being queried."
+                        ),
                         max_length=100,
                     ),
                 ),
@@ -37,21 +39,30 @@ class Migration(migrations.Migration):
                     "hits",
                     models.TextField(
                         default="{}",
-                        help_text="The list of meta info for each of the query matches returned.",
+                        help_text=(
+                            "The list of meta info for each of the query "
+                            "matches returned."
+                        ),
                     ),
                 ),
                 (
                     "total_hits",
                     models.IntegerField(
                         default=0,
-                        help_text="Total number of matches found for the query (!= the hits returned).",
+                        help_text=(
+                            "Total number of matches found for the query "
+                            "(!= the hits returned)."
+                        ),
                     ),
                 ),
                 (
                     "reference",
                     models.CharField(
                         default="",
-                        help_text="Custom reference used to identify and group related searches.",
+                        help_text=(
+                            "Custom reference used to identify and group "
+                            "related searches."
+                        ),
                         max_length=100,
                         blank=True,
                     ),
@@ -59,7 +70,9 @@ class Migration(migrations.Migration):
                 (
                     "executed_at",
                     models.DateTimeField(
-                        help_text="When the search was executed - set via execute() method."
+                        help_text=(
+                            "When the search was executed - set via execute() method."
+                        )
                     ),
                 ),
                 (

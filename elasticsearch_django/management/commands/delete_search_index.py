@@ -1,14 +1,13 @@
 """Delete a search index (and all documents therein)."""
 import logging
 
-from . import BaseSearchCommand
 from ...index import delete_index
+from . import BaseSearchCommand
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseSearchCommand):
-
     """Delete search index."""
 
     help = "Clears out the specified (or all) search index completely."

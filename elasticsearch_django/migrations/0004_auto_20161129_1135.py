@@ -13,7 +13,9 @@ class Migration(migrations.Migration):
             model_name="searchquery",
             name="hits",
             field=JSONField(
-                help_text="The list of meta info for each of the query matches returned."
+                help_text=(
+                    "The list of meta info for each of the query " "matches returned."
+                )
             ),
         ),
         migrations.AlterField(

@@ -1,8 +1,8 @@
-import simplejson as json  # simplejson supports Decimal serialization
 import logging
 
+import simplejson as json  # simplejson supports Decimal serialization
 from django.contrib import admin
-from django.template.defaultfilters import truncatewords, truncatechars
+from django.template.defaultfilters import truncatechars, truncatewords
 from django.utils.safestring import mark_safe
 
 from .models import SearchQuery
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def pprint(data):
     """
-    Returns an indented HTML pretty-print version of JSON.
+    Return an indented HTML pretty-print version of JSON.
 
     Take the event_payload JSON, indent it, order the keys and then
     present it as a <code> block. That's about as good as we can get
@@ -57,29 +57,29 @@ class SearchQueryAdmin(admin.ModelAdmin):
     )
 
     def search_terms_(self, instance):
-        """Truncated version of search_terms."""
+        """Return truncated version of  search_terms."""
         raw = instance.search_terms
         # take first five words, and further truncate to 50 chars if necessary
         return truncatechars(truncatewords(raw, 5), 50)
 
     def query_(self, instance):
-        """Pretty version of query JSON."""
+        """Format a pretty version of query JSON."""
         return pprint(instance.query)
 
     def max_(self, instance):
-        """Pretty version of max_score."""
+        """Format pretty version of max_score."""
         return "-" if instance.page_size == 0 else instance.max_score
 
     max_.short_description = "Max score"
 
     def min_(self, instance):
-        """Pretty version of min_score."""
+        """Format pretty version of min_score."""
         return "-" if instance.page_size == 0 else instance.min_score
 
     min_.short_description = "Min score"
 
     def returned_(self, instance):
-        """Number of hits returned in the page."""
+        """Return number of hits returned in the page."""
         if instance.page_size == 0:
             return "-"
         else:

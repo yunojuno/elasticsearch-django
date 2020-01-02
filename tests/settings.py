@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from os import getenv
 
 DEBUG = True
@@ -23,6 +22,7 @@ INSTALLED_APPS = (
     "django.contrib.staticfiles",
     "django.contrib.messages",
     "elasticsearch_django",
+    "tests",
 )
 
 MIDDLEWARE = [

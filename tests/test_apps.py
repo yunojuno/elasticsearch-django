@@ -2,25 +2,24 @@ from unittest import mock
 
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
-
-from ..apps import (
+from elasticsearch_django import apps
+from elasticsearch_django.apps import (
     ElasticAppConfig,
-    _delete_from_search_index,
-    _validate_config,
-    _validate_model,
-    _validate_mapping,
     _connect_signals,
+    _delete_from_search_index,
     _on_model_delete,
     _on_model_save,
     _update_search_index,
+    _validate_config,
+    _validate_mapping,
+    _validate_model,
 )
-from .. import tests
-from ..models import SearchDocumentMixin
-from ..tests import TestModel
+from elasticsearch_django.models import SearchDocumentMixin
+
+from .models import IndexedModel
 
 
 class SearchAppsConfigTests(TestCase):
-
     """Tests for the apps module ready function."""
 
     @mock.patch("elasticsearch_django.apps.settings.get_setting")
@@ -28,30 +27,29 @@ class SearchAppsConfigTests(TestCase):
     @mock.patch("elasticsearch_django.apps._connect_signals")
     def test_ready(self, mock_signals, mock_config, mock_setting):
         """Test the AppConfig.ready method."""
-        config = ElasticAppConfig("foo_bar", tests)
+        config = ElasticAppConfig("foo_bar", apps)
         config.ready()
         mock_config.assert_called_once_with(mock_setting.return_value)
         mock_signals.assert_called_once_with()
 
 
 class SearchAppsValidationTests(TestCase):
-
     """Tests for the apps module validation functions."""
 
     def test__validate_model(self):
         """Test _validate_model function."""
         # 1. model doesn't implement as_search_document
-        with mock.patch("elasticsearch_django.tests.test_apps.TestModel") as tm:
+        with mock.patch("tests.test_apps.IndexedModel") as tm:
             del tm.as_search_document
             self.assertRaises(ImproperlyConfigured, _validate_model, tm)
 
         # 2. model.objects doesn't implement get_search_queryset
-        with mock.patch("elasticsearch_django.tests.test_apps.TestModel") as tm:
+        with mock.patch("tests.test_apps.IndexedModel") as tm:
             del tm.objects.get_search_queryset
             self.assertRaises(ImproperlyConfigured, _validate_model, tm)
 
         # model should pass
-        with mock.patch("elasticsearch_django.tests.test_apps.TestModel") as tm:
+        with mock.patch("tests.test_apps.IndexedModel") as tm:
             _validate_model(tm)
 
     @mock.patch("elasticsearch_django.apps.settings")
@@ -71,10 +69,10 @@ class SearchAppsValidationTests(TestCase):
         """Test _validate_model function."""
         mock_settings.get_index_names.return_value = ["foo"]
         mock_settings.get_setting.return_value = "full"
-        mock_settings.get_index_models.return_value = [TestModel]
+        mock_settings.get_index_models.return_value = [IndexedModel]
         _validate_config()
         mock_mapping.assert_called_once_with("foo", strict=False)
-        mock_model.assert_called_once_with(TestModel)
+        mock_model.assert_called_once_with(IndexedModel)
 
     @mock.patch("elasticsearch_django.apps.settings")
     @mock.patch("elasticsearch_django.apps._validate_model")
@@ -85,22 +83,24 @@ class SearchAppsValidationTests(TestCase):
         """Test _validate_model function with an invalid update_strategy."""
         mock_settings.get_index_names.return_value = ["foo"]
         mock_settings.get_setting.return_value = "foo"
-        mock_settings.get_index_models.return_value = [TestModel]
+        mock_settings.get_index_models.return_value = [IndexedModel]
         self.assertRaises(ImproperlyConfigured, _validate_config)
 
     @mock.patch("elasticsearch_django.apps.signals")
     @mock.patch("elasticsearch_django.apps.settings")
     def test__connect_signals(self, mock_settings, mock_signals):
         """Test the _connect_signals function."""
-        # this should connect up the signals once, for TestModel
+        # this should connect up the signals once, for IndexedModel
         mock_settings.get_index_names.return_value = ["foo"]
-        mock_settings.get_index_models.return_value = [TestModel]
+        mock_settings.get_index_models.return_value = [IndexedModel]
         _connect_signals()
         mock_signals.post_save.connect.assert_called_once_with(
-            _on_model_save, sender=TestModel, dispatch_uid="testmodel.post_save"
+            _on_model_save, sender=IndexedModel, dispatch_uid="indexedmodel.post_save"
         )
         mock_signals.post_delete.connect.assert_called_once_with(
-            _on_model_delete, sender=TestModel, dispatch_uid="testmodel.post_delete"
+            _on_model_delete,
+            sender=IndexedModel,
+            dispatch_uid="indexedmodel.post_delete",
         )
 
     @mock.patch("elasticsearch_django.apps._delete_from_search_index")

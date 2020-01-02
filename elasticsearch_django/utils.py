@@ -5,5 +5,3 @@ warnings.warn(
     "from decorators module instead.",
     PendingDeprecationWarning,
 )
-
-from .decorators import disable_search_updates

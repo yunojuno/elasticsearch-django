@@ -3,14 +3,13 @@ import logging
 
 from elasticsearch.exceptions import TransportError
 
+from ...index import create_index, delete_index, update_index
 from . import BaseSearchCommand
-from ...index import delete_index, create_index, update_index
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseSearchCommand):
-
     """Run the management command."""
 
     help = (

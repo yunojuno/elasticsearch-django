@@ -1,0 +1,15 @@
+# This pylintrc exists for the purpose of enforcing a certain style guide across our Python code.
+
+[MASTER]
+init-hook="from pylint.config import find_pylintrc; import os, sys; sys.path.append(os.path.dirname(find_pylintrc()));"
+ignore=CVS,.git,.tox,.cache,.venv,frontend
+load-plugins=pylint_django
+
+[MESSAGES CONTROL]
+disable=all
+enable=bare-except,broad-except,unused-import,assert-false,assert-outside-tests,deprecated-login-required,deprecated-user-passes-test,direct-logging,import-silk,import-pdb,dangerous-default-value,relative-beyond-top-level,anomalous-backslash-in-string,logging-not-lazy
+
+[REPORTS]
+output-format=text
+reports=no
+score=no

@@ -1,6 +1,6 @@
-*.pyc 
+.coverage
 .tox
 *.egg-info
-.coverage
+*.pyc
+poetry.lock
 staticfiles
-Pipfile.lock

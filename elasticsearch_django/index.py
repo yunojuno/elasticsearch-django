@@ -2,7 +2,7 @@ import logging
 
 from elasticsearch import helpers
 
-from .settings import get_setting, get_index_mapping, get_index_models, get_client
+from .settings import get_client, get_index_mapping, get_index_models, get_setting
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +106,8 @@ def _prune_hit(hit, model):
         return None
     else:
         logger.debug(
-            "%s with id=%s does not exist in the '%s' index queryset and will be pruned.",
+            "%s with id=%s does not exist in the '%s' index queryset and "
+            "will be pruned.",
             model,
             hit_id,
             hit_index,
@@ -133,7 +134,7 @@ def scan_index(index, model):
     Yields each document of type model in index, one at a time.
 
     """
-    # see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-type-query.html
+    # see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-type-query.html  # noqa: E501
     query = {"query": {"type": {"value": model._meta.model_name}}}
     client = get_client()
     for hit in helpers.scan(client, index=index, query=query):
@@ -158,13 +159,14 @@ def bulk_actions(objects, index, action):
             how the final document is formatted.
 
     """
-    assert (
-        index != "_all"
-    ), "index arg must be a valid index name. '_all' is a reserved term."
+    if index == "_all":
+        raise ValueError(
+            "index arg must be a valid index name. '_all' is a reserved term."
+        )
     logger.info("Creating bulk '%s' actions for '%s'", action, index)
     for obj in objects:
         try:
             logger.debug("Appending '%s' action for '%r'", action, obj)
             yield obj.as_search_action(index=index, action=action)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             logger.exception("Unable to create search action for %s", obj)

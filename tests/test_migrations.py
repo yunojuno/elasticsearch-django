@@ -10,8 +10,8 @@ class MigrationsTests(TestCase):
     def test_for_missing_migrations(self):
         """Checks if there're models changes which aren't reflected in migrations."""
         current_models_state = ProjectState.from_apps(apps)
-        # skip tracking changes for TestModel
-        current_models_state.remove_model("elasticsearch_django", "testmodel")
+        # skip tracking changes for IndexedModel
+        current_models_state.remove_model("tests", "indexedmodel")
 
         migrations_loader = MigrationExecutor(connection).loader
         migrations_detector = MigrationAutodetector(
