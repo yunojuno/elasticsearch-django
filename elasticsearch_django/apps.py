@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Type
+from typing import TYPE_CHECKING, Any, List, Type
 
 from django.apps import AppConfig
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Model, signals
-from elasticsearch_django.models import SearchDocumentMixin
 
 from . import settings
 from .signals import pre_delete, pre_index, pre_update
+
+if TYPE_CHECKING:
+    from elasticsearch_django.models import SearchDocumentMixin
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +21,11 @@ class ElasticAppConfig(AppConfig):
 
     name = "elasticsearch_django"
     verbose_name = "Elasticsearch"
-    configs = []
 
-    def ready(self):
+    def ready(self) -> None:
         """Validate config and connect signals."""
         super(ElasticAppConfig, self).ready()
-        _validate_config(settings.get_setting("strict_validation"))
+        _validate_config(bool(settings.get_setting("strict_validation")))
         _connect_signals()
 
 
@@ -41,7 +42,7 @@ def _validate_config(strict: bool = False) -> None:
         )
 
 
-def _validate_mapping(index, strict: bool = False) -> None:
+def _validate_mapping(index: str, strict: bool = False) -> None:
     """Check that an index mapping JSON file exists."""
     try:
         settings.get_index_mapping(index)
@@ -81,7 +82,7 @@ def _connect_model_signals(model: Type[Model]) -> None:
     )
 
 
-def _on_model_save(sender, **kwargs: Any) -> None:
+def _on_model_save(sender: Type[Model], **kwargs: Any) -> None:
     """Update document in search index post_save."""
     instance = kwargs.pop("instance")
     update_fields = kwargs.pop("update_fields")
@@ -94,7 +95,7 @@ def _on_model_save(sender, **kwargs: Any) -> None:
             logger.exception("Error handling 'on_save' signal for %s", instance)
 
 
-def _on_model_delete(sender, **kwargs: Any) -> None:
+def _on_model_delete(sender: Type[Model], **kwargs: Any) -> None:
     """Remove documents from search indexes post_delete."""
     instance = kwargs.pop("instance")
     for index in instance.search_indexes:
@@ -104,7 +105,7 @@ def _on_model_delete(sender, **kwargs: Any) -> None:
             logger.exception("Error handling 'on_delete' signal for %s", instance)
 
 
-def _in_search_queryset(*, instance: SearchDocumentMixin, index: str) -> bool:
+def _in_search_queryset(*, instance: Model, index: str) -> bool:
     """Return True if instance is in the index queryset."""
     try:
         return instance.__class__.objects.in_search_queryset(instance.id, index=index)

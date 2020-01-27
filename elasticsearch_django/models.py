@@ -1,18 +1,19 @@
 from __future__ import annotations
-from typing import Union, List, Tuple
+
 import logging
 import time
-import warnings
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
-from django.db.models.query import QuerySet
 from django.db.models.expressions import RawSQL
 from django.db.models.fields import CharField
+from django.db.models.query import QuerySet
 from django.utils.timezone import now as tz_now
+from elasticsearch_dsl import Search
 
 from .settings import (
     get_client,
@@ -20,6 +21,9 @@ from .settings import (
     get_model_indexes,
     get_setting,
 )
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractBaseUser
 
 logger = logging.getLogger(__name__)
 
@@ -352,7 +356,9 @@ class SearchDocumentMixin(object):
         if not self.pk:  # type: ignore
             raise ValueError("Object must have a primary key before being indexed.")
         client = get_client()
-        return client.get(index=index, doc_type=self.search_doc_type, id=self.pk)  # type: ignore
+        return client.get(
+            index=index, doc_type=self.search_doc_type, id=self.pk  # type: ignore
+        )
 
     def index_search_document(self, *, index: str) -> None:
         """
@@ -369,10 +375,13 @@ class SearchDocumentMixin(object):
         cached_doc = cache.get(cache_key)
         if new_doc == cached_doc:
             logger.debug("Search document for %r is unchanged, ignoring update.", self)
-            return []
+            return
         cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
         get_client().index(
-            index=index, doc_type=self.search_doc_type, body=new_doc, id=self.pk
+            index=index,
+            doc_type=self.search_doc_type,
+            body=new_doc,
+            id=self.pk,  # type: ignore
         )
 
     def update_search_document(self, *, index: str, update_fields: List[str]) -> None:
@@ -401,13 +410,18 @@ class SearchDocumentMixin(object):
             return
 
         get_client().update(
-            index=index, doc_type=self.search_doc_type, body={"doc": doc}, id=self.pk  # type: ignore
+            index=index,
+            doc_type=self.search_doc_type,
+            body={"doc": doc},
+            id=self.pk,  # type: ignore
         )
 
     def delete_search_document(self, *, index: str) -> None:
         """Delete document from named index."""
         cache.delete(self.search_document_cache_key)
-        get_client().delete(index=index, doc_type=self.search_doc_type, id=self.pk)
+        get_client().delete(
+            index=index, doc_type=self.search_doc_type, id=self.pk  # type: ignore
+        )
 
 
 class SearchQuery(models.Model):
@@ -494,59 +508,49 @@ class SearchQuery(models.Model):
         verbose_name = "Search query"
         verbose_name_plural = "Search queries"
 
-    def __str__(self):
-        return "Query (id={}) run against index '{}'".format(self.pk, self.index)
+    def __str__(self) -> str:
+        return f"Query (id={self.pk}) run against index '{self.index}'"
 
-    def __repr__(self):
-        return "<SearchQuery id={} user={} index='{}' total_hits={} >".format(
-            self.pk, self.user, self.index, self.total_hits
+    def __repr__(self) -> str:
+        return (
+            f"<SearchQuery id={self.pk} user={self.user} "
+            f"index='{self.index}' total_hits={self.total_hits} >"
         )
 
-    @classmethod
-    def execute(cls, search, search_terms="", user=None, reference=None, save=True):
-        """Create a new SearchQuery instance and execute a search against ES."""
-        warnings.warn(
-            "Pending deprecation - please use `execute_search` function instead.",
-            PendingDeprecationWarning,
-        )
-        return execute_search(
-            search, search_terms=search_terms, user=user, reference=reference, save=save
-        )
-
-    def save(self, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> SearchQuery:
         """Save and return the object (for chaining)."""
         if self.search_terms is None:
             self.search_terms = ""
         super().save(**kwargs)
         return self
 
-    def _extract_set(self, _property):
+    def _extract_set(self, _property: str) -> List[Union[str, int]]:
         return (
             [] if self.hits is None else (list(set([h[_property] for h in self.hits])))
         )
 
     @property
-    def doc_types(self):
+    def doc_types(self) -> List[str]:
         """List of doc_types extracted from hits."""
-        return self._extract_set("doc_type")
+        return [str(x) for x in self._extract_set("doc_type")]
 
     @property
-    def max_score(self):
+    def max_score(self) -> int:
         """Max relevance score in the returned page."""
-        return max(self._extract_set("score") or [0])
+        return int(max(self._extract_set("score") or [0]))
 
     @property
-    def min_score(self):
+    def min_score(self) -> int:
         """Min relevance score in the returned page."""
-        return min(self._extract_set("score") or [0])
+        return int(min(self._extract_set("score") or [0]))
 
     @property
-    def object_ids(self):
+    def object_ids(self) -> List[int]:
         """List of model ids extracted from hits."""
-        return self._extract_set("id")
+        return [int(x) for x in self._extract_set("id")]
 
     @property
-    def page_slice(self):
+    def page_slice(self) -> Optional[Tuple[int, int]]:
         """Return the query from:size tuple (0-based)."""
         return (
             None
@@ -555,29 +559,33 @@ class SearchQuery(models.Model):
         )
 
     @property
-    def page_from(self):
+    def page_from(self) -> int:
         """1-based index of the first hit in the returned page."""
-        return 0 if self.page_size == 0 else self.page_slice[0] + 1
+        if self.page_size == 0:
+            return 0
+        if not self.page_slice:
+            return 0
+        return self.page_slice[0] + 1
 
     @property
-    def page_to(self):
+    def page_to(self) -> int:
         """1-based index of the last hit in the returned page."""
         return 0 if self.page_size == 0 else self.page_from + self.page_size - 1
 
     @property
-    def page_size(self):
+    def page_size(self) -> int:
         """Return number of hits returned in this specific page."""
         return 0 if self.hits is None else len(self.hits)
 
 
 def execute_search(
-    search,
-    search_terms="",
-    user=None,
-    reference="",
-    save=True,
-    query_type=SearchQuery.QUERY_TYPE_SEARCH,
-):
+    search: Search,
+    search_terms: str = "",
+    user: Optional[AbstractBaseUser] = None,
+    reference: Optional[str] = "",
+    save: bool = True,
+    query_type: str = SearchQuery.QUERY_TYPE_SEARCH,
+) -> SearchQuery:
     """
     Create a new SearchQuery instance and execute a search against ES.
 

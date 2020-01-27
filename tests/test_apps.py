@@ -2,21 +2,20 @@ from unittest import mock
 
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
-
-from ..apps import (
+from elasticsearch_django.apps import (
     ElasticAppConfig,
-    _delete_from_search_index,
-    _validate_config,
-    _validate_model,
-    _validate_mapping,
     _connect_signals,
+    _delete_from_search_index,
     _on_model_delete,
     _on_model_save,
     _update_search_index,
+    _validate_config,
+    _validate_mapping,
+    _validate_model,
 )
-from .. import tests
-from ..models import SearchDocumentMixin
-from ..tests import TestModel
+from elasticsearch_django.models import SearchDocumentMixin
+
+from .models import TestModel
 
 
 class SearchAppsConfigTests(TestCase):

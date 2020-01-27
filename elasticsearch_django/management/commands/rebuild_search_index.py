@@ -7,7 +7,7 @@ from typing import Any
 from elasticsearch.exceptions import TransportError
 
 from ...index import create_index, delete_index, update_index
-from . import BaseSearchCommand
+from . import BaseSearchCommand, CommandReturnType
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class Command(BaseSearchCommand):
     )
     description = "Rebuild search index"
 
-    def do_index_command(self, index: str, **options: Any) -> dict:
+    def do_index_command(self, index: str, **options: Any) -> CommandReturnType:
         """Rebuild search index."""
         if options["interactive"]:
             logger.warning("This will permanently delete the index '%s'.", index)
@@ -28,7 +28,7 @@ class Command(BaseSearchCommand):
                 logger.warning(
                     "Aborting rebuild of index '%s' at user's request.", index
                 )
-                return
+                return None
 
         try:
             delete = delete_index(index)

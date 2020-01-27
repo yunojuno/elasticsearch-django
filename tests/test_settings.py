@@ -2,23 +2,22 @@ from unittest import mock
 
 from django.test import TestCase
 from django.test.utils import override_settings
-
-from ..settings import (
+from elasticsearch_django.settings import (
+    auto_sync,
     get_client,
+    get_connection_string,
+    get_document_model,
+    get_document_models,
+    get_index_config,
+    get_index_models,
+    get_index_names,
+    get_model_indexes,
     get_setting,
     get_settings,
     set_setting,
-    get_connection_string,
-    get_index_config,
-    get_index_names,
-    get_index_models,
-    get_model_indexes,
-    get_document_models,
-    get_document_model,
-    auto_sync,
 )
-from ..tests import TestModel
 
+from .models import TestModel
 
 TEST_SETTINGS = {
     "connections": {"default": "https://foo", "backup": "https://bar"},

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Callable, List
+from typing import Callable, Generator, List
 
 from django.db.models import signals
 
@@ -14,7 +14,7 @@ def _strip_on_model_save() -> List[Callable]:
 
 
 @contextmanager
-def disable_search_updates():
+def disable_search_updates() -> Generator:
     """
     Context manager used to temporarily disable auto_sync.
 

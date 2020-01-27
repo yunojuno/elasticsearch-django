@@ -1,17 +1,17 @@
 from unittest import mock
 
 from django.test import TestCase
-
-from ..index import (
+from elasticsearch_django.index import (
+    _prune_hit,
+    bulk_actions,
     create_index,
-    update_index,
     delete_index,
     prune_index,
-    _prune_hit,
     scan_index,
-    bulk_actions,
+    update_index,
 )
-from ..tests import TestModel, TestModelManager
+
+from .models import TestModel, TestModelManager
 
 
 class IndexFunctionTests(TestCase):

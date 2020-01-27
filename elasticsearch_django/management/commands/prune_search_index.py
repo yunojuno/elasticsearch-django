@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...index import prune_index
-from . import BaseSearchCommand
+from . import BaseSearchCommand, CommandReturnType
 
 
 class Command(BaseSearchCommand):
@@ -13,6 +13,6 @@ class Command(BaseSearchCommand):
     help = "Remove all out-of-date documents in a search index."
     description = "Prune search index"
 
-    def do_index_command(self, index: str, **options: Any) -> str:
+    def do_index_command(self, index: str, **options: Any) -> CommandReturnType:
         """Prune search index."""
         return prune_index(index)

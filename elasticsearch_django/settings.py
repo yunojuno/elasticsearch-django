@@ -33,7 +33,7 @@ def get_settings() -> SettingsType:
     return settings.SEARCH_SETTINGS["settings"]
 
 
-def get_setting(key, *default: str) -> SettingType:
+def get_setting(key, *default: Union[str, int, bool, list, dict]) -> SettingType:
     """Return specific search setting from Django conf."""
     if default:
         return get_settings().get(key, default[0])

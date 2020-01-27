@@ -147,7 +147,7 @@ def scan_index(index: str, model: Model) -> Generator:
         yield hit
 
 
-def bulk_actions(objects: Sequence[Model], index: str, action: str) -> Generator[dict]:
+def bulk_actions(objects: Sequence[Model], index: str, action: str) -> Generator:
     """
     Yield bulk api 'actions' from a collection of objects.
 
