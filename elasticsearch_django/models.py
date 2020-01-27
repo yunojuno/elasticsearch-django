@@ -13,9 +13,9 @@ from django.utils.timezone import now as tz_now
 
 from .settings import (
     get_client,
-    get_setting,
-    get_model_indexes,
     get_model_index_properties,
+    get_model_indexes,
+    get_setting,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,6 @@ UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
 
 
 class SearchDocumentManagerMixin(object):
-
     """
     Model manager mixin that adds search document methods.
 
@@ -126,9 +125,9 @@ class SearchDocumentManagerMixin(object):
             self.get_queryset()
             .filter(pk__in=[h["id"] for h in hits])
             # add the query relevance score
-            .annotate(search_score=RawSQL(score_sql, ()))
+            .annotate(search_score=RawSQL(score_sql, ()))  # noqa: S611
             # add the ordering number (0-based)
-            .annotate(search_rank=RawSQL(rank_sql, ()))
+            .annotate(search_rank=RawSQL(rank_sql, ()))  # noqa: S611
             .order_by("search_rank")
         )
 
@@ -151,7 +150,6 @@ class SearchDocumentManagerMixin(object):
 
 
 class SearchDocumentMixin(object):
-
     """
     Mixin used by models that are indexed for ES.
 
@@ -229,7 +227,7 @@ class SearchDocumentMixin(object):
 
     def clean_update_fields(self, index, update_fields):
         """
-        Clean the list of update_fields based on the index being updated.\
+        Clean the list of update_fields based on the index being updated.
 
         If any field in the update_fields list is not in the set of properties
         defined by the index mapping for this model, then we ignore it. If
@@ -249,7 +247,8 @@ class SearchDocumentMixin(object):
         for f in clean_fields:
             if not self._is_field_serializable(f):
                 raise ValueError(
-                    "'%s' cannot be automatically serialized into a search document property. Please override as_search_document_update.",
+                    "'%s' cannot be automatically serialized into a search "
+                    "document property. Please override as_search_document_update.",
                     f,
                 )
         return clean_fields
@@ -343,7 +342,8 @@ class SearchDocumentMixin(object):
 
     def fetch_search_document(self, *, index):
         """Fetch the object's document from a search index by id."""
-        assert self.pk, "Object must have a primary key before being indexed."
+        if not self.pk:
+            raise ValueError("Object must have a primary key before being indexed.")
         client = get_client()
         return client.get(index=index, doc_type=self.search_doc_type, id=self.pk)
 
@@ -385,7 +385,7 @@ class SearchDocumentMixin(object):
 
         When POSTing a partial update the `as_search_document` doc
         must be passed to the `client.update` wrapped in a "doc" node,
-        see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+        # noqa: E501, see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
 
         """
         doc = self.as_search_document_update(index=index, update_fields=update_fields)
@@ -404,7 +404,6 @@ class SearchDocumentMixin(object):
 
 
 class SearchQuery(models.Model):
-
     """
     Model used to capture ES queries and responses.
 
@@ -441,15 +440,17 @@ class SearchQuery(models.Model):
         default="_all",
         help_text="The name of the ElasticSearch index(es) being queried.",
     )
-    # The query property contains the raw DSL query, which can be arbitrarily complex - there
-    # is no one way of mapping input text to the query itself. However, it's often helpful to
-    # have the terms that the user themselves typed easily accessible without having to parse
-    # JSON.
+    # The query property contains the raw DSL query, which can be arbitrarily complex -
+    # there is no one way of mapping input text to the query itself. However, it's
+    # often helpful to have the terms that the user themselves typed easily accessible
+    # without having to parse JSON.
     search_terms = models.CharField(
         max_length=400,
         default="",
         blank=True,
-        help_text="Free text search terms used in the query, stored for easy reference.",
+        help_text=(
+            "Free text search terms used in the query, stored for easy reference."
+        ),
     )
     query = JSONField(
         help_text="The raw ElasticSearch DSL query.", encoder=DjangoJSONEncoder
@@ -524,12 +525,12 @@ class SearchQuery(models.Model):
 
     @property
     def max_score(self):
-        """The max relevance score in the returned page."""
+        """Max relevance score in the returned page."""
         return max(self._extract_set("score") or [0])
 
     @property
     def min_score(self):
-        """The min relevance score in the returned page."""
+        """Min relevance score in the returned page."""
         return min(self._extract_set("score") or [0])
 
     @property
@@ -558,7 +559,7 @@ class SearchQuery(models.Model):
 
     @property
     def page_size(self):
-        """The number of hits returned in this specific page."""
+        """Return number of hits returned in this specific page."""
         return 0 if self.hits is None else len(self.hits)
 
 

@@ -1,16 +1,18 @@
 """Create a search index."""
+from __future__ import annotations
+
 import logging
+from typing import Any
 
 from elasticsearch.exceptions import TransportError
 
+from ...index import create_index, delete_index, update_index
 from . import BaseSearchCommand
-from ...index import delete_index, create_index, update_index
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseSearchCommand):
-
     """Run the management command."""
 
     help = (
@@ -18,7 +20,7 @@ class Command(BaseSearchCommand):
     )
     description = "Rebuild search index"
 
-    def do_index_command(self, index, **options):
+    def do_index_command(self, index: str, **options: Any) -> dict:
         """Rebuild search index."""
         if options["interactive"]:
             logger.warning("This will permanently delete the index '%s'.", index)

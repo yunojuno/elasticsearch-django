@@ -1,17 +1,13 @@
-dist:
-  trusty
-language:
-  python
+dist: trusty
+language: python
 python:
-  - "3.6"
-install:
-  pip install tox-travis
-script:
-  tox
+    - "3.6"
+install: pip install tox-travis
+script: tox
 addons:
-  postgresql: "9.4"
+    postgresql: "9.4"
 env:
-  TEST_DB_HOST: "localhost"
-  TEST_DB_NAME: "postgres"
-  TEST_DB_USER: "postgres"
-  TEST_DB_PASSWORD: ""
+    TEST_DB_HOST: "localhost"
+    TEST_DB_NAME: "postgres"
+    TEST_DB_USER: "postgres"
+    TEST_DB_PASSWORD: ""

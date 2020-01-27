@@ -1,17 +1,20 @@
+from __future__ import annotations
+
 import logging
+from typing import Any, List, Type
 
 from django.apps import AppConfig
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import signals
+from django.db.models import Model, signals
+from elasticsearch_django.models import SearchDocumentMixin
 
 from . import settings
-from .signals import pre_index, pre_update, pre_delete
+from .signals import pre_delete, pre_index, pre_update
 
 logger = logging.getLogger(__name__)
 
 
 class ElasticAppConfig(AppConfig):
-
     """AppConfig for Search3."""
 
     name = "elasticsearch_django"
@@ -25,7 +28,7 @@ class ElasticAppConfig(AppConfig):
         _connect_signals()
 
 
-def _validate_config(strict=False):
+def _validate_config(strict: bool = False) -> None:
     """Validate settings.SEARCH_SETTINGS."""
     for index in settings.get_index_names():
         _validate_mapping(index, strict=strict)
@@ -33,11 +36,12 @@ def _validate_config(strict=False):
             _validate_model(model)
     if settings.get_setting("update_strategy", "full") not in ["full", "partial"]:
         raise ImproperlyConfigured(
-            "Invalid SEARCH_SETTINGS: 'update_strategy' value must be 'full' or 'partial'."
+            "Invalid SEARCH_SETTINGS: 'update_strategy' value must be "
+            "'full' or 'partial'."
         )
 
 
-def _validate_mapping(index, strict=False):
+def _validate_mapping(index, strict: bool = False) -> None:
     """Check that an index mapping JSON file exists."""
     try:
         settings.get_index_mapping(index)
@@ -48,7 +52,7 @@ def _validate_mapping(index, strict=False):
             logger.warning("Index '%s' has no mapping, relying on ES instead.", index)
 
 
-def _validate_model(model):
+def _validate_model(model: Model) -> None:
     """Check that a model configured for an index subclasses the required classes."""
     if not hasattr(model, "as_search_document"):
         raise ImproperlyConfigured("'%s' must implement `as_search_document`." % model)
@@ -58,14 +62,14 @@ def _validate_model(model):
         )
 
 
-def _connect_signals():
+def _connect_signals() -> None:
     """Connect up post_save, post_delete signals for models."""
     for index in settings.get_index_names():
         for model in settings.get_index_models(index):
             _connect_model_signals(model)
 
 
-def _connect_model_signals(model):
+def _connect_model_signals(model: Type[Model]) -> None:
     """Connect signals for a single model."""
     dispatch_uid = "%s.post_save" % model._meta.model_name
     logger.debug("Connecting search index model post_save signal: %s", dispatch_uid)
@@ -77,7 +81,7 @@ def _connect_model_signals(model):
     )
 
 
-def _on_model_save(sender, **kwargs):
+def _on_model_save(sender, **kwargs: Any) -> None:
     """Update document in search index post_save."""
     instance = kwargs.pop("instance")
     update_fields = kwargs.pop("update_fields")
@@ -90,7 +94,7 @@ def _on_model_save(sender, **kwargs):
             logger.exception("Error handling 'on_save' signal for %s", instance)
 
 
-def _on_model_delete(sender, **kwargs):
+def _on_model_delete(sender, **kwargs: Any) -> None:
     """Remove documents from search indexes post_delete."""
     instance = kwargs.pop("instance")
     for index in instance.search_indexes:
@@ -100,8 +104,8 @@ def _on_model_delete(sender, **kwargs):
             logger.exception("Error handling 'on_delete' signal for %s", instance)
 
 
-def _in_search_queryset(*, instance, index) -> bool:
-    """Wrapper around the instance manager method."""
+def _in_search_queryset(*, instance: SearchDocumentMixin, index: str) -> bool:
+    """Return True if instance is in the index queryset."""
     try:
         return instance.__class__.objects.in_search_queryset(instance.id, index=index)
     except Exception:
@@ -109,7 +113,9 @@ def _in_search_queryset(*, instance, index) -> bool:
         return False
 
 
-def _update_search_index(*, instance, index, update_fields):
+def _update_search_index(
+    *, instance: SearchDocumentMixin, index: str, update_fields: List[str]
+) -> None:
     """Process index / update search index update actions."""
     if not _in_search_queryset(instance=instance, index=index):
         logger.debug(
@@ -137,7 +143,7 @@ def _update_search_index(*, instance, index, update_fields):
         logger.exception("Error handling 'post_save' signal for %s", instance)
 
 
-def _delete_from_search_index(*, instance, index):
+def _delete_from_search_index(*, instance: SearchDocumentMixin, index: str) -> None:
     """Remove a document from a search index."""
     pre_delete.send(sender=instance.__class__, instance=instance, index=index)
     if settings.auto_sync(instance):
