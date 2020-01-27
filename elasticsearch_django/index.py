@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Generator, List, Mapping, Optional, Sequence
+from typing import Generator, List, Optional, Sequence
 
 from django.db.models import Model
 from elasticsearch import helpers
@@ -12,14 +12,14 @@ from .settings import get_client, get_index_mapping, get_index_models, get_setti
 logger = logging.getLogger(__name__)
 
 
-def create_index(index: str) -> Mapping:
+def create_index(index: str) -> dict:
     """Create an index and apply mapping if appropriate."""
     logger.info("Creating search index: '%s'", index)
     client = get_client()
     return client.indices.create(index=index, body=get_index_mapping(index))
 
 
-def update_index(index: str) -> List[Mapping]:
+def update_index(index: str) -> List[dict]:
     """Re-index every document in a named index."""
     logger.info("Updating search index: '%s'", index)
     client = get_client()
@@ -33,14 +33,14 @@ def update_index(index: str) -> List[Mapping]:
     return responses
 
 
-def delete_index(index: str) -> Mapping:
+def delete_index(index: str) -> dict:
     """Delete index entirely (removes all documents and mapping)."""
     logger.info("Deleting search index: '%s'", index)
     client = get_client()
     return client.indices.delete(index=index)
 
 
-def prune_index(index: str) -> List[Mapping]:
+def prune_index(index: str) -> List[dict]:
     """
     Remove all orphaned documents from an index.
 
@@ -60,7 +60,7 @@ def prune_index(index: str) -> List[Mapping]:
     """
     logger.info("Pruning missing objects from index '%s'", index)
     prunes = []  # type: List[SearchDocumentMixin]
-    responses = []  # type: List[Mapping]
+    responses = []  # type: List[dict]
     client = get_client()
     for model in get_index_models(index):
         for hit in scan_index(index, model):
@@ -82,7 +82,7 @@ def prune_index(index: str) -> List[Mapping]:
     return responses
 
 
-def _prune_hit(hit: Mapping, model: Model) -> Optional[Model]:
+def _prune_hit(hit: dict, model: Model) -> Optional[Model]:
     """
     Check whether a document should be pruned.
 

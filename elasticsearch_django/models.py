@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Union, List, Tuple
 import logging
 import time
 import warnings
@@ -7,6 +9,7 @@ from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+from django.db.models.query import QuerySet
 from django.db.models.expressions import RawSQL
 from django.db.models.fields import CharField
 from django.utils.timezone import now as tz_now
@@ -25,7 +28,7 @@ UPDATE_STRATEGY_PARTIAL = "partial"
 UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
 
 
-class SearchDocumentManagerMixin(object):
+class SearchDocumentManagerMixin(models.Manager):
     """
     Model manager mixin that adds search document methods.
 
@@ -36,7 +39,7 @@ class SearchDocumentManagerMixin(object):
 
     """
 
-    def get_search_queryset(self, index="_all"):
+    def get_search_queryset(self, index: str = "_all") -> QuerySet:
         """
         Return the dataset used to populate the search index.
 
@@ -55,7 +58,7 @@ class SearchDocumentManagerMixin(object):
             )
         )
 
-    def in_search_queryset(self, instance_id, index="_all"):
+    def in_search_queryset(self, instance_id: int, index: str = "_all") -> bool:
         """
         Return True if an object is part of the search index queryset.
 
@@ -78,7 +81,7 @@ class SearchDocumentManagerMixin(object):
         """
         return self.get_search_queryset(index=index).filter(pk=instance_id).exists()
 
-    def from_search_query(self, search_query):
+    def from_search_query(self, search_query: SearchQuery) -> QuerySet:
         """
         Return queryset of objects from SearchQuery.results, **in order**.
 
@@ -131,10 +134,10 @@ class SearchDocumentManagerMixin(object):
             .order_by("search_rank")
         )
 
-    def _when(self, x, y):
+    def _when(self, x: Union[str, int], y: Union[str, int]) -> str:
         return "WHEN {} THEN {}".format(x, y)
 
-    def _raw_sql(self, values):
+    def _raw_sql(self, values: List[Tuple[Union[str, int], Union[str, int]]]) -> str:
         """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
         if isinstance(self.model._meta.pk, CharField):
             when_clauses = " ".join(
@@ -178,23 +181,23 @@ class SearchDocumentMixin(object):
     ]
 
     @property
-    def search_indexes(self):
+    def search_indexes(self) -> List[str]:
         """Return the list of indexes for which this model is configured."""
         return get_model_indexes(self.__class__)
 
     @property
-    def search_document_cache_key(self):
+    def search_document_cache_key(self) -> str:
         """Key used for storing search docs in local cache."""
         return "elasticsearch_django:{}.{}.{}".format(
-            self._meta.app_label, self._meta.model_name, self.pk
+            self._meta.app_label, self._meta.model_name, self.pk  # type: ignore
         )
 
     @property
-    def search_doc_type(self):
+    def search_doc_type(self) -> str:
         """Return the doc_type used for the model."""
-        return self._meta.model_name
+        return self._meta.model_name  # type: ignore
 
-    def as_search_document(self, *, index):
+    def as_search_document(self, *, index: str) -> dict:
         """
         Return the object as represented in a named index.
 
@@ -218,14 +221,14 @@ class SearchDocumentMixin(object):
             )
         )
 
-    def _is_field_serializable(self, field_name):
+    def _is_field_serializable(self, field_name: str) -> bool:
         """Return True if the field can be serialized into a JSON doc."""
         return (
-            self._meta.get_field(field_name).get_internal_type()
+            self._meta.get_field(field_name).get_internal_type()  # type: ignore
             in self.SIMPLE_UPDATE_FIELD_TYPES
         )
 
-    def clean_update_fields(self, index, update_fields):
+    def clean_update_fields(self, index: str, update_fields: List[str]) -> List[str]:
         """
         Clean the list of update_fields based on the index being updated.
 
@@ -253,7 +256,9 @@ class SearchDocumentMixin(object):
                 )
         return clean_fields
 
-    def as_search_document_update(self, *, index, update_fields):
+    def as_search_document_update(
+        self, *, index: str, update_fields: List[str]
+    ) -> dict:
         """
         Return a partial update document based on which fields have been updated.
 
@@ -304,7 +309,9 @@ class SearchDocumentMixin(object):
                 )
             }
 
-    def as_search_action(self, *, index, action):
+        raise ValueError("Invalid update strategy.")
+
+    def as_search_action(self, *, index: str, action: str) -> dict:
         """
         Return an object as represented in a bulk api operation.
 
@@ -331,7 +338,7 @@ class SearchDocumentMixin(object):
             "_index": index,
             "_type": self.search_doc_type,
             "_op_type": action,
-            "_id": self.pk,
+            "_id": self.pk,  # type: ignore
         }
 
         if action == "index":
@@ -340,14 +347,14 @@ class SearchDocumentMixin(object):
             document["doc"] = self.as_search_document(index=index)
         return document
 
-    def fetch_search_document(self, *, index):
+    def fetch_search_document(self, *, index: str) -> dict:
         """Fetch the object's document from a search index by id."""
-        if not self.pk:
+        if not self.pk:  # type: ignore
             raise ValueError("Object must have a primary key before being indexed.")
         client = get_client()
-        return client.get(index=index, doc_type=self.search_doc_type, id=self.pk)
+        return client.get(index=index, doc_type=self.search_doc_type, id=self.pk)  # type: ignore
 
-    def index_search_document(self, *, index):
+    def index_search_document(self, *, index: str) -> None:
         """
         Create or replace search document in named index.
 
@@ -368,7 +375,7 @@ class SearchDocumentMixin(object):
             index=index, doc_type=self.search_doc_type, body=new_doc, id=self.pk
         )
 
-    def update_search_document(self, *, index, update_fields):
+    def update_search_document(self, *, index: str, update_fields: List[str]) -> None:
         """
         Partial update of a document in named index.
 
@@ -394,10 +401,10 @@ class SearchDocumentMixin(object):
             return
 
         get_client().update(
-            index=index, doc_type=self.search_doc_type, body={"doc": doc}, id=self.pk
+            index=index, doc_type=self.search_doc_type, body={"doc": doc}, id=self.pk  # type: ignore
         )
 
-    def delete_search_document(self, *, index):
+    def delete_search_document(self, *, index: str) -> None:
         """Delete document from named index."""
         cache.delete(self.search_document_cache_key)
         get_client().delete(index=index, doc_type=self.search_doc_type, id=self.pk)
