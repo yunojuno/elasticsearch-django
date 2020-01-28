@@ -124,7 +124,7 @@ class IndexFunctionTests(TestCase):
     def test_bulk_actions(self, mock_action):
         """Test the bulk_actions function."""
         # cannot pass in in '_all' as the bulk_actions
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             list(bulk_actions([], "_all", "index"))
 
         mock_action.return_value = "foo"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+import warnings
 from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from django.conf import settings
@@ -576,6 +577,24 @@ class SearchQuery(models.Model):
     def page_size(self) -> int:
         """Return number of hits returned in this specific page."""
         return 0 if self.hits is None else len(self.hits)
+
+    @classmethod
+    def execute(
+        cls,
+        search: Search,
+        search_terms: str = "",
+        user: Optional[AbstractBaseUser] = None,
+        reference: Optional[str] = "",
+        save: bool = True,
+    ) -> SearchQuery:
+        """Create a new SearchQuery instance and execute a search against ES."""
+        warnings.warn(
+            "Deprecated - please use `execute_search` function instead.",
+            DeprecationWarning,
+        )
+        return execute_search(
+            search, search_terms=search_terms, user=user, reference=reference, save=save
+        )
 
 
 def execute_search(

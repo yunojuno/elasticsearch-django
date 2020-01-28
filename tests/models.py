@@ -9,7 +9,6 @@ class TestModelManager(SearchDocumentManagerMixin, models.Manager):
 
 
 class TestModel(SearchDocumentMixin, models.Model):
-
     """Model class for use in tests."""
 
     simple_field_1 = models.IntegerField()

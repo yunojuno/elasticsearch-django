@@ -21,7 +21,7 @@ from .models import TestModel
 
 TEST_SETTINGS = {
     "connections": {"default": "https://foo", "backup": "https://bar"},
-    "indexes": {"baz": {"models": ["elasticsearch_django.TestModel"]}},
+    "indexes": {"baz": {"models": ["tests.TestModel"]}},
     "settings": {"foo": "bar", "auto_sync": True, "never_auto_sync": []},
 }
 
@@ -80,7 +80,7 @@ class SettingsFunctionTests(TestCase):
         from django.apps import apps
 
         models = get_index_models("baz")
-        self.assertEqual(models, [apps.get_model("elasticsearch_django", "TestModel")])
+        self.assertEqual(models, [apps.get_model("tests", "TestModel")])
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_model_indexes(self):
@@ -117,7 +117,5 @@ class SettingsFunctionTests(TestCase):
         TEST_SETTINGS["settings"]["auto_sync"] = True
         self.assertEqual(auto_sync(obj), True)
         # Check that if a model is in never_auto_sync, then auto_sync returns false
-        TEST_SETTINGS["settings"]["never_auto_sync"].append(
-            "elasticsearch_django.testmodel"
-        )
+        TEST_SETTINGS["settings"]["never_auto_sync"].append("tests.testmodel")
         self.assertEqual(auto_sync(obj), False)
