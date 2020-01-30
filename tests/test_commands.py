@@ -2,14 +2,13 @@ from unittest import mock
 
 from django.test import TestCase
 from elasticsearch.exceptions import TransportError
-
-from ..management.commands import (
+from elasticsearch_django.management.commands import (
     BaseSearchCommand,
     create_search_index,
     delete_search_index,
     prune_search_index,
-    update_search_index,
     rebuild_search_index,
+    update_search_index,
 )
 
 

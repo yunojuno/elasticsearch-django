@@ -1,18 +1,20 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
+from typing import Callable, Generator, List
 
 from django.db.models import signals
 
-from .settings import get_settings
 from .apps import _on_model_save
 
 
-def _strip_on_model_save():
-    """Returns list of signal receivers without _on_model_save."""
+def _strip_on_model_save() -> List[Callable]:
+    """Returnslist of signal receivers without _on_model_save."""
     return [r for r in signals.post_save.receivers if r[1]() != _on_model_save]
 
 
 @contextmanager
-def disable_search_updates():
+def disable_search_updates() -> Generator:
     """
     Context manager used to temporarily disable auto_sync.
 

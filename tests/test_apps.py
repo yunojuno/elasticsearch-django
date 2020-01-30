@@ -1,36 +1,37 @@
 from unittest import mock
 
+import elasticsearch_django
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
-
-from ..apps import (
+from elasticsearch_django.apps import (
     ElasticAppConfig,
-    _delete_from_search_index,
-    _validate_config,
-    _validate_model,
-    _validate_mapping,
     _connect_signals,
+    _delete_from_search_index,
     _on_model_delete,
     _on_model_save,
     _update_search_index,
+    _validate_config,
+    _validate_mapping,
+    _validate_model,
 )
-from .. import tests
-from ..models import SearchDocumentMixin
-from ..tests import TestModel
+from elasticsearch_django.models import SearchDocumentMixin
+
+from .models import TestModel
 
 
 class SearchAppsConfigTests(TestCase):
 
     """Tests for the apps module ready function."""
 
-    @mock.patch("elasticsearch_django.apps.settings.get_setting")
+    @mock.patch("elasticsearch_django.apps.settings.get_setting", lambda x: False)
     @mock.patch("elasticsearch_django.apps._validate_config")
     @mock.patch("elasticsearch_django.apps._connect_signals")
-    def test_ready(self, mock_signals, mock_config, mock_setting):
+    def test_ready(self, mock_signals, mock_config):
         """Test the AppConfig.ready method."""
-        config = ElasticAppConfig("foo_bar", tests)
+        # mock_setting = True
+        config = ElasticAppConfig("foo_bar", elasticsearch_django)
         config.ready()
-        mock_config.assert_called_once_with(mock_setting.return_value)
+        mock_config.assert_called_once_with(False)
         mock_signals.assert_called_once_with()
 
 
@@ -41,17 +42,17 @@ class SearchAppsValidationTests(TestCase):
     def test__validate_model(self):
         """Test _validate_model function."""
         # 1. model doesn't implement as_search_document
-        with mock.patch("elasticsearch_django.tests.test_apps.TestModel") as tm:
+        with mock.patch("tests.test_apps.TestModel") as tm:
             del tm.as_search_document
             self.assertRaises(ImproperlyConfigured, _validate_model, tm)
 
         # 2. model.objects doesn't implement get_search_queryset
-        with mock.patch("elasticsearch_django.tests.test_apps.TestModel") as tm:
+        with mock.patch("tests.test_apps.TestModel") as tm:
             del tm.objects.get_search_queryset
             self.assertRaises(ImproperlyConfigured, _validate_model, tm)
 
         # model should pass
-        with mock.patch("elasticsearch_django.tests.test_apps.TestModel") as tm:
+        with mock.patch("tests.test_apps.TestModel") as tm:
             _validate_model(tm)
 
     @mock.patch("elasticsearch_django.apps.settings")

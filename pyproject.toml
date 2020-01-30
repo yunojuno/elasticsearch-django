@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "elasticsearch-django"
+version = "6.6.dev0"
+description = "Elasticsearch Django app."
+license = "MIT"
+authors = ["YunoJuno <code@yunojuno.com>"]
+maintainers = ["YunoJuno <code@yunojuno.com>"]
+readme = "README.rst"
+homepage = "https://github.com/yunojuno/elasticsearch-django"
+repository = "https://github.com/yunojuno/elasticsearch-django"
+classifiers = [
+    "Environment :: Web Environment",
+    "Framework :: Django :: 2.2",
+    "Framework :: Django :: 3.0",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+django = "^2.2 || ^3.0"
+elasticsearch = "^6.0"
+elasticsearch-dsl = "^6.0"
+psycopg2-binary = "^2.8"
+simplejson = "^3.17"
+
+[tool.poetry.dev-dependencies]
+pytest = "^3.0"
+pytest-cov = "^2.8"
+pytest-django = "^3.7"
+coverage = "^4.5"
+pylint = "^2.4"
+flake8 = "^3.7"
+flake8-bandit = "^2.1"
+flake8-docstrings = "^1.5"
+isort = "^4.3"
+mypy = "^0.750.0"
+pre-commit = "^1.20"
+black = "==19.10b0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"

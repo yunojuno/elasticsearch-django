@@ -1,24 +1,29 @@
-import logging
+from __future__ import annotations
 
+import logging
+from typing import Generator, List, Optional, Sequence
+
+from django.db.models import Model
 from elasticsearch import helpers
 
-from .settings import get_setting, get_index_mapping, get_index_models, get_client
+from .models import SearchDocumentMixin
+from .settings import get_client, get_index_mapping, get_index_models, get_setting
 
 logger = logging.getLogger(__name__)
 
 
-def create_index(index):
+def create_index(index: str) -> dict:
     """Create an index and apply mapping if appropriate."""
     logger.info("Creating search index: '%s'", index)
     client = get_client()
     return client.indices.create(index=index, body=get_index_mapping(index))
 
 
-def update_index(index):
+def update_index(index: str) -> List[dict]:
     """Re-index every document in a named index."""
     logger.info("Updating search index: '%s'", index)
     client = get_client()
-    responses = []
+    responses = []  # List[dict]
     for model in get_index_models(index):
         logger.info("Updating search index model: '%s'", model.search_doc_type)
         objects = model.objects.get_search_queryset(index).iterator()
@@ -28,15 +33,16 @@ def update_index(index):
     return responses
 
 
-def delete_index(index):
+def delete_index(index: str) -> dict:
     """Delete index entirely (removes all documents and mapping)."""
     logger.info("Deleting search index: '%s'", index)
     client = get_client()
     return client.indices.delete(index=index)
 
 
-def prune_index(index):
-    """Remove all orphaned documents from an index.
+def prune_index(index: str) -> List[dict]:
+    """
+    Remove all orphaned documents from an index.
 
     This function works by scanning the remote index, and in each returned
     batch of documents looking up whether they appear in the default index
@@ -53,8 +59,8 @@ def prune_index(index):
 
     """
     logger.info("Pruning missing objects from index '%s'", index)
-    prunes = []
-    responses = []
+    prunes = []  # type: List[SearchDocumentMixin]
+    responses = []  # type: List[dict]
     client = get_client()
     for model in get_index_models(index):
         for hit in scan_index(index, model):
@@ -76,7 +82,7 @@ def prune_index(index):
     return responses
 
 
-def _prune_hit(hit, model):
+def _prune_hit(hit: dict, model: Model) -> Optional[Model]:
     """
     Check whether a document should be pruned.
 
@@ -106,7 +112,8 @@ def _prune_hit(hit, model):
         return None
     else:
         logger.debug(
-            "%s with id=%s does not exist in the '%s' index queryset and will be pruned.",
+            "%s with id=%s does not exist in the '%s' index "
+            "queryset and will be pruned.",
             model,
             hit_id,
             hit_index,
@@ -116,7 +123,7 @@ def _prune_hit(hit, model):
         return model(pk=hit_id)
 
 
-def scan_index(index, model):
+def scan_index(index: str, model: Model) -> Generator:
     """
     Yield all documents of model type in an index.
 
@@ -133,14 +140,14 @@ def scan_index(index, model):
     Yields each document of type model in index, one at a time.
 
     """
-    # see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-type-query.html
+    # noqa: E501, see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-type-query.html
     query = {"query": {"type": {"value": model._meta.model_name}}}
     client = get_client()
     for hit in helpers.scan(client, index=index, query=query):
         yield hit
 
 
-def bulk_actions(objects, index, action):
+def bulk_actions(objects: Sequence[Model], index: str, action: str) -> Generator:
     """
     Yield bulk api 'actions' from a collection of objects.
 
@@ -158,9 +165,10 @@ def bulk_actions(objects, index, action):
             how the final document is formatted.
 
     """
-    assert (
-        index != "_all"
-    ), "index arg must be a valid index name. '_all' is a reserved term."
+    if index == "_all":
+        raise ValueError(
+            "index arg must be a valid index name. '_all' is a reserved term."
+        )
     logger.info("Creating bulk '%s' actions for '%s'", action, index)
     for obj in objects:
         try:

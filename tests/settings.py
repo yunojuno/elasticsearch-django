@@ -1,5 +1,10 @@
-# -*- coding: utf-8 -*-
+from distutils.version import StrictVersion
 from os import getenv
+
+import django
+
+DJANGO_VERSION = StrictVersion(django.get_version())
+assert DJANGO_VERSION >= StrictVersion("2.2")
 
 DEBUG = True
 
@@ -23,6 +28,7 @@ INSTALLED_APPS = (
     "django.contrib.staticfiles",
     "django.contrib.messages",
     "elasticsearch_django",
+    "tests",
 )
 
 MIDDLEWARE = [

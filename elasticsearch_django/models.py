@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import logging
 import time
 import warnings
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
@@ -9,14 +12,19 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models.expressions import RawSQL
 from django.db.models.fields import CharField
+from django.db.models.query import QuerySet
 from django.utils.timezone import now as tz_now
+from elasticsearch_dsl import Search
 
 from .settings import (
     get_client,
-    get_setting,
-    get_model_indexes,
     get_model_index_properties,
+    get_model_indexes,
+    get_setting,
 )
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractBaseUser
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +33,7 @@ UPDATE_STRATEGY_PARTIAL = "partial"
 UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
 
 
-class SearchDocumentManagerMixin(object):
-
+class SearchDocumentManagerMixin(models.Manager):
     """
     Model manager mixin that adds search document methods.
 
@@ -37,7 +44,7 @@ class SearchDocumentManagerMixin(object):
 
     """
 
-    def get_search_queryset(self, index="_all"):
+    def get_search_queryset(self, index: str = "_all") -> QuerySet:
         """
         Return the dataset used to populate the search index.
 
@@ -56,7 +63,7 @@ class SearchDocumentManagerMixin(object):
             )
         )
 
-    def in_search_queryset(self, instance_id, index="_all"):
+    def in_search_queryset(self, instance_id: int, index: str = "_all") -> bool:
         """
         Return True if an object is part of the search index queryset.
 
@@ -79,7 +86,7 @@ class SearchDocumentManagerMixin(object):
         """
         return self.get_search_queryset(index=index).filter(pk=instance_id).exists()
 
-    def from_search_query(self, search_query):
+    def from_search_query(self, search_query: SearchQuery) -> QuerySet:
         """
         Return queryset of objects from SearchQuery.results, **in order**.
 
@@ -126,16 +133,16 @@ class SearchDocumentManagerMixin(object):
             self.get_queryset()
             .filter(pk__in=[h["id"] for h in hits])
             # add the query relevance score
-            .annotate(search_score=RawSQL(score_sql, ()))
+            .annotate(search_score=RawSQL(score_sql, ()))  # noqa: S611
             # add the ordering number (0-based)
-            .annotate(search_rank=RawSQL(rank_sql, ()))
+            .annotate(search_rank=RawSQL(rank_sql, ()))  # noqa: S611
             .order_by("search_rank")
         )
 
-    def _when(self, x, y):
+    def _when(self, x: Union[str, int], y: Union[str, int]) -> str:
         return "WHEN {} THEN {}".format(x, y)
 
-    def _raw_sql(self, values):
+    def _raw_sql(self, values: List[Tuple[Union[str, int], Union[str, int]]]) -> str:
         """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
         if isinstance(self.model._meta.pk, CharField):
             when_clauses = " ".join(
@@ -151,7 +158,6 @@ class SearchDocumentManagerMixin(object):
 
 
 class SearchDocumentMixin(object):
-
     """
     Mixin used by models that are indexed for ES.
 
@@ -180,23 +186,23 @@ class SearchDocumentMixin(object):
     ]
 
     @property
-    def search_indexes(self):
+    def search_indexes(self) -> List[str]:
         """Return the list of indexes for which this model is configured."""
         return get_model_indexes(self.__class__)
 
     @property
-    def search_document_cache_key(self):
+    def search_document_cache_key(self) -> str:
         """Key used for storing search docs in local cache."""
         return "elasticsearch_django:{}.{}.{}".format(
-            self._meta.app_label, self._meta.model_name, self.pk
+            self._meta.app_label, self._meta.model_name, self.pk  # type: ignore
         )
 
     @property
-    def search_doc_type(self):
+    def search_doc_type(self) -> str:
         """Return the doc_type used for the model."""
-        return self._meta.model_name
+        return self._meta.model_name  # type: ignore
 
-    def as_search_document(self, *, index):
+    def as_search_document(self, *, index: str) -> dict:
         """
         Return the object as represented in a named index.
 
@@ -220,16 +226,16 @@ class SearchDocumentMixin(object):
             )
         )
 
-    def _is_field_serializable(self, field_name):
+    def _is_field_serializable(self, field_name: str) -> bool:
         """Return True if the field can be serialized into a JSON doc."""
         return (
-            self._meta.get_field(field_name).get_internal_type()
+            self._meta.get_field(field_name).get_internal_type()  # type: ignore
             in self.SIMPLE_UPDATE_FIELD_TYPES
         )
 
-    def clean_update_fields(self, index, update_fields):
+    def clean_update_fields(self, index: str, update_fields: List[str]) -> List[str]:
         """
-        Clean the list of update_fields based on the index being updated.\
+        Clean the list of update_fields based on the index being updated.
 
         If any field in the update_fields list is not in the set of properties
         defined by the index mapping for this model, then we ignore it. If
@@ -249,12 +255,15 @@ class SearchDocumentMixin(object):
         for f in clean_fields:
             if not self._is_field_serializable(f):
                 raise ValueError(
-                    "'%s' cannot be automatically serialized into a search document property. Please override as_search_document_update.",
+                    "'%s' cannot be automatically serialized into a search "
+                    "document property. Please override as_search_document_update.",
                     f,
                 )
         return clean_fields
 
-    def as_search_document_update(self, *, index, update_fields):
+    def as_search_document_update(
+        self, *, index: str, update_fields: List[str]
+    ) -> dict:
         """
         Return a partial update document based on which fields have been updated.
 
@@ -305,7 +314,9 @@ class SearchDocumentMixin(object):
                 )
             }
 
-    def as_search_action(self, *, index, action):
+        raise ValueError("Invalid update strategy.")
+
+    def as_search_action(self, *, index: str, action: str) -> dict:
         """
         Return an object as represented in a bulk api operation.
 
@@ -332,7 +343,7 @@ class SearchDocumentMixin(object):
             "_index": index,
             "_type": self.search_doc_type,
             "_op_type": action,
-            "_id": self.pk,
+            "_id": self.pk,  # type: ignore
         }
 
         if action == "index":
@@ -341,13 +352,16 @@ class SearchDocumentMixin(object):
             document["doc"] = self.as_search_document(index=index)
         return document
 
-    def fetch_search_document(self, *, index):
+    def fetch_search_document(self, *, index: str) -> dict:
         """Fetch the object's document from a search index by id."""
-        assert self.pk, "Object must have a primary key before being indexed."
+        if not self.pk:  # type: ignore
+            raise ValueError("Object must have a primary key before being indexed.")
         client = get_client()
-        return client.get(index=index, doc_type=self.search_doc_type, id=self.pk)
+        return client.get(
+            index=index, doc_type=self.search_doc_type, id=self.pk  # type: ignore
+        )
 
-    def index_search_document(self, *, index):
+    def index_search_document(self, *, index: str) -> None:
         """
         Create or replace search document in named index.
 
@@ -362,13 +376,16 @@ class SearchDocumentMixin(object):
         cached_doc = cache.get(cache_key)
         if new_doc == cached_doc:
             logger.debug("Search document for %r is unchanged, ignoring update.", self)
-            return []
+            return
         cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
         get_client().index(
-            index=index, doc_type=self.search_doc_type, body=new_doc, id=self.pk
+            index=index,
+            doc_type=self.search_doc_type,
+            body=new_doc,
+            id=self.pk,  # type: ignore
         )
 
-    def update_search_document(self, *, index, update_fields):
+    def update_search_document(self, *, index: str, update_fields: List[str]) -> None:
         """
         Partial update of a document in named index.
 
@@ -385,7 +402,7 @@ class SearchDocumentMixin(object):
 
         When POSTing a partial update the `as_search_document` doc
         must be passed to the `client.update` wrapped in a "doc" node,
-        see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+        # noqa: E501, see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
 
         """
         doc = self.as_search_document_update(index=index, update_fields=update_fields)
@@ -394,17 +411,21 @@ class SearchDocumentMixin(object):
             return
 
         get_client().update(
-            index=index, doc_type=self.search_doc_type, body={"doc": doc}, id=self.pk
+            index=index,
+            doc_type=self.search_doc_type,
+            body={"doc": doc},
+            id=self.pk,  # type: ignore
         )
 
-    def delete_search_document(self, *, index):
+    def delete_search_document(self, *, index: str) -> None:
         """Delete document from named index."""
         cache.delete(self.search_document_cache_key)
-        get_client().delete(index=index, doc_type=self.search_doc_type, id=self.pk)
+        get_client().delete(
+            index=index, doc_type=self.search_doc_type, id=self.pk  # type: ignore
+        )
 
 
 class SearchQuery(models.Model):
-
     """
     Model used to capture ES queries and responses.
 
@@ -441,15 +462,17 @@ class SearchQuery(models.Model):
         default="_all",
         help_text="The name of the ElasticSearch index(es) being queried.",
     )
-    # The query property contains the raw DSL query, which can be arbitrarily complex - there
-    # is no one way of mapping input text to the query itself. However, it's often helpful to
-    # have the terms that the user themselves typed easily accessible without having to parse
-    # JSON.
+    # The query property contains the raw DSL query, which can be arbitrarily complex -
+    # there is no one way of mapping input text to the query itself. However, it's
+    # often helpful to have the terms that the user themselves typed easily accessible
+    # without having to parse JSON.
     search_terms = models.CharField(
         max_length=400,
         default="",
         blank=True,
-        help_text="Free text search terms used in the query, stored for easy reference.",
+        help_text=(
+            "Free text search terms used in the query, stored for easy reference."
+        ),
     )
     query = JSONField(
         help_text="The raw ElasticSearch DSL query.", encoder=DjangoJSONEncoder
@@ -486,59 +509,49 @@ class SearchQuery(models.Model):
         verbose_name = "Search query"
         verbose_name_plural = "Search queries"
 
-    def __str__(self):
-        return "Query (id={}) run against index '{}'".format(self.pk, self.index)
+    def __str__(self) -> str:
+        return f"Query (id={self.pk}) run against index '{self.index}'"
 
-    def __repr__(self):
-        return "<SearchQuery id={} user={} index='{}' total_hits={} >".format(
-            self.pk, self.user, self.index, self.total_hits
+    def __repr__(self) -> str:
+        return (
+            f"<SearchQuery id={self.pk} user={self.user} "
+            f"index='{self.index}' total_hits={self.total_hits} >"
         )
 
-    @classmethod
-    def execute(cls, search, search_terms="", user=None, reference=None, save=True):
-        """Create a new SearchQuery instance and execute a search against ES."""
-        warnings.warn(
-            "Pending deprecation - please use `execute_search` function instead.",
-            PendingDeprecationWarning,
-        )
-        return execute_search(
-            search, search_terms=search_terms, user=user, reference=reference, save=save
-        )
-
-    def save(self, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> SearchQuery:
         """Save and return the object (for chaining)."""
         if self.search_terms is None:
             self.search_terms = ""
         super().save(**kwargs)
         return self
 
-    def _extract_set(self, _property):
+    def _extract_set(self, _property: str) -> List[Union[str, int]]:
         return (
             [] if self.hits is None else (list(set([h[_property] for h in self.hits])))
         )
 
     @property
-    def doc_types(self):
+    def doc_types(self) -> List[str]:
         """List of doc_types extracted from hits."""
-        return self._extract_set("doc_type")
+        return [str(x) for x in self._extract_set("doc_type")]
 
     @property
-    def max_score(self):
-        """The max relevance score in the returned page."""
-        return max(self._extract_set("score") or [0])
+    def max_score(self) -> int:
+        """Max relevance score in the returned page."""
+        return int(max(self._extract_set("score") or [0]))
 
     @property
-    def min_score(self):
-        """The min relevance score in the returned page."""
-        return min(self._extract_set("score") or [0])
+    def min_score(self) -> int:
+        """Min relevance score in the returned page."""
+        return int(min(self._extract_set("score") or [0]))
 
     @property
-    def object_ids(self):
+    def object_ids(self) -> List[int]:
         """List of model ids extracted from hits."""
-        return self._extract_set("id")
+        return [int(x) for x in self._extract_set("id")]
 
     @property
-    def page_slice(self):
+    def page_slice(self) -> Optional[Tuple[int, int]]:
         """Return the query from:size tuple (0-based)."""
         return (
             None
@@ -547,29 +560,51 @@ class SearchQuery(models.Model):
         )
 
     @property
-    def page_from(self):
+    def page_from(self) -> int:
         """1-based index of the first hit in the returned page."""
-        return 0 if self.page_size == 0 else self.page_slice[0] + 1
+        if self.page_size == 0:
+            return 0
+        if not self.page_slice:
+            return 0
+        return self.page_slice[0] + 1
 
     @property
-    def page_to(self):
+    def page_to(self) -> int:
         """1-based index of the last hit in the returned page."""
         return 0 if self.page_size == 0 else self.page_from + self.page_size - 1
 
     @property
-    def page_size(self):
-        """The number of hits returned in this specific page."""
+    def page_size(self) -> int:
+        """Return number of hits returned in this specific page."""
         return 0 if self.hits is None else len(self.hits)
+
+    @classmethod
+    def execute(
+        cls,
+        search: Search,
+        search_terms: str = "",
+        user: Optional[AbstractBaseUser] = None,
+        reference: Optional[str] = "",
+        save: bool = True,
+    ) -> SearchQuery:
+        """Create a new SearchQuery instance and execute a search against ES."""
+        warnings.warn(
+            "Deprecated - please use `execute_search` function instead.",
+            DeprecationWarning,
+        )
+        return execute_search(
+            search, search_terms=search_terms, user=user, reference=reference, save=save
+        )
 
 
 def execute_search(
-    search,
-    search_terms="",
-    user=None,
-    reference="",
-    save=True,
-    query_type=SearchQuery.QUERY_TYPE_SEARCH,
-):
+    search: Search,
+    search_terms: str = "",
+    user: Optional[AbstractBaseUser] = None,
+    reference: Optional[str] = "",
+    save: bool = True,
+    query_type: str = SearchQuery.QUERY_TYPE_SEARCH,
+) -> SearchQuery:
     """
     Create a new SearchQuery instance and execute a search against ES.
 

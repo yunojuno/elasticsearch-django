@@ -6,16 +6,16 @@ from django.core.cache import cache
 from django.db.models import Model
 from django.test import TestCase
 from django.utils.timezone import now as tz_now
-from elasticsearch_dsl.search import Search
-
-from ..models import (
-    SearchDocumentMixin,
-    SearchDocumentManagerMixin,
-    SearchQuery,
+from elasticsearch_django.models import (
     UPDATE_STRATEGY_FULL,
     UPDATE_STRATEGY_PARTIAL,
+    SearchDocumentManagerMixin,
+    SearchDocumentMixin,
+    SearchQuery,
 )
-from ..tests import TestModel, TestModelManager, SEARCH_DOC
+from elasticsearch_dsl.search import Search
+
+from .models import SEARCH_DOC, TestModel, TestModelManager
 
 
 class SearchDocumentMixinTests(TestCase):
@@ -223,7 +223,7 @@ class SearchDocumentMixinTests(TestCase):
         """Test the fetch_search_document method."""
         obj = TestModel()
         # obj has no id
-        self.assertRaises(AssertionError, obj.fetch_search_document, index="foo")
+        self.assertRaises(ValueError, obj.fetch_search_document, index="foo")
 
         # should now call the ES get method
         obj.id = 1
@@ -257,7 +257,7 @@ class SearchDocumentManagerMixinTests(TestCase):
         """Test the _raw_sql method."""
         self.assertEqual(
             TestModel.objects._raw_sql(((1, 2), (3, 4))),
-            'SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 2 WHEN 3 THEN 4 ELSE 0 END',
+            'SELECT CASE tests_testmodel."id" WHEN 1 THEN 2 WHEN 3 THEN 4 ELSE 0 END',
         )
 
     @mock.patch("django.db.models.query.QuerySet")
@@ -268,11 +268,11 @@ class SearchDocumentManagerMixinTests(TestCase):
         qs = TestModel.objects.from_search_query(sq)
         self.assertEqual(
             str(qs.query),
-            'SELECT "elasticsearch_django_testmodel"."id", "elasticsearch_django_testmodel"."simple_field_1", '  # noqa
-            '"elasticsearch_django_testmodel"."simple_field_2", "elasticsearch_django_testmodel"."complex_field", '  # noqa
-            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
-            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
-            'FROM "elasticsearch_django_testmodel" WHERE "elasticsearch_django_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
+            'SELECT "tests_testmodel"."id", "tests_testmodel"."simple_field_1", '  # noqa
+            '"tests_testmodel"."simple_field_2", "tests_testmodel"."complex_field", '  # noqa
+            '(SELECT CASE tests_testmodel."id" WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
+            '(SELECT CASE tests_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
+            'FROM "tests_testmodel" WHERE "tests_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
         )
 
         # test with a null score - new in v5
@@ -280,11 +280,11 @@ class SearchDocumentManagerMixinTests(TestCase):
         qs = TestModel.objects.from_search_query(sq)
         self.assertEqual(
             str(qs.query),
-            'SELECT "elasticsearch_django_testmodel"."id", "elasticsearch_django_testmodel"."simple_field_1", '  # noqa
-            '"elasticsearch_django_testmodel"."simple_field_2", "elasticsearch_django_testmodel"."complex_field", '  # noqa
-            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
-            '(SELECT CASE elasticsearch_django_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
-            'FROM "elasticsearch_django_testmodel" WHERE "elasticsearch_django_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
+            'SELECT "tests_testmodel"."id", "tests_testmodel"."simple_field_1", '  # noqa
+            '"tests_testmodel"."simple_field_2", "tests_testmodel"."complex_field", '  # noqa
+            '(SELECT CASE tests_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
+            '(SELECT CASE tests_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
+            'FROM "tests_testmodel" WHERE "tests_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
         )
 
 

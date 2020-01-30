@@ -1,17 +1,17 @@
 from unittest import mock
 
 from django.test import TestCase
-
-from ..index import (
+from elasticsearch_django.index import (
+    _prune_hit,
+    bulk_actions,
     create_index,
-    update_index,
     delete_index,
     prune_index,
-    _prune_hit,
     scan_index,
-    bulk_actions,
+    update_index,
 )
-from ..tests import TestModel, TestModelManager
+
+from .models import TestModel, TestModelManager
 
 
 class IndexFunctionTests(TestCase):
@@ -124,7 +124,7 @@ class IndexFunctionTests(TestCase):
     def test_bulk_actions(self, mock_action):
         """Test the bulk_actions function."""
         # cannot pass in in '_all' as the bulk_actions
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             list(bulk_actions([], "_all", "index"))
 
         mock_action.return_value = "foo"

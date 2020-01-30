@@ -1,8 +1,5 @@
-# search.tests package identifier
 from django.db import models
-
-from ..models import SearchDocumentMixin, SearchDocumentManagerMixin
-
+from elasticsearch_django.models import SearchDocumentManagerMixin, SearchDocumentMixin
 
 SEARCH_DOC = {"foo": "bar"}
 
@@ -12,7 +9,6 @@ class TestModelManager(SearchDocumentManagerMixin, models.Manager):
 
 
 class TestModel(SearchDocumentMixin, models.Model):
-
     """Model class for use in tests."""
 
     simple_field_1 = models.IntegerField()
