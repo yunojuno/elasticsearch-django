@@ -1,8 +1,9 @@
 from unittest import mock
 
-import elasticsearch_django
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
+
+import elasticsearch_django
 from elasticsearch_django.apps import (
     ElasticAppConfig,
     _connect_signals,

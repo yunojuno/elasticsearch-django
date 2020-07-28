@@ -2,6 +2,7 @@ from unittest import mock
 
 from django.test import TestCase
 from django.test.utils import override_settings
+
 from elasticsearch_django.settings import (
     auto_sync,
     get_client,

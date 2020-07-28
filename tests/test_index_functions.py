@@ -1,6 +1,7 @@
 from unittest import mock
 
 from django.test import TestCase
+
 from elasticsearch_django.index import (
     _prune_hit,
     bulk_actions,

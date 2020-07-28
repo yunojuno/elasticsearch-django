@@ -6,6 +6,8 @@ from django.core.cache import cache
 from django.db.models import Model
 from django.test import TestCase
 from django.utils.timezone import now as tz_now
+from elasticsearch_dsl.search import Search
+
 from elasticsearch_django.models import (
     UPDATE_STRATEGY_FULL,
     UPDATE_STRATEGY_PARTIAL,
@@ -13,7 +15,6 @@ from elasticsearch_django.models import (
     SearchDocumentMixin,
     SearchQuery,
 )
-from elasticsearch_dsl.search import Search
 
 from .models import SEARCH_DOC, TestModel, TestModelManager
 

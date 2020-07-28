@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "elasticsearch-django"
-version = "6.6.dev0"
+version = "7.0.dev"
 description = "Elasticsearch Django app."
 license = "MIT"
 authors = ["YunoJuno <code@yunojuno.com>"]
@@ -21,23 +21,23 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.7"
 django = "^2.2 || ^3.0"
-elasticsearch = "^6.0"
-elasticsearch-dsl = "^6.0"
-psycopg2-binary = "^2.8"
-simplejson = "^3.17"
+elasticsearch = "^7.0"
+elasticsearch-dsl = "^7.0"
+psycopg2-binary = "*"
+simplejson = "*"
 
 [tool.poetry.dev-dependencies]
-pytest = "^3.0"
-pytest-cov = "^2.8"
-pytest-django = "^3.7"
-coverage = "^4.5"
-pylint = "^2.4"
-flake8 = "^3.7"
-flake8-bandit = "^2.1"
-flake8-docstrings = "^1.5"
-isort = "^4.3"
-mypy = "^0.750.0"
-pre-commit = "^1.20"
+pytest = "*"
+pytest-cov = "*"
+pytest-django = "*"
+coverage = "*"
+pylint = "*"
+flake8 = "*"
+flake8-bandit = "*"
+flake8-docstrings = "*"
+isort = "*"
+mypy = "*"
+pre-commit = "*"
 black = "==19.10b0"
 
 [build-system]

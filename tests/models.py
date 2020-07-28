@@ -1,4 +1,5 @@
 from django.db import models
+
 from elasticsearch_django.models import SearchDocumentManagerMixin, SearchDocumentMixin
 
 SEARCH_DOC = {"foo": "bar"}
