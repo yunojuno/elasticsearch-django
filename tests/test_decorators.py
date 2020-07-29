@@ -1,12 +1,8 @@
-from unittest import mock
-
 from django.db.models import signals
 from django.test import TestCase
 
 from elasticsearch_django.apps import _on_model_save
 from elasticsearch_django.decorators import _strip_on_model_save, disable_search_updates
-
-from .models import SEARCH_DOC, TestModel, TestModelManager
 
 
 class DecoratorTests(TestCase):

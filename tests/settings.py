@@ -59,7 +59,7 @@ TEMPLATES = [
 
 SECRET_KEY = "elasticsearch_django"
 
-ROOT_URLCONF = "urls"
+ROOT_URLCONF = "tests.urls"
 
 APPEND_SLASH = True
 

@@ -16,7 +16,7 @@ from elasticsearch_django.models import (
     SearchQuery,
 )
 
-from .models import SEARCH_DOC, TestModel, TestModelManager
+from .models import SEARCH_DOC, ExampleModel, ExampleModelManager
 
 
 class SearchDocumentMixinTests(TestCase):
@@ -27,9 +27,9 @@ class SearchDocumentMixinTests(TestCase):
     def test_search_indexes(self, mock_indexes):
         """Test the search_indexes function."""
         mock_indexes.return_value = "foo"
-        obj = TestModel()
+        obj = ExampleModel()
         self.assertEqual(obj.search_indexes, "foo")
-        mock_indexes.assert_called_once_with(TestModel)
+        mock_indexes.assert_called_once_with(ExampleModel)
 
     def test_as_search_document(self):
         """Test the as_search_document method."""
@@ -37,7 +37,7 @@ class SearchDocumentMixinTests(TestCase):
         self.assertRaises(NotImplementedError, obj.as_search_document, index="_all")
 
     def test__is_field_serializable(self):
-        obj = TestModel()
+        obj = ExampleModel()
         self.assertTrue(obj._is_field_serializable("simple_field_1"))
         self.assertTrue(obj._is_field_serializable("simple_field_1"))
         self.assertFalse(obj._is_field_serializable("complex_field"))
@@ -45,7 +45,7 @@ class SearchDocumentMixinTests(TestCase):
     @mock.patch("elasticsearch_django.models.get_model_index_properties")
     def test_clean_update_fields(self, mock_properties):
         """Test that only fields in the mapping file are cleaned."""
-        obj = TestModel()
+        obj = ExampleModel()
         mock_properties.return_value = ["simple_field_1", "complex_field"]
         self.assertEqual(
             obj.clean_update_fields(
@@ -57,7 +57,7 @@ class SearchDocumentMixinTests(TestCase):
     @mock.patch("elasticsearch_django.models.get_model_index_properties")
     def test_clean_update_fields_complex_object(self, mock_properties):
         """Test that unserializable fields raise a ValueError."""
-        obj = TestModel()
+        obj = ExampleModel()
         mock_properties.return_value = ["simple_field_1", "complex_field"]
         self.assertRaises(
             ValueError,
@@ -69,7 +69,7 @@ class SearchDocumentMixinTests(TestCase):
     @mock.patch("elasticsearch_django.models.get_model_index_properties")
     def test_as_search_document_update_full(self, mock_properties):
         """Test the as_search_document_update method."""
-        obj = TestModel(simple_field_1=1, simple_field_2="foo")
+        obj = ExampleModel(simple_field_1=1, simple_field_2="foo")
         mock_properties.return_value = ["simple_field_1"]
         with mock.patch(
             "elasticsearch_django.models.UPDATE_STRATEGY", UPDATE_STRATEGY_FULL
@@ -85,7 +85,7 @@ class SearchDocumentMixinTests(TestCase):
     @mock.patch("elasticsearch_django.models.get_model_index_properties")
     def test_as_search_document_update_partial(self, mock_properties):
         """Test the as_search_document_update method."""
-        obj = TestModel(simple_field_1=1, simple_field_2="foo")
+        obj = ExampleModel(simple_field_1=1, simple_field_2="foo")
         mock_properties.return_value = ["simple_field_1", "simple_field_2"]
         self.assertEqual(
             obj.as_search_document_update(
@@ -112,14 +112,14 @@ class SearchDocumentMixinTests(TestCase):
     @mock.patch("elasticsearch_django.models.get_client")
     def test_index_search_document(self, mock_client):
         """Test the index_search_document sets the cache."""
-        obj = TestModel(pk=1)
+        obj = ExampleModel(pk=1)
         doc = obj.as_search_document(index="_all")
         key = obj.search_document_cache_key
         self.assertIsNone(cache.get(key))
         obj.index_search_document(index="_all")
         self.assertEqual(cache.get(key), doc)
         mock_client.return_value.index.assert_called_once_with(
-            body=doc, doc_type="testmodel", id=1, index="_all"
+            body=doc, id=1, index="_all"
         )
 
     @mock.patch(
@@ -129,7 +129,7 @@ class SearchDocumentMixinTests(TestCase):
     @mock.patch("elasticsearch_django.models.get_client")
     def test_index_search_document_cached(self, mock_client):
         """Test the index_search_document does not update if doc is a duplicate."""
-        obj = TestModel(pk=1)
+        obj = ExampleModel(pk=1)
         doc = obj.as_search_document(index="_all")
         key = obj.search_document_cache_key
         cache.set(key, doc, timeout=1)
@@ -144,13 +144,13 @@ class SearchDocumentMixinTests(TestCase):
     @mock.patch("elasticsearch_django.models.get_client")
     def test_update_search_document(self, mock_client):
         """Test the update_search_document wraps up doc correctly."""
-        obj = TestModel(pk=1, simple_field_1=1)
+        obj = ExampleModel(pk=1, simple_field_1=1)
         doc = obj.as_search_document_update(
             index="_all", update_fields=["simple_field_1"]
         )
         obj.update_search_document(index="_all", update_fields=["simple_field_1"])
         mock_client.return_value.update.assert_called_once_with(
-            body={"doc": doc}, doc_type="testmodel", id=1, index="_all"
+            body={"doc": doc}, id=1, index="_all"
         )
 
     @mock.patch(
@@ -160,8 +160,10 @@ class SearchDocumentMixinTests(TestCase):
     @mock.patch("elasticsearch_django.models.get_client")
     def test_update_search_document_empty(self, mock_client):
         """Test the update_search_document ignores empty updates."""
-        obj = TestModel(pk=1, simple_field_1=1)
-        with mock.patch.object(TestModel, "as_search_document_update") as mock_update:
+        obj = ExampleModel(pk=1, simple_field_1=1)
+        with mock.patch.object(
+            ExampleModel, "as_search_document_update"
+        ) as mock_update:
             mock_update.return_value = {}
             # this will return an empty dictionary as the partial update doc
             obj.update_search_document(index="_all", update_fields=[])
@@ -174,55 +176,41 @@ class SearchDocumentMixinTests(TestCase):
     @mock.patch("elasticsearch_django.models.get_client")
     def test_delete_search_document(self, mock_client):
         """Test the delete_search_document clears the cache."""
-        obj = TestModel(pk=1)
+        obj = ExampleModel(pk=1)
         doc = obj.as_search_document(index="_all")
         key = obj.search_document_cache_key
         cache.set(key, doc)
         self.assertIsNotNone(cache.get(key))
         obj.delete_search_document(index="_all")
         self.assertIsNone(cache.get(key))
-        mock_client.return_value.delete.assert_called_once_with(
-            doc_type="testmodel", id=1, index="_all"
-        )
+        mock_client.return_value.delete.assert_called_once_with(id=1, index="_all")
 
     def test_as_search_action(self):
         """Test the as_search_action method."""
-        obj = TestModel()
+        obj = ExampleModel()
 
         # invalid action 'bar'
         self.assertRaises(ValueError, obj.as_search_action, index="foo", action="bar")
 
         self.assertEqual(
             obj.as_search_action(index="foo", action="index"),
-            {
-                "_index": "foo",
-                "_type": "testmodel",
-                "_op_type": "index",
-                "_id": None,
-                "_source": SEARCH_DOC,
-            },
+            {"_index": "foo", "_op_type": "index", "_id": None, "_source": SEARCH_DOC,},
         )
 
         self.assertEqual(
             obj.as_search_action(index="foo", action="update"),
-            {
-                "_index": "foo",
-                "_type": "testmodel",
-                "_op_type": "update",
-                "_id": None,
-                "doc": SEARCH_DOC,
-            },
+            {"_index": "foo", "_op_type": "update", "_id": None, "doc": SEARCH_DOC,},
         )
 
         self.assertEqual(
             obj.as_search_action(index="foo", action="delete"),
-            {"_index": "foo", "_type": "testmodel", "_op_type": "delete", "_id": None},
+            {"_index": "foo", "_op_type": "delete", "_id": None},
         )
 
     @mock.patch("elasticsearch_django.models.get_client")
     def test_fetch_search_document(self, mock_client):
         """Test the fetch_search_document method."""
-        obj = TestModel()
+        obj = ExampleModel()
         # obj has no id
         self.assertRaises(ValueError, obj.fetch_search_document, index="foo")
 
@@ -230,9 +218,7 @@ class SearchDocumentMixinTests(TestCase):
         obj.id = 1
         response = obj.fetch_search_document(index="foo")
         mock_get = mock_client.return_value.get
-        mock_get.assert_called_once_with(
-            index="foo", doc_type=obj._meta.model_name, id=obj.id
-        )
+        mock_get.assert_called_once_with(index="foo", id=obj.id)
         self.assertEqual(response, mock_get.return_value)
 
 
@@ -245,11 +231,11 @@ class SearchDocumentManagerMixinTests(TestCase):
         obj = SearchDocumentManagerMixin()
         self.assertRaises(NotImplementedError, obj.get_search_queryset)
 
-    @mock.patch.object(TestModelManager, "get_search_queryset")
+    @mock.patch.object(ExampleModelManager, "get_search_queryset")
     def test_in_search_queryset(self, mock_qs):
         """Test the in_search_queryset method."""
-        obj = TestModel(id=1)
-        TestModel.objects.in_search_queryset(obj.id)
+        obj = ExampleModel(id=1)
+        ExampleModel.objects.in_search_queryset(obj.id)
         mock_qs.assert_called_once_with(index="_all")
         mock_qs.return_value.filter.assert_called_once_with(pk=1)
         mock_qs.return_value.filter.return_value.exists.assert_called_once_with()
@@ -257,8 +243,8 @@ class SearchDocumentManagerMixinTests(TestCase):
     def test__raw_sql(self):
         """Test the _raw_sql method."""
         self.assertEqual(
-            TestModel.objects._raw_sql(((1, 2), (3, 4))),
-            'SELECT CASE tests_testmodel."id" WHEN 1 THEN 2 WHEN 3 THEN 4 ELSE 0 END',
+            ExampleModel.objects._raw_sql(((1, 2), (3, 4))),
+            'SELECT CASE tests_examplemodel."id" WHEN 1 THEN 2 WHEN 3 THEN 4 ELSE 0 END',
         )
 
     @mock.patch("django.db.models.query.QuerySet")
@@ -266,26 +252,26 @@ class SearchDocumentManagerMixinTests(TestCase):
         """Test the from_search_query method."""
         self.maxDiff = None
         sq = SearchQuery(hits=[{"id": 1, "score": 1}, {"id": 2, "score": 2}])
-        qs = TestModel.objects.from_search_query(sq)
+        qs = ExampleModel.objects.from_search_query(sq)
         self.assertEqual(
             str(qs.query),
-            'SELECT "tests_testmodel"."id", "tests_testmodel"."simple_field_1", '  # noqa
-            '"tests_testmodel"."simple_field_2", "tests_testmodel"."complex_field", '  # noqa
-            '(SELECT CASE tests_testmodel."id" WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
-            '(SELECT CASE tests_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
-            'FROM "tests_testmodel" WHERE "tests_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
+            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."simple_field_1", '  # noqa
+            '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '  # noqa
+            '(SELECT CASE tests_examplemodel."id" WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
+            '(SELECT CASE tests_examplemodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
+            'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
         )
 
         # test with a null score - new in v5
         sq = SearchQuery(hits=[{"id": 1, "score": None}, {"id": 2, "score": 2}])
-        qs = TestModel.objects.from_search_query(sq)
+        qs = ExampleModel.objects.from_search_query(sq)
         self.assertEqual(
             str(qs.query),
-            'SELECT "tests_testmodel"."id", "tests_testmodel"."simple_field_1", '  # noqa
-            '"tests_testmodel"."simple_field_2", "tests_testmodel"."complex_field", '  # noqa
-            '(SELECT CASE tests_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
-            '(SELECT CASE tests_testmodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
-            'FROM "tests_testmodel" WHERE "tests_testmodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
+            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."simple_field_1", '  # noqa
+            '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '  # noqa
+            '(SELECT CASE tests_examplemodel."id" WHEN 1 THEN 0 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
+            '(SELECT CASE tests_examplemodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
+            'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
         )
 
 
@@ -303,11 +289,6 @@ class SearchQueryTests(TestCase):
         """Test the _extract_set method."""
         obj = SearchQuery(hits=SearchQueryTests.hits)
         self.assertEqual(set(obj._extract_set("id")), set([1, 2, 3]))
-
-    def test_doc_types(self):
-        """Test the doc_types property."""
-        obj = SearchQuery(hits=SearchQueryTests.hits)
-        self.assertEqual(set(obj.doc_types), set(["foo", "bar"]))
 
     def test_object_ids(self):
         """Test the object_ids property."""
@@ -363,27 +344,3 @@ class SearchQueryTests(TestCase):
         sq.hits = [{"score": 1}, {"score": 2}]
         self.assertEqual(sq.max_score, 2)
         self.assertEqual(sq.min_score, 1)
-
-    @mock.patch("elasticsearch_django.models.tz_now")
-    @mock.patch.object(Search, "execute")
-    @mock.patch.object(Model, "save")
-    def test_execute(self, mock_save, mock_execute, mock_now):
-        """Test the execute class method."""
-        search = Search()
-        sq = SearchQuery.execute(search)
-        self.assertEqual(sq.user, None)
-        self.assertEqual(sq.search_terms, "")
-        self.assertEqual(sq.index, "_all")
-        self.assertEqual(sq.query, search.to_dict())
-        self.assertEqual(sq.hits, [])
-        self.assertEqual(sq.total_hits, mock_execute.return_value.hits.total)
-        self.assertEqual(sq.reference, "")
-        self.assertTrue(sq.duration > 0)
-        self.assertEqual(sq.executed_at, mock_now.return_value)
-        self.assertEqual(sq.response, mock_execute.return_value)
-        mock_save.assert_called_once_with()
-
-        # try without saving
-        mock_save.reset_mock()
-        sq = SearchQuery.execute(search, save=False)
-        mock_save.assert_not_called()

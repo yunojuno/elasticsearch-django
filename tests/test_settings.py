@@ -7,7 +7,6 @@ from elasticsearch_django.settings import (
     auto_sync,
     get_client,
     get_connection_string,
-    get_document_model,
     get_document_models,
     get_index_config,
     get_index_models,
@@ -15,14 +14,13 @@ from elasticsearch_django.settings import (
     get_model_indexes,
     get_setting,
     get_settings,
-    set_setting,
 )
 
-from .models import TestModel
+from .models import ExampleModel
 
 TEST_SETTINGS = {
     "connections": {"default": "https://foo", "backup": "https://bar"},
-    "indexes": {"baz": {"models": ["tests.TestModel"]}},
+    "indexes": {"baz": {"models": ["tests.ExampleModel"]}},
     "settings": {"foo": "bar", "auto_sync": True, "never_auto_sync": []},
 }
 
@@ -81,13 +79,13 @@ class SettingsFunctionTests(TestCase):
         from django.apps import apps
 
         models = get_index_models("baz")
-        self.assertEqual(models, [apps.get_model("tests", "TestModel")])
+        self.assertEqual(models, [apps.get_model("tests", "ExampleModel")])
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_model_indexes(self):
         """Test the get_model_indexes function."""
-        # TestModel is in the TEST_SETTINGS
-        self.assertEqual(get_model_indexes(TestModel), ["baz"])
+        # ExampleModel is in the TEST_SETTINGS
+        self.assertEqual(get_model_indexes(ExampleModel), ["baz"])
         # plain old object isn't in any indexes
         self.assertEqual(get_model_indexes(object), [])
 
@@ -100,17 +98,12 @@ class SettingsFunctionTests(TestCase):
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_document_models(self):
         """Test the get_document_models function."""
-        self.assertEqual(get_document_models(), {"baz.testmodel": TestModel})
-
-    @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
-    def test_get_document_model(self):
-        """Test the get_document_model function."""
-        self.assertEqual(get_document_model("baz", "testmodel"), TestModel)
+        self.assertEqual(get_document_models(), {"baz.examplemodel": ExampleModel})
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_auto_sync(self):
         """Test the auto_sync function."""
-        obj = TestModel()
+        obj = ExampleModel()
         self.assertEqual(auto_sync(obj), True)
         # Check that if the setting auto_sync is False, the function auto_sync also returns false.
         TEST_SETTINGS["settings"]["auto_sync"] = False
@@ -118,5 +111,5 @@ class SettingsFunctionTests(TestCase):
         TEST_SETTINGS["settings"]["auto_sync"] = True
         self.assertEqual(auto_sync(obj), True)
         # Check that if a model is in never_auto_sync, then auto_sync returns false
-        TEST_SETTINGS["settings"]["never_auto_sync"].append("tests.testmodel")
+        TEST_SETTINGS["settings"]["never_auto_sync"].append("tests.examplemodel")
         self.assertEqual(auto_sync(obj), False)
