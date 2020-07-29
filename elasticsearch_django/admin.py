@@ -81,7 +81,7 @@ class SearchQueryAdmin(admin.ModelAdmin):
 
     def total_hits_display(self, instance: SearchQuery) -> str:
         """Return total hit count, annotated if lower bound."""
-        if instance.total_hits_relation == SearchQuery.TotalHitsRelation.ESTIMATE:  # type: ignore
+        if instance.total_hits_relation == SearchQuery.TotalHitsRelation.ESTIMATE:
             return f"{instance.total_hits}*"
         return f"{instance.total_hits}"
 
