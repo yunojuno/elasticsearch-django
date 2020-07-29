@@ -200,7 +200,7 @@ class SearchDocumentMixin(object):
     @property
     def search_doc_type(self) -> str:
         """Return the doc_type used for the model."""
-        return self._meta.model_name  # type: ignore
+        raise DeprecationWarning("Mapping types have been removed from ES7.x")
 
     def as_search_document(self, *, index: str) -> dict:
         """
@@ -341,7 +341,6 @@ class SearchDocumentMixin(object):
 
         document = {
             "_index": index,
-            "_type": self.search_doc_type,
             "_op_type": action,
             "_id": self.pk,  # type: ignore
         }
@@ -357,9 +356,7 @@ class SearchDocumentMixin(object):
         if not self.pk:  # type: ignore
             raise ValueError("Object must have a primary key before being indexed.")
         client = get_client()
-        return client.get(
-            index=index, doc_type=self.search_doc_type, id=self.pk  # type: ignore
-        )
+        return client.get(index=index, id=self.pk)  # type: ignore
 
     def index_search_document(self, *, index: str) -> None:
         """
@@ -378,12 +375,7 @@ class SearchDocumentMixin(object):
             logger.debug("Search document for %r is unchanged, ignoring update.", self)
             return
         cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
-        get_client().index(
-            index=index,
-            doc_type=self.search_doc_type,
-            body=new_doc,
-            id=self.pk,  # type: ignore
-        )
+        get_client().index(index=index, body=new_doc, id=self.pk)  # type: ignore
 
     def update_search_document(self, *, index: str, update_fields: List[str]) -> None:
         """
@@ -409,20 +401,12 @@ class SearchDocumentMixin(object):
         if not doc:
             logger.debug("Ignoring object update as document is empty.")
             return
-
-        get_client().update(
-            index=index,
-            doc_type=self.search_doc_type,
-            body={"doc": doc},
-            id=self.pk,  # type: ignore
-        )
+        get_client().update(index=index, body={"doc": doc}, id=self.pk)  # type: ignore
 
     def delete_search_document(self, *, index: str) -> None:
         """Delete document from named index."""
         cache.delete(self.search_document_cache_key)
-        get_client().delete(
-            index=index, doc_type=self.search_doc_type, id=self.pk  # type: ignore
-        )
+        get_client().delete(index=index, id=self.pk)  # type: ignore
 
 
 class SearchQuery(models.Model):
@@ -533,7 +517,7 @@ class SearchQuery(models.Model):
     @property
     def doc_types(self) -> List[str]:
         """List of doc_types extracted from hits."""
-        return [str(x) for x in self._extract_set("doc_type")]
+        raise DeprecationWarning("Mapping types have been removed from ES7.x")
 
     @property
     def max_score(self) -> int:

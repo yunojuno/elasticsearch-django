@@ -9,7 +9,7 @@ from .apps import _on_model_save
 
 
 def _strip_on_model_save() -> List[Callable]:
-    """Returnslist of signal receivers without _on_model_save."""
+    """Return list of signal receivers without _on_model_save."""
     return [r for r in signals.post_save.receivers if r[1]() != _on_model_save]
 
 

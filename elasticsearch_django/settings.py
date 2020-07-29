@@ -83,8 +83,7 @@ def get_index_mapping(index: str) -> dict:
 def get_model_index_properties(instance: Model, index: str) -> List[str]:
     """Return the list of properties specified for a model in an index."""
     mapping = get_index_mapping(index)
-    doc_type = instance._meta.model_name.lower()
-    return list(mapping["mappings"][doc_type]["properties"].keys())
+    return list(mapping["mappings"]["properties"].keys())
 
 
 def get_index_models(index: str) -> List[Model]:
@@ -119,7 +118,7 @@ def get_model_indexes(model: Model) -> List[str]:
 
 def get_document_models() -> Dict[str, Model]:
     """Return dict of index.doc_type: model."""
-    mappings = {}  # type: Dict[str, Model]
+    mappings: Dict[str, Model] = {}
     for i in get_index_names():
         for m in get_index_models(i):
             mappings[f"{i}.{m._meta.model_name}"] = m
@@ -128,6 +127,7 @@ def get_document_models() -> Dict[str, Model]:
 
 def get_document_model(index: str, doc_type: str) -> Optional[Model]:
     """Return model for a given index.doc_type combination."""
+    raise DeprecationWarning("Mapping types have been removed from ES7.x")
     return get_document_models().get(f"{index}.{doc_type}")
 
 
