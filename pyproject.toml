@@ -20,7 +20,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-django = "^2.2 || ^3.0"
+django = "^3.0"
 elasticsearch = "^7.0"
 elasticsearch-dsl = "^7.0"
 psycopg2-binary = "*"
