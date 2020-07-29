@@ -1,7 +1,19 @@
 {
     "mappings": {
         "properties": {
-            "foo": {
+            "simple_field_1": {
+                "type": "integer"
+            },
+            "simple_field_2": {
+                "type": "text",
+                "fields": {
+                    "keyword": {
+                        "type": "keyword",
+                        "ignore_above": 256
+                    }
+                }
+            },
+            "complex_field": {
                 "type": "text",
                 "fields": {
                     "keyword": {
