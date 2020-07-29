@@ -1,10 +1,4 @@
-from distutils.version import StrictVersion
 from os import getenv
-
-import django
-
-DJANGO_VERSION = StrictVersion(django.get_version())
-assert DJANGO_VERSION >= StrictVersion("2.2")
 
 DEBUG = True
 
@@ -69,9 +63,6 @@ STATIC_ROOT = "staticfiles"
 TIME_ZONE = "UTC"
 
 SITE_ID = 1
-
-assert DEBUG is True, "This project is only intended to be used for testing."
-
 
 ###########
 # LOGGING #
@@ -161,3 +152,5 @@ SEARCH_SETTINGS = {
         "mappings_dir": "mappings",
     },
 }
+
+assert DEBUG is True, "This project is only intended to be used for testing."
