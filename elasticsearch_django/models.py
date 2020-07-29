@@ -426,9 +426,9 @@ class SearchQuery(models.Model):
 
     class TotalHitsRelation(models.TextChoices):
         """The hits.total.relation response value."""
+
         EQ = "eq", _lazy("Accurate hit count")
         GTE = "gte", _lazy("Lower bound of total hits")
-
 
     # whether this is a search query (returns results), or a count API
     # query (returns the number of results, but no detail),
@@ -474,25 +474,33 @@ class SearchQuery(models.Model):
         max_length=10,
     )
     hits = JSONField(
-        help_text=_lazy("The list of meta info for each of the query matches returned."),
+        help_text=_lazy(
+            "The list of meta info for each of the query matches returned."
+        ),
         encoder=DjangoJSONEncoder,
     )
     total_hits = models.IntegerField(
         default=0,
-        help_text=_lazy("Total number of matches found for the query (!= the hits returned)."),
+        help_text=_lazy(
+            "Total number of matches found for the query (!= the hits returned)."
+        ),
     )
     total_hits_relation = models.CharField(
         max_length=3,
         default="",
         blank=True,
         choices=TotalHitsRelation.choices,
-        help_text=_lazy("Indicates whether this is an exact match ('eq') or a lower bound ('gte')"),
+        help_text=_lazy(
+            "Indicates whether this is an exact match ('eq') or a lower bound ('gte')"
+        ),
     )
     reference = models.CharField(
         max_length=100,
         default="",
         blank=True,
-        help_text=_lazy("Custom reference used to identify and group related searches."),
+        help_text=_lazy(
+            "Custom reference used to identify and group related searches."
+        ),
     )
     executed_at = models.DateTimeField(
         help_text=_lazy("When the search was executed - set via execute() method.")

@@ -6,13 +6,22 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('elasticsearch_django', '0009_searchquery_query_type'),
+        ("elasticsearch_django", "0009_searchquery_query_type"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='searchquery',
-            name='total_hits_relation',
-            field=models.CharField(blank=True, choices=[('eq', 'Accurate hit count'), ('gte', 'Lower bound of total hits')], default='', help_text="Indicates whether this is an exact match ('eq') or a lower bound ('gte')", max_length=3),
+            model_name="searchquery",
+            name="total_hits_relation",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("eq", "Accurate hit count"),
+                    ("gte", "Lower bound of total hits"),
+                ],
+                default="",
+                help_text="Indicates whether this is an exact match ('eq') or a lower bound ('gte')",
+                max_length=3,
+            ),
         ),
     ]
