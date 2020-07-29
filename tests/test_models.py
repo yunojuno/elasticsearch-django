@@ -3,10 +3,8 @@ import decimal
 from unittest import mock
 
 from django.core.cache import cache
-from django.db.models import Model
 from django.test import TestCase
 from django.utils.timezone import now as tz_now
-from elasticsearch_dsl.search import Search
 
 from elasticsearch_django.models import (
     UPDATE_STRATEGY_FULL,
@@ -16,7 +14,7 @@ from elasticsearch_django.models import (
     SearchQuery,
 )
 
-from .models import SEARCH_DOC, ExampleModel, ExampleModelManager
+from .models import ExampleModel, ExampleModelManager
 
 
 class SearchDocumentMixinTests(TestCase):
@@ -194,12 +192,22 @@ class SearchDocumentMixinTests(TestCase):
 
         self.assertEqual(
             obj.as_search_action(index="foo", action="index"),
-            {"_index": "foo", "_op_type": "index", "_id": None, "_source": SEARCH_DOC,},
+            {
+                "_index": "foo",
+                "_op_type": "index",
+                "_id": None,
+                "_source": obj.as_search_document(),
+            },
         )
 
         self.assertEqual(
             obj.as_search_action(index="foo", action="update"),
-            {"_index": "foo", "_op_type": "update", "_id": None, "doc": SEARCH_DOC,},
+            {
+                "_index": "foo",
+                "_op_type": "update",
+                "_id": None,
+                "doc": obj.as_search_document(),
+            },
         )
 
         self.assertEqual(

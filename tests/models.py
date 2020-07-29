@@ -2,11 +2,10 @@ from django.db import models
 
 from elasticsearch_django.models import SearchDocumentManagerMixin, SearchDocumentMixin
 
-SEARCH_DOC = {"foo": "bar"}
-
 
 class ExampleModelManager(SearchDocumentManagerMixin, models.Manager):
-    pass
+    def get_search_queryset(self, index="_all"):
+        return self.all()
 
 
 class ExampleModel(SearchDocumentMixin, models.Model):
@@ -18,5 +17,9 @@ class ExampleModel(SearchDocumentMixin, models.Model):
 
     objects = ExampleModelManager()
 
-    def as_search_document(self, index):
-        return SEARCH_DOC
+    def as_search_document(self, index="_all"):
+        return {
+            "simple_field_1": self.simple_field_1,
+            "simple_field_2": self.simple_field_2,
+            "complex_field": str(self.complex_field),
+        }

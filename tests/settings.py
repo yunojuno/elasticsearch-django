@@ -136,13 +136,13 @@ LOGGING = {
 SEARCH_SETTINGS = {
     "connections": {"default": getenv("ELASTICSEARCH_URL")},
     "indexes": {
-        # # name of the index
-        # 'articles': {
-        #     'models': [
-        #         # model used to populate the index, in app.model format
-        #         'app.Model',
-        #     ]
-        # },
+        # name of the index
+        "examples": {
+            "models": [
+                # model used to populate the index, in app.model format
+                "tests.ExampleModel",
+            ]
+        },
     },
     "settings": {
         # batch size for ES bulk api operations

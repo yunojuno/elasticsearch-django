@@ -17,13 +17,12 @@ class DecoratorTests(TestCase):
 
     def test_disable_updates(self):
         """Check the decorator removes _on_model_save from signal receivers."""
-        self.assertEqual(len(signals.post_save.receivers), 1)
+        self.assertNotEqual(signals.post_save.receivers, [])
         self.assertEqual(signals.post_save.receivers[0][1](), _on_model_save)
         with disable_search_updates():
             self.assertEqual(signals.post_save.receivers, [])
-        self.assertEqual(len(signals.post_save.receivers), 1)
         self.assertEqual(signals.post_save.receivers[0][1](), _on_model_save)
 
     def test__strip_on_model_save(self):
-        self.assertEqual(len(signals.post_save.receivers), 1)
+        self.assertNotEqual(signals.post_save.receivers, [])
         self.assertEqual(_strip_on_model_save(), [])
