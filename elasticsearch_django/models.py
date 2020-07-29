@@ -427,8 +427,8 @@ class SearchQuery(models.Model):
     class TotalHitsRelation(models.TextChoices):
         """The hits.total.relation response value."""
 
-        EQ = "eq", _lazy("Accurate hit count")
-        GTE = "gte", _lazy("Lower bound of total hits")
+        ACCURATE = "eq", _lazy("Accurate hit count")
+        ESTIMATE = "gte", _lazy("Lower bound of total hits")
 
     class QueryType(models.TextChoices):
         # whether this is a search query (returns results), or a count API
@@ -587,7 +587,7 @@ def execute_search(
     user: Optional[AbstractBaseUser] = None,
     reference: Optional[str] = "",
     save: bool = True,
-    query_type: str = SearchQuery.QueryType.SEARCH,
+    query_type: str = SearchQuery.QueryType.SEARCH,  # type: ignore
 ) -> SearchQuery:
     """
     Create a new SearchQuery instance and execute a search against ES.

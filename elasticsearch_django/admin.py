@@ -29,8 +29,8 @@ class SearchQueryAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "user",
-        "search_terms_",
-        "total_hits",
+        "search_terms_display",
+        "total_hits_display",
         "returned_",
         "min_",
         "max_",
@@ -40,13 +40,14 @@ class SearchQueryAdmin(admin.ModelAdmin):
     list_filter = ("index", "query_type")
     search_fields = ("search_terms", "user__first_name", "user__last_name", "reference")
     # excluding because we are using a pretty version instead
-    exclude = ("hits", "query", "page")
+    exclude = ("hits", "query", "page", "total_hits_")
     readonly_fields = (
         "user",
         "index",
         "search_terms",
         "query_type",
         "total_hits",
+        "total_hits_relation",
         "returned_",
         "min_",
         "max_",
@@ -56,7 +57,7 @@ class SearchQueryAdmin(admin.ModelAdmin):
         "executed_at",
     )
 
-    def search_terms_(self, instance: SearchQuery) -> str:
+    def search_terms_display(self, instance: SearchQuery) -> str:
         """Return truncated version of search_terms."""
         raw = instance.search_terms
         # take first five words, and further truncate to 50 chars if necessary
@@ -77,6 +78,12 @@ class SearchQueryAdmin(admin.ModelAdmin):
         return "-" if instance.page_size == 0 else str(instance.min_score)
 
     min_.short_description = "Min score"  # type: ignore
+
+    def total_hits_display(self, instance: SearchQuery) -> str:
+        """Return total hit count, annotated if lower bound."""
+        if instance.total_hits_relation == SearchQuery.TotalHitsRelation.ESTIMATE:  # type: ignore
+            return f"{instance.total_hits}*"
+        return f"{instance.total_hits}"
 
     def returned_(self, instance: SearchQuery) -> str:
         """Return number of hits returned in the page."""
