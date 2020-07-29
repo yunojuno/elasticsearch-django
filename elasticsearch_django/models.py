@@ -13,6 +13,7 @@ from django.db.models.expressions import RawSQL
 from django.db.models.fields import CharField
 from django.db.models.query import QuerySet
 from django.utils.timezone import now as tz_now
+from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Search
 
 from .settings import (
@@ -423,6 +424,12 @@ class SearchQuery(models.Model):
 
     """
 
+    class TotalHitsRelation(models.TextChoices):
+        """The hits.total.relation response value."""
+        EQ = "eq", _lazy("Accurate hit count")
+        GTE = "gte", _lazy("Lower bound of total hits")
+
+
     # whether this is a search query (returns results), or a count API
     # query (returns the number of results, but no detail),
     QUERY_TYPE_SEARCH = "SEARCH"
@@ -437,13 +444,13 @@ class SearchQuery(models.Model):
         related_name="search_queries",
         blank=True,
         null=True,
-        help_text="The user who made the search query (nullable).",
+        help_text=_lazy("The user who made the search query (nullable)."),
         on_delete=models.SET_NULL,
     )
     index = models.CharField(
         max_length=100,
         default="_all",
-        help_text="The name of the ElasticSearch index(es) being queried.",
+        help_text=_lazy("The name of the ElasticSearch index(es) being queried."),
     )
     # The query property contains the raw DSL query, which can be arbitrarily complex -
     # there is no one way of mapping input text to the query itself. However, it's
@@ -453,38 +460,45 @@ class SearchQuery(models.Model):
         max_length=400,
         default="",
         blank=True,
-        help_text=(
+        help_text=_lazy(
             "Free text search terms used in the query, stored for easy reference."
         ),
     )
     query = JSONField(
-        help_text="The raw ElasticSearch DSL query.", encoder=DjangoJSONEncoder
+        help_text=_lazy("The raw ElasticSearch DSL query."), encoder=DjangoJSONEncoder
     )
     query_type = CharField(
-        help_text="Does this query return results, or just the hit count?",
+        help_text=_lazy("Does this query return results, or just the hit count?"),
         choices=QUERY_TYPE_CHOICES,
         default=QUERY_TYPE_SEARCH,
         max_length=10,
     )
     hits = JSONField(
-        help_text="The list of meta info for each of the query matches returned.",
+        help_text=_lazy("The list of meta info for each of the query matches returned."),
         encoder=DjangoJSONEncoder,
     )
     total_hits = models.IntegerField(
         default=0,
-        help_text="Total number of matches found for the query (!= the hits returned).",
+        help_text=_lazy("Total number of matches found for the query (!= the hits returned)."),
+    )
+    total_hits_relation = models.CharField(
+        max_length=3,
+        default="",
+        blank=True,
+        choices=TotalHitsRelation.choices,
+        help_text=_lazy("Indicates whether this is an exact match ('eq') or a lower bound ('gte')"),
     )
     reference = models.CharField(
         max_length=100,
         default="",
         blank=True,
-        help_text="Custom reference used to identify and group related searches.",
+        help_text=_lazy("Custom reference used to identify and group related searches."),
     )
     executed_at = models.DateTimeField(
-        help_text="When the search was executed - set via execute() method."
+        help_text=_lazy("When the search was executed - set via execute() method.")
     )
     duration = models.FloatField(
-        help_text="Time taken to execute the search itself, in seconds."
+        help_text=_lazy("Time taken to execute the search itself, in seconds.")
     )
 
     class Meta:
@@ -594,7 +608,8 @@ def execute_search(
     if query_type == SearchQuery.QUERY_TYPE_SEARCH:
         response = search.execute()
         hits = [h.meta.to_dict() for h in response.hits]
-        total_hits = response.hits.total
+        total_hits = response.hits.total.value
+        total_hits_relation = response.hits.total.relation
     elif query_type == SearchQuery.QUERY_TYPE_COUNT:
         response = total_hits = search.count()
         hits = []
@@ -609,6 +624,7 @@ def execute_search(
         query_type=query_type,
         hits=hits,
         total_hits=total_hits,
+        total_hits_relation=total_hits_relation,
         reference=reference or "",
         executed_at=tz_now(),
         duration=duration,
