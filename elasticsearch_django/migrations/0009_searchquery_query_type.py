@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
             model_name="searchquery",
             name="query_type",
             field=models.CharField(
-                choices=(lambda: SearchQuery.QUERY_TYPE_CHOICES)(),
+                choices=SearchQuery.QueryType.choices,
                 default="SEARCH",
                 help_text="Does this query return results, or just the hit count?",
                 max_length=10,

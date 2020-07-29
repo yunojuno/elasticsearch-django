@@ -322,7 +322,7 @@ class SearchQueryTests(TestCase):
         self.assertEqual(sq.search_terms, "")
         self.assertEqual(sq.query["today"], today.isoformat())
         self.assertEqual(sq.hits["hits"], "1.0")
-        self.assertEqual(sq.query_type, SearchQuery.QUERY_TYPE_SEARCH)
+        self.assertEqual(sq.query_type, SearchQuery.QueryType.SEARCH)
 
     def test_paging(self):
         """Test the paging properties."""

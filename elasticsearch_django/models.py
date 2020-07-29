@@ -430,14 +430,11 @@ class SearchQuery(models.Model):
         EQ = "eq", _lazy("Accurate hit count")
         GTE = "gte", _lazy("Lower bound of total hits")
 
-    # whether this is a search query (returns results), or a count API
-    # query (returns the number of results, but no detail),
-    QUERY_TYPE_SEARCH = "SEARCH"
-    QUERY_TYPE_COUNT = "COUNT"
-    QUERY_TYPE_CHOICES = (
-        (QUERY_TYPE_SEARCH, "Search results"),
-        (QUERY_TYPE_COUNT, "Count only"),
-    )
+    class QueryType(models.TextChoices):
+        # whether this is a search query (returns results), or a count API
+        # query (returns the number of results, but no detail),
+        SEARCH = "SEARCH", _lazy("Search results")
+        COUNT = "COUNT", _lazy("Count only")
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -469,8 +466,8 @@ class SearchQuery(models.Model):
     )
     query_type = CharField(
         help_text=_lazy("Does this query return results, or just the hit count?"),
-        choices=QUERY_TYPE_CHOICES,
-        default=QUERY_TYPE_SEARCH,
+        choices=QueryType.choices,
+        default=QueryType.SEARCH,
         max_length=10,
     )
     hits = JSONField(
@@ -590,7 +587,7 @@ def execute_search(
     user: Optional[AbstractBaseUser] = None,
     reference: Optional[str] = "",
     save: bool = True,
-    query_type: str = SearchQuery.QUERY_TYPE_SEARCH,
+    query_type: str = SearchQuery.QueryType.SEARCH,
 ) -> SearchQuery:
     """
     Create a new SearchQuery instance and execute a search against ES.
@@ -613,12 +610,12 @@ def execute_search(
 
     """
     start = time.time()
-    if query_type == SearchQuery.QUERY_TYPE_SEARCH:
+    if query_type == SearchQuery.QueryType.SEARCH:
         response = search.execute()
         hits = [h.meta.to_dict() for h in response.hits]
         total_hits = response.hits.total.value
         total_hits_relation = response.hits.total.relation
-    elif query_type == SearchQuery.QUERY_TYPE_COUNT:
+    elif query_type == SearchQuery.QueryType.COUNT:
         response = total_hits = search.count()
         hits = []
     else:
