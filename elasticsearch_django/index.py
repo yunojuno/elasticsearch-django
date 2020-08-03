@@ -25,7 +25,7 @@ def update_index(index: str) -> List[dict]:
     client = get_client()
     responses: List[dict] = []
     for model in get_index_models(index):
-        logger.info("Updating search index model: '%s'", model)
+        logger.info("Updating search index model: '%s'", model._meta.label)
         objects = model.objects.get_search_queryset(index).iterator()
         actions = bulk_actions(objects, index=index, action="index")
         response = helpers.bulk(client, actions, chunk_size=get_setting("chunk_size"))
@@ -70,7 +70,7 @@ def prune_index(index: str) -> List[dict]:
         logger.info(
             "Found %s objects of type '%s' for deletion from '%s'.",
             len(prunes),
-            model,
+            model._meta.label,
             index,
         )
         if len(prunes) > 0:
@@ -107,14 +107,17 @@ def _prune_hit(hit: dict, model: Model) -> Optional[Model]:
     hit_index = hit["_index"]
     if model.objects.in_search_queryset(hit_id, index=hit_index):
         logger.debug(
-            "%s with id=%s exists in the '%s' index queryset.", model, hit_id, hit_index
+            "%s with id=%s exists in the '%s' index queryset.",
+            model._meta.label,
+            hit_id,
+            hit_index,
         )
         return None
     else:
         logger.debug(
             "%s with id=%s does not exist in the '%s' index "
             "queryset and will be pruned.",
-            model,
+            model._meta.label,
             hit_id,
             hit_index,
         )

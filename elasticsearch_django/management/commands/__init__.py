@@ -26,6 +26,7 @@ class BaseSearchCommand(BaseCommand):
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Add default base options of --noinput and indexes."""
         parser.add_argument(
+            "-f",
             "--noinput",
             action="store_false",
             dest="interactive",
@@ -48,5 +49,19 @@ class BaseSearchCommand(BaseCommand):
             except TransportError as ex:
                 logger.warning("ElasticSearch threw an error: %s", ex)
                 data = {"index": index, "status": ex.status_code, "reason": ex.error}
+            except FileNotFoundError as ex:
+                logger.warning("Mapping file not found: %s", ex)
+                data = {
+                    "index": index,
+                    "status": "N/A",
+                    "reason": "Mapping file not found",
+                }
+            except Exception as ex:
+                logger.warning("Error running command: %s", ex)
+                data = {
+                    "index": index,
+                    "status": "N/A",
+                    "reason": str(ex),
+                }
             finally:
                 logger.info(data)

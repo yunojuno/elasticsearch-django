@@ -617,6 +617,7 @@ def execute_search(
         total_hits_relation = response.hits.total.relation
     elif query_type == SearchQuery.QueryType.COUNT:
         response = total_hits = search.count()
+        total_hits_relation = SearchQuery.TotalHitsRelation.ACCURATE
         hits = []
     else:
         raise ValueError(f"Invalid SearchQuery.query_type value: '{query_type}'")
