@@ -38,6 +38,7 @@ isort = "*"
 mypy = "*"
 pre-commit = "*"
 black = "==19.10b0"
+tox = "*"
 
 [build-system]
 requires = ["poetry>=0.12"]
