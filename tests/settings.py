@@ -1,17 +1,11 @@
-from distutils.version import StrictVersion
 from os import getenv
-
-import django
-
-DJANGO_VERSION = StrictVersion(django.get_version())
-assert DJANGO_VERSION >= StrictVersion("2.2")
 
 DEBUG = True
 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": getenv("TEST_DB_NAME", "postgres"),
+        "NAME": getenv("TEST_DB_NAME", "elasticsearch_django"),
         "USER": getenv("TEST_DB_USER", "postgres"),
         "PASSWORD": getenv("TEST_DB_PASSWORD", "postgres"),
         "HOST": getenv("TEST_DB_HOST", "localhost"),
@@ -59,7 +53,7 @@ TEMPLATES = [
 
 SECRET_KEY = "elasticsearch_django"
 
-ROOT_URLCONF = "urls"
+ROOT_URLCONF = "tests.urls"
 
 APPEND_SLASH = True
 
@@ -69,9 +63,6 @@ STATIC_ROOT = "staticfiles"
 TIME_ZONE = "UTC"
 
 SITE_ID = 1
-
-assert DEBUG is True, "This project is only intended to be used for testing."
-
 
 ###########
 # LOGGING #
@@ -136,13 +127,13 @@ LOGGING = {
 SEARCH_SETTINGS = {
     "connections": {"default": getenv("ELASTICSEARCH_URL")},
     "indexes": {
-        # # name of the index
-        # 'articles': {
-        #     'models': [
-        #         # model used to populate the index, in app.model format
-        #         'app.Model',
-        #     ]
-        # },
+        # name of the index
+        "examples": {
+            "models": [
+                # model used to populate the index, in app.model format
+                "tests.ExampleModel",
+            ]
+        },
     },
     "settings": {
         # batch size for ES bulk api operations
@@ -161,3 +152,5 @@ SEARCH_SETTINGS = {
         "mappings_dir": "mappings",
     },
 }
+
+assert DEBUG is True, "This project is only intended to be used for testing."

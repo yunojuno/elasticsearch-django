@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import time
-import warnings
 from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from django.conf import settings
@@ -14,6 +13,7 @@ from django.db.models.expressions import RawSQL
 from django.db.models.fields import CharField
 from django.db.models.query import QuerySet
 from django.utils.timezone import now as tz_now
+from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Search
 
 from .settings import (
@@ -200,7 +200,7 @@ class SearchDocumentMixin(object):
     @property
     def search_doc_type(self) -> str:
         """Return the doc_type used for the model."""
-        return self._meta.model_name  # type: ignore
+        raise DeprecationWarning("Mapping types have been removed from ES7.x")
 
     def as_search_document(self, *, index: str) -> dict:
         """
@@ -341,7 +341,6 @@ class SearchDocumentMixin(object):
 
         document = {
             "_index": index,
-            "_type": self.search_doc_type,
             "_op_type": action,
             "_id": self.pk,  # type: ignore
         }
@@ -357,9 +356,7 @@ class SearchDocumentMixin(object):
         if not self.pk:  # type: ignore
             raise ValueError("Object must have a primary key before being indexed.")
         client = get_client()
-        return client.get(
-            index=index, doc_type=self.search_doc_type, id=self.pk  # type: ignore
-        )
+        return client.get(index=index, id=self.pk)  # type: ignore
 
     def index_search_document(self, *, index: str) -> None:
         """
@@ -378,12 +375,7 @@ class SearchDocumentMixin(object):
             logger.debug("Search document for %r is unchanged, ignoring update.", self)
             return
         cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
-        get_client().index(
-            index=index,
-            doc_type=self.search_doc_type,
-            body=new_doc,
-            id=self.pk,  # type: ignore
-        )
+        get_client().index(index=index, body=new_doc, id=self.pk)  # type: ignore
 
     def update_search_document(self, *, index: str, update_fields: List[str]) -> None:
         """
@@ -409,20 +401,12 @@ class SearchDocumentMixin(object):
         if not doc:
             logger.debug("Ignoring object update as document is empty.")
             return
-
-        get_client().update(
-            index=index,
-            doc_type=self.search_doc_type,
-            body={"doc": doc},
-            id=self.pk,  # type: ignore
-        )
+        get_client().update(index=index, body={"doc": doc}, id=self.pk)  # type: ignore
 
     def delete_search_document(self, *, index: str) -> None:
         """Delete document from named index."""
         cache.delete(self.search_document_cache_key)
-        get_client().delete(
-            index=index, doc_type=self.search_doc_type, id=self.pk  # type: ignore
-        )
+        get_client().delete(index=index, id=self.pk)  # type: ignore
 
 
 class SearchQuery(models.Model):
@@ -440,27 +424,30 @@ class SearchQuery(models.Model):
 
     """
 
-    # whether this is a search query (returns results), or a count API
-    # query (returns the number of results, but no detail),
-    QUERY_TYPE_SEARCH = "SEARCH"
-    QUERY_TYPE_COUNT = "COUNT"
-    QUERY_TYPE_CHOICES = (
-        (QUERY_TYPE_SEARCH, "Search results"),
-        (QUERY_TYPE_COUNT, "Count only"),
-    )
+    class TotalHitsRelation(models.TextChoices):
+        """The hits.total.relation response value."""
+
+        ACCURATE = "eq", _lazy("Accurate hit count")
+        ESTIMATE = "gte", _lazy("Lower bound of total hits")
+
+    class QueryType(models.TextChoices):
+        # whether this is a search query (returns results), or a count API
+        # query (returns the number of results, but no detail),
+        SEARCH = "SEARCH", _lazy("Search results")
+        COUNT = "COUNT", _lazy("Count only")
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         related_name="search_queries",
         blank=True,
         null=True,
-        help_text="The user who made the search query (nullable).",
+        help_text=_lazy("The user who made the search query (nullable)."),
         on_delete=models.SET_NULL,
     )
     index = models.CharField(
         max_length=100,
         default="_all",
-        help_text="The name of the ElasticSearch index(es) being queried.",
+        help_text=_lazy("The name of the ElasticSearch index(es) being queried."),
     )
     # The query property contains the raw DSL query, which can be arbitrarily complex -
     # there is no one way of mapping input text to the query itself. However, it's
@@ -470,38 +457,53 @@ class SearchQuery(models.Model):
         max_length=400,
         default="",
         blank=True,
-        help_text=(
+        help_text=_lazy(
             "Free text search terms used in the query, stored for easy reference."
         ),
     )
     query = JSONField(
-        help_text="The raw ElasticSearch DSL query.", encoder=DjangoJSONEncoder
+        help_text=_lazy("The raw ElasticSearch DSL query."), encoder=DjangoJSONEncoder
     )
     query_type = CharField(
-        help_text="Does this query return results, or just the hit count?",
-        choices=QUERY_TYPE_CHOICES,
-        default=QUERY_TYPE_SEARCH,
+        help_text=_lazy("Does this query return results, or just the hit count?"),
+        choices=QueryType.choices,
+        default=QueryType.SEARCH,
         max_length=10,
     )
     hits = JSONField(
-        help_text="The list of meta info for each of the query matches returned.",
+        help_text=_lazy(
+            "The list of meta info for each of the query matches returned."
+        ),
         encoder=DjangoJSONEncoder,
     )
     total_hits = models.IntegerField(
         default=0,
-        help_text="Total number of matches found for the query (!= the hits returned).",
+        help_text=_lazy(
+            "Total number of matches found for the query (!= the hits returned)."
+        ),
+    )
+    total_hits_relation = models.CharField(
+        max_length=3,
+        default="",
+        blank=True,
+        choices=TotalHitsRelation.choices,
+        help_text=_lazy(
+            "Indicates whether this is an exact match ('eq') or a lower bound ('gte')"
+        ),
     )
     reference = models.CharField(
         max_length=100,
         default="",
         blank=True,
-        help_text="Custom reference used to identify and group related searches.",
+        help_text=_lazy(
+            "Custom reference used to identify and group related searches."
+        ),
     )
     executed_at = models.DateTimeField(
-        help_text="When the search was executed - set via execute() method."
+        help_text=_lazy("When the search was executed - set via execute() method.")
     )
     duration = models.FloatField(
-        help_text="Time taken to execute the search itself, in seconds."
+        help_text=_lazy("Time taken to execute the search itself, in seconds.")
     )
 
     class Meta:
@@ -533,7 +535,7 @@ class SearchQuery(models.Model):
     @property
     def doc_types(self) -> List[str]:
         """List of doc_types extracted from hits."""
-        return [str(x) for x in self._extract_set("doc_type")]
+        raise DeprecationWarning("Mapping types have been removed from ES7.x")
 
     @property
     def max_score(self) -> int:
@@ -578,24 +580,6 @@ class SearchQuery(models.Model):
         """Return number of hits returned in this specific page."""
         return 0 if self.hits is None else len(self.hits)
 
-    @classmethod
-    def execute(
-        cls,
-        search: Search,
-        search_terms: str = "",
-        user: Optional[AbstractBaseUser] = None,
-        reference: Optional[str] = "",
-        save: bool = True,
-    ) -> SearchQuery:
-        """Create a new SearchQuery instance and execute a search against ES."""
-        warnings.warn(
-            "Deprecated - please use `execute_search` function instead.",
-            DeprecationWarning,
-        )
-        return execute_search(
-            search, search_terms=search_terms, user=user, reference=reference, save=save
-        )
-
 
 def execute_search(
     search: Search,
@@ -603,7 +587,7 @@ def execute_search(
     user: Optional[AbstractBaseUser] = None,
     reference: Optional[str] = "",
     save: bool = True,
-    query_type: str = SearchQuery.QUERY_TYPE_SEARCH,
+    query_type: str = SearchQuery.QueryType.SEARCH,  # type: ignore
 ) -> SearchQuery:
     """
     Create a new SearchQuery instance and execute a search against ES.
@@ -626,11 +610,12 @@ def execute_search(
 
     """
     start = time.time()
-    if query_type == SearchQuery.QUERY_TYPE_SEARCH:
+    if query_type == SearchQuery.QueryType.SEARCH:
         response = search.execute()
         hits = [h.meta.to_dict() for h in response.hits]
-        total_hits = response.hits.total
-    elif query_type == SearchQuery.QUERY_TYPE_COUNT:
+        total_hits = response.hits.total.value
+        total_hits_relation = response.hits.total.relation
+    elif query_type == SearchQuery.QueryType.COUNT:
         response = total_hits = search.count()
         hits = []
     else:
@@ -644,6 +629,7 @@ def execute_search(
         query_type=query_type,
         hits=hits,
         total_hits=total_hits,
+        total_hits_relation=total_hits_relation,
         reference=reference or "",
         executed_at=tz_now(),
         duration=duration,

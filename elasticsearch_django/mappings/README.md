@@ -7,5 +7,5 @@ index.
 The mappings file does not describe how the index is populated - only how the search index analyses
 and stores the data that is posted to it.
 
-See https://www.elastic.co/guide/en/elasticsearch/guide/2.x/mapping-intro.html for more details on
+See https://www.elastic.co/guide/en/elasticsearch/reference/7.x/mapping.html for more details on
 mapping and index configuration.
