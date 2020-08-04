@@ -5,7 +5,7 @@ import time
 from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from django.conf import settings
-from django.contrib.postgres.fields import JSONField
+from django.db.models import JSONField
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
