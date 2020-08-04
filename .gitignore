@@ -4,3 +4,5 @@
 .coverage
 staticfiles
 Pipfile.lock
+poetry.lock
+elasticsearch_django.db
