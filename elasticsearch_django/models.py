@@ -5,10 +5,10 @@ import time
 from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from django.conf import settings
-from django.db.models import JSONField
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+from django.db.models import JSONField
 from django.db.models.expressions import RawSQL
 from django.db.models.fields import CharField
 from django.db.models.query import QuerySet
