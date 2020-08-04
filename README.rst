@@ -4,7 +4,7 @@
 .. image:: https://badge.fury.io/py/elasticsearch_django.svg
     :target: https://badge.fury.io/py/elasticsearch_django
 
-**This project now requires Python 3.7+ and Django 3.0+. For previous versions please refer to the relevant tag or branch.**
+**This project now requires Python 3.7+ and Django 3.1+. For previous versions please refer to the relevant tag or branch.**
 
 Elasticsearch for Django
 ========================

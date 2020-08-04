@@ -10,7 +10,7 @@ homepage = "https://github.com/yunojuno/elasticsearch-django"
 repository = "https://github.com/yunojuno/elasticsearch-django"
 classifiers = [
     "Environment :: Web Environment",
-    "Framework :: Django :: 3.0",
+    "Framework :: Django :: 3.1",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.7",
@@ -19,7 +19,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-django = "^3.0"
+django = "^3.1"
 elasticsearch = "^7.0"
 elasticsearch-dsl = "^7.0"
 psycopg2-binary = "*"
