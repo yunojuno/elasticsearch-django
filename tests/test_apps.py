@@ -43,17 +43,17 @@ class SearchAppsValidationTests(TestCase):
     def test__validate_model(self):
         """Test _validate_model function."""
         # 1. model doesn't implement as_search_document
-        with mock.patch("tests.test_apps.ExampleModel") as tm:
+        with mock.patch("tests.models.ExampleModel") as tm:
             del tm.as_search_document
             self.assertRaises(ImproperlyConfigured, _validate_model, tm)
 
         # 2. model.objects doesn't implement get_search_queryset
-        with mock.patch("tests.test_apps.ExampleModel") as tm:
+        with mock.patch("tests.models.ExampleModel") as tm:
             del tm.objects.get_search_queryset
             self.assertRaises(ImproperlyConfigured, _validate_model, tm)
 
         # model should pass
-        with mock.patch("tests.test_apps.ExampleModel") as tm:
+        with mock.patch("tests.models.ExampleModel") as tm:
             _validate_model(tm)
 
     @mock.patch("elasticsearch_django.apps.settings")

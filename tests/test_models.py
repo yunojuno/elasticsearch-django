@@ -5,6 +5,8 @@ from unittest import mock
 from django.core.cache import cache
 from django.test import TestCase
 from django.utils.timezone import now as tz_now
+from elasticsearch_dsl.response import AggResponse, Hit, HitMeta, Response
+from elasticsearch_dsl.search import Search
 
 from elasticsearch_django.models import (
     UPDATE_STRATEGY_FULL,
@@ -12,6 +14,8 @@ from elasticsearch_django.models import (
     SearchDocumentManagerMixin,
     SearchDocumentMixin,
     SearchQuery,
+    execute_count,
+    execute_search,
 )
 
 from .models import ExampleModel, ExampleModelManager
@@ -323,6 +327,7 @@ class SearchQueryTests(TestCase):
         self.assertEqual(sq.query["today"], today.isoformat())
         self.assertEqual(sq.hits["hits"], "1.0")
         self.assertEqual(sq.query_type, SearchQuery.QueryType.SEARCH)
+        self.assertEqual(sq.aggregations, {})
 
     def test_paging(self):
         """Test the paging properties."""
@@ -352,3 +357,91 @@ class SearchQueryTests(TestCase):
         sq.hits = [{"score": 1}, {"score": 2}]
         self.assertEqual(sq.max_score, 2)
         self.assertEqual(sq.min_score, 1)
+
+
+class ExecuteFunctionTests(TestCase):
+
+    hits = [
+        {"id": 1, "doc_type": "foo"},
+        {"id": 2, "doc_type": "foo"},
+        {"id": 3, "doc_type": "bar"},
+    ]
+
+    aggregations = {
+        "test_percentiles": {
+            "values": {
+                "1.0": 10.0,
+                "5.0": 15.0,
+                "25.0": 200.0,
+                "50.0": 350.0,
+                "75.0": 400.0,
+                "95.0": 600.0,
+                "99.0": 1500.0,
+            }
+        }
+    }
+
+    @mock.patch.object(Search, "count")
+    def test_execute_count__no_save(self, mock_count):
+        search = Search()
+        sq = execute_count(search, save=False)
+        self.assertIsNone(sq.id)
+
+    @mock.patch.object(Search, "count")
+    def test_execute_count(self, mock_count):
+        mock_count.return_value = 100
+        search = Search()
+        sq = execute_count(search, search_terms="foo", user=None, reference="bar")
+        sq.refresh_from_db()  # just to confirm it saves in / out
+        self.assertIsNotNone(sq.id)
+        self.assertEqual(sq.search_terms, "foo")
+        self.assertEqual(sq.reference, "bar")
+        self.assertEqual(sq.query, search.to_dict())
+        self.assertEqual(sq.index, "_all")
+        self.assertEqual(sq.hits, [])
+        self.assertEqual(sq.total_hits, 100)
+        self.assertEqual(sq.total_hits_relation, SearchQuery.TotalHitsRelation.ACCURATE)
+        self.assertEqual(sq.query_type, SearchQuery.QueryType.COUNT)
+        self.assertEqual(sq.aggregations, {})
+        self.assertTrue(sq.duration > 0)
+
+    @mock.patch.object(Search, "execute")
+    def test_execute_search__no_save(self, mock_count):
+        search = Search()
+        sq = execute_search(search, save=False)
+        self.assertIsNone(sq.id)
+
+    @mock.patch.object(Search, "execute")
+    def test_execute_search(self, mock_search):
+        # lots of mocking to get around lack of ES server during tests
+
+        def mock_hit(meta_dict):
+            # Returns a mock that looks like a Hit
+            hm = mock.Mock(spec=HitMeta)
+            hm.to_dict.return_value = meta_dict
+            return mock.Mock(spec=Hit, meta=hm)
+
+        response = mock.MagicMock(spec=Response)
+        response.hits.__iter__.return_value = iter(
+            [mock_hit(h) for h in ExecuteFunctionTests.hits]
+        )
+        response.hits.total.value = 100
+        response.hits.total.relation = "gte"
+        response.aggregations = mock.Mock(spec=AggResponse)
+        response.aggregations.to_dict.return_value = ExecuteFunctionTests.aggregations
+        mock_search.return_value = response
+
+        search = Search()
+        sq = execute_search(search, search_terms="foo", user=None, reference="bar")
+        sq.refresh_from_db()  # just to confirm it saves in / out
+        self.assertIsNotNone(sq.id)
+        self.assertEqual(sq.search_terms, "foo")
+        self.assertEqual(sq.reference, "bar")
+        self.assertEqual(sq.query, search.to_dict())
+        self.assertEqual(sq.index, "_all")
+        self.assertEqual(sq.hits, ExecuteFunctionTests.hits)
+        self.assertEqual(sq.total_hits, 100)
+        self.assertEqual(sq.total_hits_relation, SearchQuery.TotalHitsRelation.ESTIMATE)
+        self.assertEqual(sq.query_type, SearchQuery.QueryType.SEARCH)
+        self.assertEqual(sq.aggregations, ExecuteFunctionTests.aggregations)
+        self.assertTrue(sq.duration > 0)
