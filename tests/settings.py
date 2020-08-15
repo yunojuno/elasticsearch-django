@@ -3,7 +3,7 @@ from os import getenv
 DEBUG = True
 
 try:
-    import django.db.models.JSONField
+    from django.db.models import JSONField
 
     DATABASES = {
         "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": "test.db",}
