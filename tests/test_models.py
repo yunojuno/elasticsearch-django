@@ -293,6 +293,43 @@ class SearchQueryTests(TestCase):
         {"id": 3, "doc_type": "bar"},
     ]
 
+    aggregations = {
+        "test_percentiles": {
+            "values": {
+                "1.0": 8.35,
+                "5.0": 15.0,
+                "25.0": 200.0,
+                "50.0": 350.0,
+                "75.0": 400.0,
+                "95.0": 585.9999999999997,
+                "99.0": 1525.719999999999,
+            }
+        },
+        "test_stats": {
+            "count": 117,
+            "min": 5.0,
+            "max": 1984.0,
+            "avg": 324.25632478436853,
+            "sum": 37937.98999977112,
+            "sum_of_squares": 1.907259570009314e7,
+            "variance": 57871.47429966865,
+            "std_deviation": 240.56490662536098,
+            "std_deviation_bounds": {
+                "upper": 805.3861380350904,
+                "lower": -156.87348846635342,
+            },
+        },
+        "test_terms": {
+            "doc_count_error_upper_bound": 0,
+            "sum_other_doc_count": 176,
+            "buckets": [
+                {"key": "Front-end developer", "doc_count": 32},
+                {"key": "Full-stack developer", "doc_count": 25},
+                {"key": "Back-end developer", "doc_count": 24},
+            ],
+        },
+    }
+
     def test__extract_set(self):
         """Test the _extract_set method."""
         obj = SearchQuery(hits=SearchQueryTests.hits)
@@ -323,6 +360,7 @@ class SearchQueryTests(TestCase):
         self.assertEqual(sq.query["today"], today.isoformat())
         self.assertEqual(sq.hits["hits"], "1.0")
         self.assertEqual(sq.query_type, SearchQuery.QueryType.SEARCH)
+        self.assertEqual(sq.aggregations, {})
 
     def test_paging(self):
         """Test the paging properties."""

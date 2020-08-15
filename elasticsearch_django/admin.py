@@ -40,7 +40,7 @@ class SearchQueryAdmin(admin.ModelAdmin):
     list_filter = ("index", "query_type")
     search_fields = ("search_terms", "user__first_name", "user__last_name", "reference")
     # excluding because we are using a pretty version instead
-    exclude = ("hits", "query", "page", "total_hits_")
+    exclude = ("hits", "aggregations", "query", "page", "total_hits_")
     readonly_fields = (
         "user",
         "index",
@@ -54,6 +54,7 @@ class SearchQueryAdmin(admin.ModelAdmin):
         "duration",
         "query_",
         "hits_",
+        "aggregations_",
         "executed_at",
     )
 
@@ -96,6 +97,10 @@ class SearchQueryAdmin(admin.ModelAdmin):
     def hits_(self, instance: SearchQuery) -> str:
         """Return pretty version of hits JSON."""
         return pprint(instance.hits)
+
+    def aggregations_(self, instance: SearchQuery) -> str:
+        """Return pretty version of aggregations JSON."""
+        return pprint(instance.aggregations)
 
 
 admin.site.register(SearchQuery, SearchQueryAdmin)

@@ -5,7 +5,6 @@ import time
 from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from django.conf import settings
-from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
@@ -16,6 +15,7 @@ from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Search
 
+from .compat import JSONField
 from .settings import (
     get_client,
     get_model_index_properties,
@@ -491,6 +491,11 @@ class SearchQuery(models.Model):
             "Indicates whether this is an exact match ('eq') or a lower bound ('gte')"
         ),
     )
+    aggregations = JSONField(
+        help_text=_lazy("The raw aggregations returned from the query."),
+        encoder=DjangoJSONEncoder,
+        default=dict,
+    )
     reference = models.CharField(
         max_length=100,
         default="",
@@ -615,10 +620,12 @@ def execute_search(
         hits = [h.meta.to_dict() for h in response.hits]
         total_hits = response.hits.total.value
         total_hits_relation = response.hits.total.relation
+        aggregations = response.aggregations.to_dict()
     elif query_type == SearchQuery.QueryType.COUNT:
         response = total_hits = search.count()
         total_hits_relation = SearchQuery.TotalHitsRelation.ACCURATE
         hits = []
+        aggregations = None
     else:
         raise ValueError(f"Invalid SearchQuery.query_type value: '{query_type}'")
     duration = time.time() - start
@@ -629,6 +636,7 @@ def execute_search(
         query=search.to_dict(),
         query_type=query_type,
         hits=hits,
+        aggregations=aggregations,
         total_hits=total_hits,
         total_hits_relation=total_hits_relation,
         reference=reference or "",
