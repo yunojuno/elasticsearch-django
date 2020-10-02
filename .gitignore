@@ -3,4 +3,7 @@
 *.egg-info
 .coverage
 staticfiles
+Pipfile
 Pipfile.lock
+poetry.lock
+pythonenv*
