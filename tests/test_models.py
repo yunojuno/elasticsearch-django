@@ -22,7 +22,6 @@ from .models import ExampleModel, ExampleModelManager
 
 
 class SearchDocumentMixinTests(TestCase):
-
     """Tests for the SearchDocumentMixin."""
 
     @mock.patch("elasticsearch_django.models.get_model_indexes")
@@ -235,7 +234,6 @@ class SearchDocumentMixinTests(TestCase):
 
 
 class SearchDocumentManagerMixinTests(TestCase):
-
     """Tests for the SearchDocumentManagerMixin."""
 
     def test_get_search_queryset(self):
@@ -256,7 +254,8 @@ class SearchDocumentManagerMixinTests(TestCase):
         """Test the _raw_sql method."""
         self.assertEqual(
             ExampleModel.objects._raw_sql(((1, 2), (3, 4))),
-            'SELECT CASE tests_examplemodel."id" WHEN 1 THEN 2 WHEN 3 THEN 4 ELSE 0 END',
+            'SELECT CASE tests_examplemodel."id" '
+            'WHEN 1 THEN 2 WHEN 3 THEN 4 ELSE 0 END',
         )
 
     @mock.patch("django.db.models.query.QuerySet")
@@ -288,7 +287,6 @@ class SearchDocumentManagerMixinTests(TestCase):
 
 
 class SearchQueryTests(TestCase):
-
     """Tests for the SearchQuery model."""
 
     hits = [

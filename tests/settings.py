@@ -1,9 +1,11 @@
 from os import getenv
 
+from django.core.exceptions import ImproperlyConfigured
+
 DEBUG = True
 
 try:
-    from django.db.models import JSONField
+    from django.db.models import JSONField  # noqa: F401
 
     DATABASES = {
         "default": {
@@ -163,4 +165,5 @@ SEARCH_SETTINGS = {
     },
 }
 
-assert DEBUG is True, "This project is only intended to be used for testing."
+if DEBUG is True:
+    raise ImproperlyConfigured("This project is only intended to be used for testing.")

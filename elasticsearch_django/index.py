@@ -21,11 +21,11 @@ def create_index(index: str) -> dict:
     return client.indices.create(index=index, body=get_index_mapping(index))
 
 
-def update_index(index: str) -> List[dict]:
+def update_index(index: str) -> List[BulkResponseType]:
     """Re-index every document in a named index."""
     logger.info("Updating search index: '%s'", index)
     client = get_client()
-    responses: BulkResponseType = []
+    responses: List[BulkResponseType] = []
     for model in get_index_models(index):
         logger.info("Updating search index model: '%s'", model._meta.label)
         objects = model.objects.get_search_queryset(index).iterator()
@@ -42,7 +42,7 @@ def delete_index(index: str) -> dict:
     return client.indices.delete(index=index)
 
 
-def prune_index(index: str) -> List[dict]:
+def prune_index(index: str) -> List[BulkResponseType]:
     """
     Remove all orphaned documents from an index.
 
@@ -62,7 +62,7 @@ def prune_index(index: str) -> List[dict]:
     """
     logger.info("Pruning missing objects from index '%s'", index)
     prunes: List[SearchDocumentMixin] = []
-    responses: BulkResponseType = []
+    responses: List[BulkResponseType] = []
     client = get_client()
     for model in get_index_models(index):
         for hit in scan_index(index, model):

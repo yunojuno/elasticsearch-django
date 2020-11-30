@@ -26,7 +26,6 @@ TEST_SETTINGS = {
 
 
 class SettingsFunctionTests(TestCase):
-
     """Tests for the settings functions."""
 
     @mock.patch("elasticsearch_django.settings.get_connection_string")
@@ -105,7 +104,7 @@ class SettingsFunctionTests(TestCase):
         """Test the auto_sync function."""
         obj = ExampleModel()
         self.assertEqual(auto_sync(obj), True)
-        # Check that if the setting auto_sync is False, the function auto_sync also returns false.
+        # Check that if the auto_sync is False, the function also returns false.
         TEST_SETTINGS["settings"]["auto_sync"] = False
         self.assertEqual(auto_sync(obj), False)
         TEST_SETTINGS["settings"]["auto_sync"] = True

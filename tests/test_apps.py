@@ -21,7 +21,6 @@ from .models import ExampleModel
 
 
 class SearchAppsConfigTests(TestCase):
-
     """Tests for the apps module ready function."""
 
     @mock.patch("elasticsearch_django.apps.settings.get_setting", lambda x: False)
@@ -37,7 +36,6 @@ class SearchAppsConfigTests(TestCase):
 
 
 class SearchAppsValidationTests(TestCase):
-
     """Tests for the apps module validation functions."""
 
     def test__validate_model(self):

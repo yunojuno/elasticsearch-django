@@ -6,9 +6,6 @@ from elasticsearch_django.decorators import _strip_on_model_save, disable_search
 
 
 class DecoratorTests(TestCase):
-
-    """elasticsearch_django.decorators tests."""
-
     def setUp(self):
         signals.post_save.connect(_on_model_save)
 

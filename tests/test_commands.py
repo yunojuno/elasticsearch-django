@@ -14,7 +14,6 @@ from elasticsearch_django.management.commands import (
 
 
 class BaseSearchCommandTests(TestCase):
-
     """Tests for the elasticsearch_django management commands base command."""
 
     @mock.patch("elasticsearch_django.management.commands.logger")
@@ -35,7 +34,6 @@ class BaseSearchCommandTests(TestCase):
 
 
 class NamedCommandTests(TestCase):
-
     """Test each named command."""
 
     @mock.patch(

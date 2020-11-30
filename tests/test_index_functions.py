@@ -16,7 +16,6 @@ from .models import ExampleModel, ExampleModelManager
 
 
 class IndexFunctionTests(TestCase):
-
     """Test index functions."""
 
     @mock.patch("elasticsearch_django.index.get_client")
@@ -72,7 +71,6 @@ class IndexFunctionTests(TestCase):
         mock_helpers,
     ):
         """Test the prune_index function."""
-
         # this forces one single evaluation of the outer and inner for loop
         mock_models.return_value = [ExampleModel]
         mock_scan.return_value = ["hit"]

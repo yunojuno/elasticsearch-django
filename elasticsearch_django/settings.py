@@ -128,7 +128,6 @@ def get_document_models() -> Dict[str, Model]:
 def get_document_model(index: str, doc_type: str) -> Optional[Model]:
     """Return model for a given index.doc_type combination."""
     raise DeprecationWarning("Mapping types have been removed from ES7.x")
-    return get_document_models().get(f"{index}.{doc_type}")
 
 
 def auto_sync(instance: Model) -> bool:
