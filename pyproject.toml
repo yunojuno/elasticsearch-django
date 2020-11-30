@@ -16,6 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
 ]
 
 [tool.poetry.dependencies]
@@ -37,7 +38,7 @@ flake8-docstrings = "*"
 isort = "*"
 mypy = "*"
 pre-commit = "*"
-black = "==19.10b0"
+black = {version="*", allow-prereleases=true}
 tox = "*"
 
 [build-system]

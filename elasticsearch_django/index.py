@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import logging
-from typing import Generator, List, Optional, Sequence
+from typing import Any, Generator, List, Optional, Sequence, Tuple, Union
 
 from django.db.models import Model
 from elasticsearch import helpers
 
 from .models import SearchDocumentMixin
 from .settings import get_client, get_index_mapping, get_index_models, get_setting
+
+BulkResponseType = Tuple[int, Union[int, List[Any]]]
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ def update_index(index: str) -> List[dict]:
     """Re-index every document in a named index."""
     logger.info("Updating search index: '%s'", index)
     client = get_client()
-    responses: List[dict] = []
+    responses: BulkResponseType = []
     for model in get_index_models(index):
         logger.info("Updating search index model: '%s'", model._meta.label)
         objects = model.objects.get_search_queryset(index).iterator()
@@ -59,8 +61,8 @@ def prune_index(index: str) -> List[dict]:
 
     """
     logger.info("Pruning missing objects from index '%s'", index)
-    prunes = []  # type: List[SearchDocumentMixin]
-    responses = []  # type: List[dict]
+    prunes: List[SearchDocumentMixin] = []
+    responses: BulkResponseType = []
     client = get_client()
     for model in get_index_models(index):
         for hit in scan_index(index, model):
