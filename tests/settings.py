@@ -165,5 +165,5 @@ SEARCH_SETTINGS = {
     },
 }
 
-if DEBUG is True:
+if not DEBUG:
     raise ImproperlyConfigured("This project is only intended to be used for testing.")
