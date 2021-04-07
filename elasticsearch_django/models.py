@@ -401,7 +401,13 @@ class SearchDocumentMixin(object):
         if not doc:
             logger.debug("Ignoring object update as document is empty.")
             return
-        get_client().update(index=index, body={"doc": doc}, id=self.pk)  # type: ignore
+        retry_on_conflict = get_setting("retry_on_conflict", 0)
+        get_client().update(
+            index=index,
+            id=self.pk,  # type: ignore
+            body={"doc": doc},
+            retry_on_conflict=retry_on_conflict,
+        )
 
     def delete_search_document(self, *, index: str) -> None:
         """Delete document from named index."""

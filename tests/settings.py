@@ -157,6 +157,8 @@ SEARCH_SETTINGS = {
         # List of models which will never auto_sync even if auto_sync is True
         # Use the same app.model format as in 'indexes' above.
         "never_auto_sync": [],
+        # retry count used on update in case of a conflict
+        "retry_on_conflict": 0,
         "update_strategy": "full",
         # if True, raise ImproperlyConfigured if an index has no mapping file
         "strict_validation": False,
