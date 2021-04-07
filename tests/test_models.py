@@ -142,8 +142,9 @@ class SearchDocumentMixinTests(TestCase):
         "elasticsearch_django.settings.get_connection_string",
         lambda: "http://testserver",
     )
+    @mock.patch("elasticsearch_django.models.get_setting")
     @mock.patch("elasticsearch_django.models.get_client")
-    def test_update_search_document(self, mock_client):
+    def test_update_search_document(self, mock_client, mock_setting):
         """Test the update_search_document wraps up doc correctly."""
         obj = ExampleModel(pk=1, simple_field_1=1)
         doc = obj.as_search_document_update(
@@ -151,8 +152,12 @@ class SearchDocumentMixinTests(TestCase):
         )
         obj.update_search_document(index="_all", update_fields=["simple_field_1"])
         mock_client.return_value.update.assert_called_once_with(
-            body={"doc": doc}, id=1, index="_all"
+            index="_all",
+            id=1,
+            body={"doc": doc},
+            retry_on_conflict=mock_setting.return_value,
         )
+        mock_setting.assert_called_once_with("retry_on_conflict", 0)
 
     @mock.patch(
         "elasticsearch_django.settings.get_connection_string",
@@ -255,7 +260,7 @@ class SearchDocumentManagerMixinTests(TestCase):
         self.assertEqual(
             ExampleModel.objects._raw_sql(((1, 2), (3, 4))),
             'SELECT CASE tests_examplemodel."id" '
-            'WHEN 1 THEN 2 WHEN 3 THEN 4 ELSE 0 END',
+            "WHEN 1 THEN 2 WHEN 3 THEN 4 ELSE 0 END",
         )
 
     @mock.patch("django.db.models.query.QuerySet")
