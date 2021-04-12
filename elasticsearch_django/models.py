@@ -171,6 +171,7 @@ class SearchDocumentMixin(object):
     # a known format. All other types will need custom serialization.
     # Used by as_search_document_update method
     SIMPLE_UPDATE_FIELD_TYPES = [
+        "ArrayField",
         "AutoField",
         "BooleanField",
         "CharField",
