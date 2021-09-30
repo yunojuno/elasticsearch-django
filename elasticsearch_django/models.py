@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.core.cache import cache
@@ -402,7 +402,7 @@ class SearchDocumentMixin(object):
         if not doc:
             logger.debug("Ignoring object update as document is empty.")
             return
-        retry_on_conflict = get_setting("retry_on_conflict", 0)
+        retry_on_conflict = cast(int, get_setting("retry_on_conflict", 0))
         get_client().update(
             index=index,
             id=self.pk,  # type: ignore
