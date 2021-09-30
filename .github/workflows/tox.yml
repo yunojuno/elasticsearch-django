@@ -22,10 +22,10 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v2
 
-      - name: Set up Python 3.8
+      - name: Set up Python 3.9
         uses: actions/setup-python@v1
         with:
-          python-version: 3.8
+          python-version: 3.9
 
       - name: Install and run tox
         run: |
@@ -37,8 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: [3.8,3.9]
-        django: [31,32,main]
+        python: [3.9]
+        django: [30,32,main]
 
     env:
       TOXENV: py${{ matrix.python }}-django${{ matrix.django }}

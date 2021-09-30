@@ -10,7 +10,7 @@ from .models import SearchQuery
 logger = logging.getLogger(__name__)
 
 
-def pprint(data: dict) -> str:
+def pretty_print(data: dict) -> str:
     """
     Return an indented HTML pretty-print version of JSON.
 
@@ -21,7 +21,7 @@ def pprint(data: dict) -> str:
     """
     pretty = json.dumps(data, sort_keys=True, indent=4, separators=(",", ": "))
     html = pretty.replace(" ", "&nbsp;").replace("\n", "<br>")
-    return mark_safe("<code>%s</code>" % html)
+    return mark_safe("<code>%s</code>" % html)  # noqa S703, S308
 
 
 class SearchQueryAdmin(admin.ModelAdmin):
@@ -66,7 +66,7 @@ class SearchQueryAdmin(admin.ModelAdmin):
 
     def query_(self, instance: SearchQuery) -> str:
         """Return pretty version of query JSON."""
-        return pprint(instance.query)
+        return pretty_print(instance.query)
 
     def max_(self, instance: SearchQuery) -> str:
         """Return pretty version of max_score."""
@@ -96,11 +96,11 @@ class SearchQueryAdmin(admin.ModelAdmin):
 
     def hits_(self, instance: SearchQuery) -> str:
         """Return pretty version of hits JSON."""
-        return pprint(instance.hits)
+        return pretty_print(instance.hits)
 
     def aggregations_(self, instance: SearchQuery) -> str:
         """Return pretty version of aggregations JSON."""
-        return pprint(instance.aggregations)
+        return pretty_print(instance.aggregations)
 
 
 admin.site.register(SearchQuery, SearchQueryAdmin)

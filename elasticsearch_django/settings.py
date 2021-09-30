@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 from django.apps import apps
 from django.conf import settings
@@ -33,7 +33,7 @@ def get_settings() -> SettingsType:
     return settings.SEARCH_SETTINGS["settings"]
 
 
-def get_setting(key, *default: Union[str, int, bool, list, dict]) -> SettingType:
+def get_setting(key, *default: str | int | bool | list | dict) -> SettingType:
     """Return specific search setting from Django conf."""
     if default:
         return get_settings().get(key, default[0])
@@ -51,12 +51,12 @@ def get_connection_string(connection: str = "default") -> str:
     return settings.SEARCH_SETTINGS["connections"][connection]
 
 
-def get_index_config(index: str) -> Dict[str, List[str]]:
+def get_index_config(index: str) -> dict[str, list[str]]:
     """Return index settings from Django conf."""
     return settings.SEARCH_SETTINGS["indexes"][index]
 
 
-def get_index_names() -> List[str]:
+def get_index_names() -> list[str]:
     """Return list of the names of all configured indexes."""
     return list(settings.SEARCH_SETTINGS["indexes"].keys())
 
@@ -80,13 +80,13 @@ def get_index_mapping(index: str) -> dict:
         return json.load(f)
 
 
-def get_model_index_properties(instance: Model, index: str) -> List[str]:
+def get_model_index_properties(instance: Model, index: str) -> list[str]:
     """Return the list of properties specified for a model in an index."""
     mapping = get_index_mapping(index)
     return list(mapping["mappings"]["properties"].keys())
 
 
-def get_index_models(index: str) -> List[Model]:
+def get_index_models(index: str) -> list[Model]:
     """Return list of models configured for a named index."""
     models = []  # type: List[Model]
     for app_model in get_index_config(index).get("models"):
@@ -95,7 +95,7 @@ def get_index_models(index: str) -> List[Model]:
     return models
 
 
-def get_model_indexes(model: Model) -> List[str]:
+def get_model_indexes(model: Model) -> list[str]:
     """
     Return list of all indexes in which a model is configured.
 
@@ -116,16 +116,16 @@ def get_model_indexes(model: Model) -> List[str]:
     return indexes
 
 
-def get_document_models() -> Dict[str, Model]:
+def get_document_models() -> dict[str, Model]:
     """Return dict of index.doc_type: model."""
-    mappings: Dict[str, Model] = {}
+    mappings: dict[str, Model] = {}
     for i in get_index_names():
         for m in get_index_models(i):
             mappings[f"{i}.{m._meta.model_name}"] = m
     return mappings
 
 
-def get_document_model(index: str, doc_type: str) -> Optional[Model]:
+def get_document_model(index: str, doc_type: str) -> Model | None:
     """Return model for a given index.doc_type combination."""
     raise DeprecationWarning("Mapping types have been removed from ES7.x")
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Generator, List, Optional, Sequence, Tuple, Union
+from typing import Any, Generator, List, Sequence, Tuple, Union
 
 from django.db.models import Model
 from elasticsearch import helpers
@@ -21,11 +21,11 @@ def create_index(index: str) -> dict:
     return client.indices.create(index=index, body=get_index_mapping(index))
 
 
-def update_index(index: str) -> List[BulkResponseType]:
+def update_index(index: str) -> list[BulkResponseType]:
     """Re-index every document in a named index."""
     logger.info("Updating search index: '%s'", index)
     client = get_client()
-    responses: List[BulkResponseType] = []
+    responses: list[BulkResponseType] = []
     for model in get_index_models(index):
         logger.info("Updating search index model: '%s'", model._meta.label)
         objects = model.objects.get_search_queryset(index).iterator()
@@ -42,7 +42,7 @@ def delete_index(index: str) -> dict:
     return client.indices.delete(index=index)
 
 
-def prune_index(index: str) -> List[BulkResponseType]:
+def prune_index(index: str) -> list[BulkResponseType]:
     """
     Remove all orphaned documents from an index.
 
@@ -61,8 +61,8 @@ def prune_index(index: str) -> List[BulkResponseType]:
 
     """
     logger.info("Pruning missing objects from index '%s'", index)
-    prunes: List[SearchDocumentMixin] = []
-    responses: List[BulkResponseType] = []
+    prunes: list[SearchDocumentMixin] = []
+    responses: list[BulkResponseType] = []
     client = get_client()
     for model in get_index_models(index):
         for hit in scan_index(index, model):
@@ -84,7 +84,7 @@ def prune_index(index: str) -> List[BulkResponseType]:
     return responses
 
 
-def _prune_hit(hit: dict, model: Model) -> Optional[Model]:
+def _prune_hit(hit: dict, model: Model) -> Model | None:
     """
     Check whether a document should be pruned.
 
@@ -179,5 +179,5 @@ def bulk_actions(objects: Sequence[Model], index: str, action: str) -> Generator
         try:
             logger.debug("Appending '%s' action for '%r'", action, obj)
             yield obj.as_search_action(index=index, action=action)
-        except Exception:
+        except Exception:  # noqa: B902
             logger.exception("Unable to create search action for %s", obj)

@@ -56,7 +56,7 @@ class BaseSearchCommand(BaseCommand):
                     "status": "N/A",
                     "reason": "Mapping file not found",
                 }
-            except Exception as ex:
+            except Exception as ex:  # noqa: B902
                 logger.warning("Error running command: %s", ex)
                 data = {
                     "index": index,

@@ -63,7 +63,7 @@ TEMPLATES = [
     }
 ]
 
-SECRET_KEY = "elasticsearch_django"
+SECRET_KEY = "elasticsearch_django"  # noqa: S105
 
 ROOT_URLCONF = "tests.urls"
 

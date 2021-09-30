@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -139,10 +139,10 @@ class SearchDocumentManagerMixin(models.Manager):
             .order_by("search_rank")
         )
 
-    def _when(self, x: Union[str, int], y: Union[str, int]) -> str:
+    def _when(self, x: str | int, y: str | int) -> str:
         return "WHEN {} THEN {}".format(x, y)
 
-    def _raw_sql(self, values: List[Tuple[Union[str, int], Union[str, int]]]) -> str:
+    def _raw_sql(self, values: list[tuple[str | int, str | int]]) -> str:
         """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
         if isinstance(self.model._meta.pk, CharField):
             when_clauses = " ".join(
@@ -187,7 +187,7 @@ class SearchDocumentMixin(object):
     ]
 
     @property
-    def search_indexes(self) -> List[str]:
+    def search_indexes(self) -> list[str]:
         """Return the list of indexes for which this model is configured."""
         return get_model_indexes(self.__class__)
 
@@ -234,7 +234,7 @@ class SearchDocumentMixin(object):
             in self.SIMPLE_UPDATE_FIELD_TYPES
         )
 
-    def clean_update_fields(self, index: str, update_fields: List[str]) -> List[str]:
+    def clean_update_fields(self, index: str, update_fields: list[str]) -> list[str]:
         """
         Clean the list of update_fields based on the index being updated.
 
@@ -263,7 +263,7 @@ class SearchDocumentMixin(object):
         return clean_fields
 
     def as_search_document_update(
-        self, *, index: str, update_fields: List[str]
+        self, *, index: str, update_fields: list[str]
     ) -> dict:
         """
         Return a partial update document based on which fields have been updated.
@@ -378,7 +378,7 @@ class SearchDocumentMixin(object):
         cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
         get_client().index(index=index, body=new_doc, id=self.pk)  # type: ignore
 
-    def update_search_document(self, *, index: str, update_fields: List[str]) -> None:
+    def update_search_document(self, *, index: str, update_fields: list[str]) -> None:
         """
         Partial update of a document in named index.
 
@@ -539,13 +539,11 @@ class SearchQuery(models.Model):
         super().save(**kwargs)
         return self
 
-    def _extract_set(self, _property: str) -> List[Union[str, int]]:
-        return (
-            [] if self.hits is None else (list(set([h[_property] for h in self.hits])))
-        )
+    def _extract_set(self, _property: str) -> list[str | int]:
+        return [] if self.hits is None else (list({h[_property] for h in self.hits}))
 
     @property
-    def doc_types(self) -> List[str]:
+    def doc_types(self) -> list[str]:
         """List of doc_types extracted from hits."""
         raise DeprecationWarning("Mapping types have been removed from ES7.x")
 
@@ -560,12 +558,12 @@ class SearchQuery(models.Model):
         return int(min(self._extract_set("score") or [0]))
 
     @property
-    def object_ids(self) -> List[int]:
+    def object_ids(self) -> list[int]:
         """List of model ids extracted from hits."""
         return [int(x) for x in self._extract_set("id")]
 
     @property
-    def page_slice(self) -> Optional[Tuple[int, int]]:
+    def page_slice(self) -> tuple[int, int] | None:
         """Return the query from:size tuple (0-based)."""
         return (
             None
@@ -597,8 +595,8 @@ def execute_search(
     search: Search,
     *,
     search_terms: str = "",
-    user: Optional[AbstractBaseUser] = None,
-    reference: Optional[str] = "",
+    user: AbstractBaseUser | None = None,
+    reference: str | None = "",
     save: bool = True,
 ) -> SearchQuery:
     """
@@ -648,8 +646,8 @@ def execute_count(
     search: Search,
     *,
     search_terms: str = "",
-    user: Optional[AbstractBaseUser] = None,
-    reference: Optional[str] = "",
+    user: AbstractBaseUser | None = None,
+    reference: str | None = "",
     save: bool = True,
 ) -> SearchQuery:
     """

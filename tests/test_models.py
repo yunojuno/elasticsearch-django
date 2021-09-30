@@ -303,12 +303,12 @@ class SearchQueryTests(TestCase):
     def test__extract_set(self):
         """Test the _extract_set method."""
         obj = SearchQuery(hits=SearchQueryTests.hits)
-        self.assertEqual(set(obj._extract_set("id")), set([1, 2, 3]))
+        self.assertEqual(set(obj._extract_set("id")), {1, 2, 3})
 
     def test_object_ids(self):
         """Test the object_ids property."""
         obj = SearchQuery(hits=SearchQueryTests.hits)
-        self.assertEqual(set(obj.object_ids), set([1, 2, 3]))
+        self.assertEqual(set(obj.object_ids), {1, 2, 3})
 
     def test_save(self):
         """Try saving unserializable JSON."""

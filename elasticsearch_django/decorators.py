@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Callable, Generator, List
+from typing import Callable, Generator
 
 from django.db.models import signals
 
 from .apps import _on_model_save
 
 
-def _strip_on_model_save() -> List[Callable]:
+def _strip_on_model_save() -> list[Callable]:
     """Return list of signal receivers without _on_model_save."""
     return [r for r in signals.post_save.receivers if r[1]() != _on_model_save]
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, List, Type
+from typing import TYPE_CHECKING, Any
 
 from django.apps import AppConfig
 from django.core.exceptions import ImproperlyConfigured
@@ -70,7 +70,7 @@ def _connect_signals() -> None:
             _connect_model_signals(model)
 
 
-def _connect_model_signals(model: Type[Model]) -> None:
+def _connect_model_signals(model: type[Model]) -> None:
     """Connect signals for a single model."""
     dispatch_uid = "%s.post_save" % model._meta.model_name
     logger.debug("Connecting search index model post_save signal: %s", dispatch_uid)
@@ -82,7 +82,7 @@ def _connect_model_signals(model: Type[Model]) -> None:
     )
 
 
-def _on_model_save(sender: Type[Model], **kwargs: Any) -> None:
+def _on_model_save(sender: type[Model], **kwargs: Any) -> None:
     """Update document in search index post_save."""
     instance = kwargs.pop("instance")
     update_fields = kwargs.pop("update_fields")
@@ -91,17 +91,17 @@ def _on_model_save(sender: Type[Model], **kwargs: Any) -> None:
             _update_search_index(
                 instance=instance, index=index, update_fields=update_fields
             )
-        except Exception:
+        except Exception:  # noqa: B902
             logger.exception("Error handling 'on_save' signal for %s", instance)
 
 
-def _on_model_delete(sender: Type[Model], **kwargs: Any) -> None:
+def _on_model_delete(sender: type[Model], **kwargs: Any) -> None:
     """Remove documents from search indexes post_delete."""
     instance = kwargs.pop("instance")
     for index in instance.search_indexes:
         try:
             _delete_from_search_index(instance=instance, index=index)
-        except Exception:
+        except Exception:  # noqa: B902
             logger.exception("Error handling 'on_delete' signal for %s", instance)
 
 
@@ -109,13 +109,13 @@ def _in_search_queryset(*, instance: Model, index: str) -> bool:
     """Return True if instance is in the index queryset."""
     try:
         return instance.__class__.objects.in_search_queryset(instance.id, index=index)
-    except Exception:
+    except Exception:  # noqa: B902
         logger.exception("Error checking object in_search_queryset.")
         return False
 
 
 def _update_search_index(
-    *, instance: SearchDocumentMixin, index: str, update_fields: List[str]
+    *, instance: SearchDocumentMixin, index: str, update_fields: list[str]
 ) -> None:
     """Process index / update search index update actions."""
     if not _in_search_queryset(instance=instance, index=index):
@@ -140,7 +140,7 @@ def _update_search_index(
             pre_index.send(sender=instance.__class__, instance=instance, index=index)
             if settings.auto_sync(instance):
                 instance.index_search_document(index=index)
-    except Exception:
+    except Exception:  # noqa: B902
         logger.exception("Error handling 'post_save' signal for %s", instance)
 
 
