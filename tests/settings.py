@@ -4,26 +4,12 @@ from django.core.exceptions import ImproperlyConfigured
 
 DEBUG = True
 
-try:
-    from django.db.models import JSONField  # noqa: F401
-
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": "test.db",
-        }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": "elasticsearch_django.db",
     }
-except ImportError:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": getenv("TEST_DB_NAME", "elasticsearch_django"),
-            "USER": getenv("TEST_DB_USER", "postgres"),
-            "PASSWORD": getenv("TEST_DB_PASSWORD", "postgres"),
-            "HOST": getenv("TEST_DB_HOST", "localhost"),
-            "PORT": getenv("TEST_DB_PORT", "5432"),
-        }
-    }
+}
 
 INSTALLED_APPS = (
     "django.contrib.admin",

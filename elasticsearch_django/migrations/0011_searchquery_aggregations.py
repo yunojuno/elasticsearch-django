@@ -2,8 +2,7 @@
 
 import django.core.serializers.json
 from django.db import migrations
-
-from ..compat import JSONField
+from django.db.models import JSONField
 
 
 class Migration(migrations.Migration):

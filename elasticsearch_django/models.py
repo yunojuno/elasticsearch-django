@@ -9,13 +9,11 @@ from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models.expressions import RawSQL
-from django.db.models.fields import CharField
 from django.db.models.query import QuerySet
 from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Search
 
-from .compat import JSONField
 from .settings import (
     get_client,
     get_model_index_properties,
@@ -144,7 +142,7 @@ class SearchDocumentManagerMixin(models.Manager):
 
     def _raw_sql(self, values: list[tuple[str | int, str | int]]) -> str:
         """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
-        if isinstance(self.model._meta.pk, CharField):
+        if isinstance(self.model._meta.pk, models.CharField):
             when_clauses = " ".join(
                 [self._when("'{}'".format(x), y) for (x, y) in values]
             )
@@ -468,16 +466,17 @@ class SearchQuery(models.Model):
             "Free text search terms used in the query, stored for easy reference."
         ),
     )
-    query = JSONField(
-        help_text=_lazy("The raw ElasticSearch DSL query."), encoder=DjangoJSONEncoder
+    query = models.JSONField(
+        help_text=_lazy("The raw ElasticSearch DSL query."),
+        encoder=DjangoJSONEncoder,
     )
-    query_type = CharField(
+    query_type = models.CharField(
         help_text=_lazy("Does this query return results, or just the hit count?"),
         choices=QueryType.choices,
         default=QueryType.SEARCH,
         max_length=10,
     )
-    hits = JSONField(
+    hits = models.JSONField(
         help_text=_lazy(
             "The list of meta info for each of the query matches returned."
         ),
@@ -498,7 +497,7 @@ class SearchQuery(models.Model):
             "Indicates whether this is an exact match ('eq') or a lower bound ('gte')"
         ),
     )
-    aggregations = JSONField(
+    aggregations = models.JSONField(
         help_text=_lazy("The raw aggregations returned from the query."),
         encoder=DjangoJSONEncoder,
         default=dict,
