@@ -19,6 +19,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="searchquery",
             name="query",
-            field=JSONField(help_text="The raw ElasticSearch DSL query."),
+            field=JSONField(help_text="The raw Elasticsearch DSL query."),
         ),
     ]

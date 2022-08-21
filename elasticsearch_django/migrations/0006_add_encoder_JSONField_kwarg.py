@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
             model_name="searchquery",
             name="query",
             field=JSONField(
-                encoder=DjangoJSONEncoder, help_text="The raw ElasticSearch DSL query."
+                encoder=DjangoJSONEncoder, help_text="The raw Elasticsearch DSL query."
             ),
         ),
     ]

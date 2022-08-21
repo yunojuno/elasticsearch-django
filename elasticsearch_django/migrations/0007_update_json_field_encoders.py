@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
             name="query",
             field=JSONField(
                 encoder=django.core.serializers.json.DjangoJSONEncoder,
-                help_text="The raw ElasticSearch DSL query.",
+                help_text="The raw Elasticsearch DSL query.",
             ),
         ),
     ]

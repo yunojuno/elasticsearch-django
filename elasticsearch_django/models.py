@@ -452,7 +452,7 @@ class SearchQuery(models.Model):
     index = models.CharField(
         max_length=100,
         default="_all",
-        help_text=_lazy("The name of the ElasticSearch index(es) being queried."),
+        help_text=_lazy("The name of the Elasticsearch index(es) being queried."),
     )
     # The query property contains the raw DSL query, which can be arbitrarily complex -
     # there is no one way of mapping input text to the query itself. However, it's
@@ -467,7 +467,7 @@ class SearchQuery(models.Model):
         ),
     )
     query = models.JSONField(
-        help_text=_lazy("The raw ElasticSearch DSL query."),
+        help_text=_lazy("The raw Elasticsearch DSL query."),
         encoder=DjangoJSONEncoder,
     )
     query_type = models.CharField(
