@@ -52,5 +52,5 @@ class BaseSearchCommand(BaseCommand):
                 logger.exception("Elasticsearch mapping file not found")
             except Exception:  # noqa: B902
                 logger.exception("Unhandled error running Elasticsearch index command")
-            finally:
+            else:
                 logger.info(data)
