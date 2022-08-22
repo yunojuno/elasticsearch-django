@@ -106,6 +106,8 @@ class SearchDocumentManagerMixin(models.Manager):
         large pages this may not run quickly. You have been warned.
 
         """
+        if not search_query.hits:
+            return self.get_queryset().none()
         case_when_rank = []
         case_when_score = []
         # build up a list of When clauses - one per object in search
