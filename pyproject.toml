@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "elasticsearch-django"
-version = "7.2.beta1"
+version = "7.2.beta2"
 description = "Elasticsearch Django app."
 license = "MIT"
 authors = ["YunoJuno <code@yunojuno.com>"]
