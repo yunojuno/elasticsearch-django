@@ -37,8 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: [3.9]
-        django: [30,32,main]
+        python: [3.9,"3.10"]
+        django: [30,32,41,main]
 
     env:
       TOXENV: py${{ matrix.python }}-django${{ matrix.django }}
