@@ -595,7 +595,9 @@ class SearchQuery(models.Model):
         """Extract object_id:highlights dict from results."""
         return {h["id"]: h["highlight"] for h in self.hits if "highlight" in h}
 
-    def add_instance_highlights(self, instance: SearchDocumentMixin, field_name: str="search_highlights") -> None:
+    def add_instance_highlights(
+        self, instance: models.Model, field_name: str = "search_highlights"
+    ) -> None:
         """Annotate model instance with its search highlights."""
         setattr(instance, field_name, self.highlights.get(instance.id))
 

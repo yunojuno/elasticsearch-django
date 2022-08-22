@@ -47,17 +47,17 @@ class BaseSearchCommand(BaseCommand):
             try:
                 data = self.do_index_command(index, **options)
             except TransportError as ex:
-                logger.warning("ElasticSearch threw an error: %s", ex)
+                logger.exception("ElasticSearch transport error.")
                 data = {"index": index, "status": ex.status_code, "reason": ex.error}
-            except FileNotFoundError as ex:
-                logger.warning("Mapping file not found: %s", ex)
+            except FileNotFoundError:
+                logger.exception("Elasticsearch mapping file not found")
                 data = {
                     "index": index,
                     "status": "N/A",
                     "reason": "Mapping file not found",
                 }
             except Exception as ex:  # noqa: B902
-                logger.warning("Error running command: %s", ex)
+                logger.exception("Unhandled error running Elasticsearch command")
                 data = {
                     "index": index,
                     "status": "N/A",
