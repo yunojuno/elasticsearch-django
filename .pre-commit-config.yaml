@@ -18,7 +18,7 @@ repos:
 
   # Flake8 includes pyflakes, pycodestyle, mccabe, pydocstyle, bandit
   - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.9.2
+    rev: 4.0.1
     hooks:
       - id: flake8
         additional_dependencies:
