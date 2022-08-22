@@ -301,9 +301,9 @@ class SearchQueryTests(TestCase):
     ]
 
     hits_with_highlights = [
-        {"id": 1, "doc_type": "foo", "highlight": {"field1": ["bar"]}},
-        {"id": 2, "doc_type": "foo"},
-        {"id": 3, "doc_type": "bar"},
+        {"id": "1", "doc_type": "foo", "highlight": {"field1": ["bar"]}},
+        {"id": "2", "doc_type": "foo"},
+        {"id": "3", "doc_type": "bar"},
     ]
 
     def test__extract_set(self):

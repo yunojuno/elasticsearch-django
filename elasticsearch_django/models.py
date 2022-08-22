@@ -598,7 +598,8 @@ class SearchQuery(models.Model):
         self, instance: models.Model, field_name: str = "search_highlights"
     ) -> None:
         """Annotate model instance with its search highlights."""
-        setattr(instance, field_name, self.highlights.get(instance.id))
+        # ES stores the id/pk field as string, so must cast first.
+        setattr(instance, field_name, self.highlights.get(str(instance.pk)))
 
 
 def execute_search(
