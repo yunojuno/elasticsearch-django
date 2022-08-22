@@ -30,7 +30,7 @@ class BaseSearchCommandTests(TestCase):
         )
         obj.handle(indexes=["baz"])
         mock_do.assert_called_once_with("baz")
-        mock_log.warning.assert_called_once()
+        mock_log.exception.assert_called_once()
 
 
 class NamedCommandTests(TestCase):

@@ -255,39 +255,45 @@ class SearchDocumentManagerMixinTests(TestCase):
         mock_qs.return_value.filter.assert_called_once_with(pk=1)
         mock_qs.return_value.filter.return_value.exists.assert_called_once_with()
 
-    def test__raw_sql(self):
-        """Test the _raw_sql method."""
-        self.assertEqual(
-            ExampleModel.objects._raw_sql(((1, 2), (3, 4))),
-            'SELECT CASE tests_examplemodel."id" '
-            "WHEN 1 THEN 2 WHEN 3 THEN 4 ELSE 0 END",
-        )
-
     @mock.patch("django.db.models.query.QuerySet")
     def test_from_search_query(self, mock_qs):
         """Test the from_search_query method."""
         self.maxDiff = None
-        sq = SearchQuery(hits=[{"id": 1, "score": 1}, {"id": 2, "score": 2}])
+        sq = SearchQuery(
+            query={"query": {"match_all": {}}},
+            hits=[{"id": 1, "score": 1}, {"id": 2, "score": 2}],
+        )
         qs = ExampleModel.objects.from_search_query(sq)
         self.assertEqual(
             str(qs.query),
-            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."simple_field_1", '  # noqa
-            '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '  # noqa
-            '(SELECT CASE tests_examplemodel."id" WHEN 1 THEN 1 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
-            '(SELECT CASE tests_examplemodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
-            'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
+            (
+                'SELECT "tests_examplemodel"."id", "tests_examplemodel"."simple_field_1", '
+                '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '
+                'CASE WHEN "tests_examplemodel"."id" = 1 THEN 1 WHEN "tests_examplemodel"."id" = 2 '
+                'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
+                'THEN 1 WHEN "tests_examplemodel"."id" = 2 THEN 2 ELSE NULL END AS "search_score" '
+                'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
+                'ORDER BY "search_rank" ASC'
+            ),
         )
 
         # test with a null score - new in v5
-        sq = SearchQuery(hits=[{"id": 1, "score": None}, {"id": 2, "score": 2}])
+        sq = SearchQuery(
+            query={"query": {"match_all": {}}},
+            hits=[{"id": 1, "score": None}, {"id": 2, "score": 2}],
+        )
         qs = ExampleModel.objects.from_search_query(sq)
         self.assertEqual(
             str(qs.query),
-            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."simple_field_1", '  # noqa
-            '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '  # noqa
-            '(SELECT CASE tests_examplemodel."id" WHEN 1 THEN 0 WHEN 2 THEN 2 ELSE 0 END) AS "search_score", '  # noqa
-            '(SELECT CASE tests_examplemodel."id" WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 0 END) AS "search_rank" '  # noqa
-            'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) ORDER BY "search_rank" ASC',  # noqa
+            (
+                'SELECT "tests_examplemodel"."id", "tests_examplemodel"."simple_field_1", '
+                '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '
+                'CASE WHEN "tests_examplemodel"."id" = 1 THEN 1 WHEN "tests_examplemodel"."id" = 2 '
+                'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
+                'THEN NULL WHEN "tests_examplemodel"."id" = 2 THEN 2 ELSE NULL END AS "search_score" '
+                'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
+                'ORDER BY "search_rank" ASC'
+            ),
         )
 
 
@@ -301,9 +307,9 @@ class SearchQueryTests(TestCase):
     ]
 
     hits_with_highlights = [
-        {"id": 1, "doc_type": "foo", "highlight": {"field1": ["bar"]}},
-        {"id": 2, "doc_type": "foo"},
-        {"id": 3, "doc_type": "bar"},
+        {"id": "1", "doc_type": "foo", "highlight": {"field1": ["bar"]}},
+        {"id": "2", "doc_type": "foo"},
+        {"id": "3", "doc_type": "bar"},
     ]
 
     def test__extract_set(self):
@@ -367,21 +373,9 @@ class SearchQueryTests(TestCase):
         self.assertEqual(sq.max_score, 2)
         self.assertEqual(sq.min_score, 1)
 
-    def test_highlights(self):
-        sq = SearchQuery(hits=self.hits)
-        assert sq.highlights == {}
-        sq.hits[0]["highlight"] = {"foo": ["bar"]}
-        assert sq.highlights == {1: {"foo": ["bar"]}}
-
-    def test_add_instance_highlights(self):
-        sq = SearchQuery(hits=self.hits_with_highlights)
-        obj = ExampleModel(id=1)
-        sq.add_instance_highlights(obj)
-        assert obj.search_highlights == {"field1": ["bar"]}
-
-        obj = ExampleModel(id=2)
-        sq.add_instance_highlights(obj)
-        assert obj.search_highlights is None
+    def test_get_doc_highlights(self):
+        sq = SearchQuery(query={"highlights": {}}, hits=self.hits_with_highlights)
+        assert sq.get_doc_highlights(1) == {"field1": ["bar"]}
 
 
 class ExecuteFunctionTests(TestCase):
