@@ -373,8 +373,14 @@ class SearchQueryTests(TestCase):
         self.assertEqual(sq.max_score, 2)
         self.assertEqual(sq.min_score, 1)
 
+    def test_has_highlights(self):
+        sq = SearchQuery(query={"highlight": {}})
+        assert sq.has_highlights
+        sq = SearchQuery(query={"query": {"match_all": {}}})
+        assert not sq.has_highlights
+
     def test_get_doc_highlights(self):
-        sq = SearchQuery(query={"highlights": {}}, hits=self.hits_with_highlights)
+        sq = SearchQuery(query={"highlight": {}}, hits=self.hits_with_highlights)
         assert sq.get_doc_highlights(1) == {"field1": ["bar"]}
 
 

@@ -575,7 +575,7 @@ class SearchQuery(models.Model):
         """Return True if the query includes aggs."""
         if not self.query:
             raise ValueError("Missing query attribute.")
-        return "highlights" in self.query
+        return "highlight" in self.query
 
     def get_hit(self, doc_id: int | str) -> dict:
         """
