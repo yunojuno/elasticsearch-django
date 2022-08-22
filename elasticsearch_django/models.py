@@ -589,6 +589,15 @@ class SearchQuery(models.Model):
         """Return number of hits returned in this specific page."""
         return 0 if self.hits is None else len(self.hits)
 
+    @property
+    def highlights(self) -> dict:
+        """Extract object_id:highlights dict from results."""
+        return {h["id"]: h["highlight"] for h in self.hits if "highlight" in h}
+
+    def add_instance_highlights(self, instance: SearchDocumentMixin, field_name: str="search_highlights") -> None:
+        """Annotate model instance with its search highlights."""
+        setattr(instance, field_name, self.highlights.get(instance.id))
+
 
 def execute_search(
     search: Search,

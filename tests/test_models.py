@@ -300,6 +300,12 @@ class SearchQueryTests(TestCase):
         {"id": 3, "doc_type": "bar"},
     ]
 
+    hits_with_highlights = [
+        {"id": 1, "doc_type": "foo", "highlight": {"field1": ["bar"]}},
+        {"id": 2, "doc_type": "foo"},
+        {"id": 3, "doc_type": "bar"},
+    ]
+
     def test__extract_set(self):
         """Test the _extract_set method."""
         obj = SearchQuery(hits=SearchQueryTests.hits)
@@ -360,6 +366,22 @@ class SearchQueryTests(TestCase):
         sq.hits = [{"score": 1}, {"score": 2}]
         self.assertEqual(sq.max_score, 2)
         self.assertEqual(sq.min_score, 1)
+
+    def test_highlights(self):
+        sq = SearchQuery(hits=self.hits)
+        assert sq.highlights == {}
+        sq.hits[0]["highlight"] = {"foo": ["bar"]}
+        assert sq.highlights == {1: {"foo": ["bar"]}}
+
+    def test_add_instance_highlights(self):
+        sq = SearchQuery(hits=self.hits_with_highlights)
+        obj = ExampleModel(id=1)
+        sq.add_instance_highlights(obj)
+        assert obj.search_highlights == {"field1": ["bar"]}
+
+        obj = ExampleModel(id=2)
+        sq.add_instance_highlights(obj)
+        assert obj.search_highlights is None
 
 
 class ExecuteFunctionTests(TestCase):
