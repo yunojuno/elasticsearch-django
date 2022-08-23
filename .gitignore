@@ -8,3 +8,5 @@ Pipfile.lock
 poetry.lock
 pythonenv*
 dist/
+test.db
+elasticsearch_django.db

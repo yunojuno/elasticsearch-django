@@ -21,6 +21,7 @@ class ElasticAppConfig(AppConfig):
 
     name = "elasticsearch_django"
     verbose_name = "Elasticsearch"
+    default_auto_field = "django.db.models.AutoField"
 
     def ready(self) -> None:
         """Validate config and connect signals."""

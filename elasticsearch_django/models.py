@@ -9,7 +9,6 @@ from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Case, When
-from django.db.models.fields import CharField
 from django.db.models.query import QuerySet
 from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext_lazy as _lazy
@@ -447,8 +446,7 @@ class SearchQuery(models.Model):
         ),
     )
     query = models.JSONField(
-        help_text=_lazy("The raw Elasticsearch DSL query."),
-        encoder=DjangoJSONEncoder,
+        help_text=_lazy("The raw Elasticsearch DSL query."), encoder=DjangoJSONEncoder
     )
     query_type = models.CharField(
         help_text=_lazy("Does this query return results, or just the hit count?"),

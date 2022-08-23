@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 
-from ..models import SearchQuery
+from elasticsearch_django.models import SearchQuery
 
 
 class Migration(migrations.Migration):
