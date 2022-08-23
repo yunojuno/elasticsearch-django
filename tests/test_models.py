@@ -261,7 +261,7 @@ class SearchDocumentManagerMixinTests(TestCase):
         self.maxDiff = None
         sq = SearchQuery(
             query={"query": {"match_all": {}}},
-            hits=[{"id": 1, "score": 1}, {"id": 2, "score": 2}],
+            hits=[{"id": 1, "score": 1.0}, {"id": 2, "score": 2}],
         )
         qs = ExampleModel.objects.from_search_query(sq)
         self.assertEqual(
@@ -271,7 +271,7 @@ class SearchDocumentManagerMixinTests(TestCase):
                 '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '
                 'CASE WHEN "tests_examplemodel"."id" = 1 THEN 1 WHEN "tests_examplemodel"."id" = 2 '
                 'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
-                'THEN 1 WHEN "tests_examplemodel"."id" = 2 THEN 2 ELSE NULL END AS "search_score" '
+                'THEN 1.0 WHEN "tests_examplemodel"."id" = 2 THEN 2.0 ELSE NULL END AS "search_score" '
                 'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
                 'ORDER BY "search_rank" ASC'
             ),
@@ -290,7 +290,7 @@ class SearchDocumentManagerMixinTests(TestCase):
                 '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '
                 'CASE WHEN "tests_examplemodel"."id" = 1 THEN 1 WHEN "tests_examplemodel"."id" = 2 '
                 'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
-                'THEN NULL WHEN "tests_examplemodel"."id" = 2 THEN 2 ELSE NULL END AS "search_score" '
+                'THEN NULL WHEN "tests_examplemodel"."id" = 2 THEN 2.0 ELSE NULL END AS "search_score" '
                 'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
                 'ORDER BY "search_rank" ASC'
             ),
