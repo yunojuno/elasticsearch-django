@@ -26,7 +26,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.7"
 django = "^3.0 || ^4.0"
-elasticsearch = "^7.0"
+elasticsearch = "^7.0 || ^8.0"
 elasticsearch-dsl = "^7.0"
 simplejson = "*"
 
