@@ -113,8 +113,10 @@ class SearchDocumentManagerMixin(models.Manager):
         # build up a list of When clauses - one per object in search
         # results. The rank is just the position in the list (1-based).
         for rank, hit in enumerate(search_query.hits, start=1):
+            # if custom sorting has been applied, score is null
+            score = None if hit["score"] is None else float(hit["score"])
             case_when_rank.append(When(pk=hit["id"], then=rank))
-            case_when_score.append(When(pk=hit["id"], then=hit["score"]))
+            case_when_score.append(When(pk=hit["id"], then=score))
 
         # Fetch the matching objects from the database and annotate
         # with the rank and score from above, ordering by the rank.
