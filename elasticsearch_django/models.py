@@ -144,25 +144,6 @@ class SearchDocumentMixin(object):
 
     """
 
-    # Django model field types that can be serialized directly into
-    # a known format. All other types will need custom serialization.
-    # Used by as_search_document_update method
-    SIMPLE_UPDATE_FIELD_TYPES = [
-        "ArrayField",
-        "AutoField",
-        "BooleanField",
-        "CharField",
-        "DateField",
-        "DateTimeField",
-        "DecimalField",
-        "EmailField",
-        "FloatField",
-        "IntegerField",
-        "TextField",
-        "URLField",
-        "UUIDField",
-    ]
-
     @property
     def search_indexes(self) -> list[str]:
         """Return the list of indexes for which this model is configured."""
@@ -204,11 +185,14 @@ class SearchDocumentMixin(object):
             )
         )
 
-    def _is_field_serializable(self, field_name: str) -> bool:
-        """Return True if the field can be serialized into a JSON doc."""
-        return (
-            self._meta.get_field(field_name).get_internal_type()  # type: ignore
-            in self.SIMPLE_UPDATE_FIELD_TYPES
+    @property
+    def _related_fields(self) -> list[str]:
+        """Return the list of fields that are relations and not serializable."""
+        if meta := getattr(self, "_meta", None):
+            return [f.name for f in meta.get_fields() if f.is_relation]
+        raise ValueError(
+            "SearchDocumentMixin missing _meta attr - "
+            "have you forgotten to subclass models.Model?"
         )
 
     def clean_update_fields(self, index: str, update_fields: list[str]) -> list[str]:
@@ -226,12 +210,10 @@ class SearchDocumentMixin(object):
         clean_fields = [f for f in update_fields if f in search_fields]
         ignore = [f for f in update_fields if f not in search_fields]
         if ignore:
-            logger.debug(
-                "Ignoring fields from partial update: %s",
-                [f for f in update_fields if f not in search_fields],
-            )
+            logger.debug("Ignoring fields from partial update: %s", ignore)
+
         for f in clean_fields:
-            if not self._is_field_serializable(f):
+            if f in self._related_fields:
                 raise ValueError(
                     "'%s' cannot be automatically serialized into a search "
                     "document property. Please override as_search_document_update.",

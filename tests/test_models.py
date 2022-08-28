@@ -37,12 +37,6 @@ class SearchDocumentMixinTests(TestCase):
         obj = SearchDocumentMixin()
         self.assertRaises(NotImplementedError, obj.as_search_document, index="_all")
 
-    def test__is_field_serializable(self):
-        obj = ExampleModel()
-        self.assertTrue(obj._is_field_serializable("simple_field_1"))
-        self.assertTrue(obj._is_field_serializable("simple_field_1"))
-        self.assertFalse(obj._is_field_serializable("complex_field"))
-
     @mock.patch("elasticsearch_django.models.get_model_index_properties")
     def test_clean_update_fields(self, mock_properties):
         """Test that only fields in the mapping file are cleaned."""
@@ -56,15 +50,15 @@ class SearchDocumentMixinTests(TestCase):
         )
 
     @mock.patch("elasticsearch_django.models.get_model_index_properties")
-    def test_clean_update_fields_complex_object(self, mock_properties):
-        """Test that unserializable fields raise a ValueError."""
+    def test_clean_update_fields_related_field(self, mock_properties):
+        """Test that relation fields raise a ValueError."""
         obj = ExampleModel()
-        mock_properties.return_value = ["simple_field_1", "complex_field"]
+        mock_properties.return_value = ["simple_field_1", "user"]
         self.assertRaises(
             ValueError,
             obj.clean_update_fields,
             index="",
-            update_fields=["simple_field_1", "complex_field"],
+            update_fields=["simple_field_1", "complex_field", "user"],
         )
 
     @mock.patch("elasticsearch_django.models.get_model_index_properties")
@@ -267,7 +261,7 @@ class SearchDocumentManagerMixinTests(TestCase):
         self.assertEqual(
             str(qs.query),
             (
-                'SELECT "tests_examplemodel"."id", "tests_examplemodel"."simple_field_1", '
+                'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", "tests_examplemodel"."simple_field_1", '
                 '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '
                 'CASE WHEN "tests_examplemodel"."id" = 1 THEN 1 WHEN "tests_examplemodel"."id" = 2 '
                 'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
@@ -286,9 +280,10 @@ class SearchDocumentManagerMixinTests(TestCase):
         self.assertEqual(
             str(qs.query),
             (
-                'SELECT "tests_examplemodel"."id", "tests_examplemodel"."simple_field_1", '
-                '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '
-                'CASE WHEN "tests_examplemodel"."id" = 1 THEN 1 WHEN "tests_examplemodel"."id" = 2 '
+                'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", '
+                '"tests_examplemodel"."simple_field_1", "tests_examplemodel"."simple_field_2", '
+                '"tests_examplemodel"."complex_field", CASE WHEN "tests_examplemodel"."id" = 1 '
+                'THEN 1 WHEN "tests_examplemodel"."id" = 2 '
                 'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
                 'THEN NULL WHEN "tests_examplemodel"."id" = 2 THEN 2.0 ELSE NULL END AS "search_score" '
                 'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
