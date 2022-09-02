@@ -1,6 +1,6 @@
 # ElasticSeach Mappings
 
-This directory contains the ElasticSearch index mappings. Each file describes a single index, with
+This directory contains the Elasticsearch index mappings. Each file describes a single index, with
 the name of the file matching the name of the index. e.g. `profiles.json` describes the profiles
 index.
 

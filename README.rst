@@ -1,17 +1,12 @@
-.. image:: https://travis-ci.org/yunojuno/elasticsearch-django.svg?branch=master
-    :target: https://travis-ci.org/yunojuno/elasticsearch-django
-
-.. image:: https://badge.fury.io/py/elasticsearch_django.svg
-    :target: https://badge.fury.io/py/elasticsearch_django
-
-**This project now requires Python 3.7+ and Django 3.0+. For previous versions please refer to the relevant tag or branch.**
+**This project now requires Python 3.8+ and Django 3.2+.
+For previous versions please refer to the relevant tag or branch.**
 
 Elasticsearch for Django
 ========================
 
 This is a lightweight Django app for people who are using Elasticsearch with Django, and want to manage their indexes.
 
-**NB the master branch is now based on ElasticSearch 7. If you are using older versions, please switch to the relevant branch (released on PyPI as 2.x, 5.x, 6.x)**
+**NB the master branch is now based on Elasticsearch 7/8. If you are using older versions, please switch to the relevant branch (released on PyPI as 2.x, 5.x, 6.x)**
 
 ----
 

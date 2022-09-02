@@ -8,14 +8,12 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
-from django.db.models.expressions import RawSQL
-from django.db.models.fields import CharField
+from django.db.models import Case, When
 from django.db.models.query import QuerySet
 from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Search
 
-from .compat import JSONField
 from .settings import (
     get_client,
     get_model_index_properties,
@@ -88,73 +86,52 @@ class SearchDocumentManagerMixin(models.Manager):
 
     def from_search_query(self, search_query: SearchQuery) -> QuerySet:
         """
-        Return queryset of objects from SearchQuery.results, **in order**.
+        Return search results as model queryset in search ranking order.
 
-        EXPERIMENTAL: this will only work with results from a single index,
-        with a single doc_type - as we are returning a single QuerySet.
+        This method uses the Case .. When .. Then .. End SQL expression
+        to annotate a queryset of model instances that map to the
+        documents in the SearchQuery.hits collection. Doing this in SQL
+        means that we can order the output using the search score which
+        may not map onto any known object property.
 
-        This method takes the hits JSON and converts that into a queryset
-        of all the relevant objects. The key part of this is the ordering -
-        the order in which search results are returned is based on relevance,
-        something that only ES can calculate, and that cannot be replicated
-        in the database.
+        If the SearchQuery has highlighting in the query then we then
+        iterate through the queryset and add these - this is more
+        complex to do in SQL as the highlights are python dicts, and the
+        combination of python and SQL is hard when going via the ORM.
 
-        It does this by adding custom SQL which annotates each record with
-        the score from the search 'hit'. This is brittle, caveat emptor.
-
-        The RawSQL clause is in the form:
-
-            SELECT CASE {{model}}.id WHEN {{id}} THEN {{score}} END
-
-        The "WHEN x THEN y" is repeated for every hit. The resulting SQL, in
-        full is like this:
-
-            SELECT "freelancer_freelancerprofile"."id",
-                (SELECT CASE freelancer_freelancerprofile.id
-                    WHEN 25 THEN 1.0
-                    WHEN 26 THEN 1.0
-                    [...]
-                    ELSE 0
-                END) AS "search_score"
-            FROM "freelancer_freelancerprofile"
-            WHERE "freelancer_freelancerprofile"."id" IN (25, 26, [...])
-            ORDER BY "search_score" DESC
-
-        It should be very fast, as there is no table lookup, but there is an
-        assumption at the heart of this, which is that the search query doesn't
-        contain the entire database - i.e. that it has been paged. (ES itself
-        caps the results at 10,000.)
+        NB The performance of this function is directly related to the
+        number of search results returned - if you are returning very
+        large pages this may not run quickly. You have been warned.
 
         """
-        hits = search_query.hits
-        score_sql = self._raw_sql([(h["id"], h["score"] or 0) for h in hits])
-        rank_sql = self._raw_sql([(hits[i]["id"], i) for i in range(len(hits))])
-        return (
+        if not search_query.hits:
+            return self.get_queryset().none()
+        case_when_rank = []
+        case_when_score = []
+        # build up a list of When clauses - one per object in search
+        # results. The rank is just the position in the list (1-based).
+        for rank, hit in enumerate(search_query.hits, start=1):
+            # if custom sorting has been applied, score is null
+            score = None if hit["score"] is None else float(hit["score"])
+            case_when_rank.append(When(pk=hit["id"], then=rank))
+            case_when_score.append(When(pk=hit["id"], then=score))
+
+        # Fetch the matching objects from the database and annotate
+        # with the rank and score from above, ordering by the rank.
+        qs = (
             self.get_queryset()
-            .filter(pk__in=[h["id"] for h in hits])
-            # add the query relevance score
-            .annotate(search_score=RawSQL(score_sql, ()))  # noqa: S611
-            # add the ordering number (0-based)
-            .annotate(search_rank=RawSQL(rank_sql, ()))  # noqa: S611
+            .filter(id__in=search_query.object_ids)
+            .annotate(search_rank=Case(*case_when_rank))
+            .annotate(search_score=Case(*case_when_score))
             .order_by("search_rank")
         )
 
-    def _when(self, x: str | int, y: str | int) -> str:
-        return "WHEN {} THEN {}".format(x, y)
+        if search_query.has_highlights:
+            # NB this iteration will evaluate the qs.
+            for obj in qs:
+                obj.search_highlights = search_query.get_doc_highlights(obj.id)
 
-    def _raw_sql(self, values: list[tuple[str | int, str | int]]) -> str:
-        """Prepare SQL statement consisting of a sequence of WHEN .. THEN statements."""
-        if isinstance(self.model._meta.pk, CharField):
-            when_clauses = " ".join(
-                [self._when("'{}'".format(x), y) for (x, y) in values]
-            )
-        else:
-            when_clauses = " ".join([self._when(x, y) for (x, y) in values])
-        table_name = self.model._meta.db_table
-        primary_key = self.model._meta.pk.column
-        return 'SELECT CASE {}."{}" {} ELSE 0 END'.format(
-            table_name, primary_key, when_clauses
-        )
+        return qs
 
 
 class SearchDocumentMixin(object):
@@ -166,25 +143,6 @@ class SearchDocumentMixin(object):
     implementing is `as_search_document`.
 
     """
-
-    # Django model field types that can be serialized directly into
-    # a known format. All other types will need custom serialization.
-    # Used by as_search_document_update method
-    SIMPLE_UPDATE_FIELD_TYPES = [
-        "ArrayField",
-        "AutoField",
-        "BooleanField",
-        "CharField",
-        "DateField",
-        "DateTimeField",
-        "DecimalField",
-        "EmailField",
-        "FloatField",
-        "IntegerField",
-        "TextField",
-        "URLField",
-        "UUIDField",
-    ]
 
     @property
     def search_indexes(self) -> list[str]:
@@ -227,11 +185,14 @@ class SearchDocumentMixin(object):
             )
         )
 
-    def _is_field_serializable(self, field_name: str) -> bool:
-        """Return True if the field can be serialized into a JSON doc."""
-        return (
-            self._meta.get_field(field_name).get_internal_type()  # type: ignore
-            in self.SIMPLE_UPDATE_FIELD_TYPES
+    @property
+    def _related_fields(self) -> list[str]:
+        """Return the list of fields that are relations and not serializable."""
+        if meta := getattr(self, "_meta", None):
+            return [f.name for f in meta.get_fields() if f.is_relation]
+        raise ValueError(
+            "SearchDocumentMixin missing _meta attr - "
+            "have you forgotten to subclass models.Model?"
         )
 
     def clean_update_fields(self, index: str, update_fields: list[str]) -> list[str]:
@@ -249,12 +210,10 @@ class SearchDocumentMixin(object):
         clean_fields = [f for f in update_fields if f in search_fields]
         ignore = [f for f in update_fields if f not in search_fields]
         if ignore:
-            logger.debug(
-                "Ignoring fields from partial update: %s",
-                [f for f in update_fields if f not in search_fields],
-            )
+            logger.debug("Ignoring fields from partial update: %s", ignore)
+
         for f in clean_fields:
-            if not self._is_field_serializable(f):
+            if f in self._related_fields:
                 raise ValueError(
                     "'%s' cannot be automatically serialized into a search "
                     "document property. Please override as_search_document_update.",
@@ -454,7 +413,7 @@ class SearchQuery(models.Model):
     index = models.CharField(
         max_length=100,
         default="_all",
-        help_text=_lazy("The name of the ElasticSearch index(es) being queried."),
+        help_text=_lazy("The name of the Elasticsearch index(es) being queried."),
     )
     # The query property contains the raw DSL query, which can be arbitrarily complex -
     # there is no one way of mapping input text to the query itself. However, it's
@@ -468,16 +427,16 @@ class SearchQuery(models.Model):
             "Free text search terms used in the query, stored for easy reference."
         ),
     )
-    query = JSONField(
-        help_text=_lazy("The raw ElasticSearch DSL query."), encoder=DjangoJSONEncoder
+    query = models.JSONField(
+        help_text=_lazy("The raw Elasticsearch DSL query."), encoder=DjangoJSONEncoder
     )
-    query_type = CharField(
+    query_type = models.CharField(
         help_text=_lazy("Does this query return results, or just the hit count?"),
         choices=QueryType.choices,
         default=QueryType.SEARCH,
         max_length=10,
     )
-    hits = JSONField(
+    hits = models.JSONField(
         help_text=_lazy(
             "The list of meta info for each of the query matches returned."
         ),
@@ -498,7 +457,7 @@ class SearchQuery(models.Model):
             "Indicates whether this is an exact match ('eq') or a lower bound ('gte')"
         ),
     )
-    aggregations = JSONField(
+    aggregations = models.JSONField(
         help_text=_lazy("The raw aggregations returned from the query."),
         encoder=DjangoJSONEncoder,
         default=dict,
@@ -591,16 +550,39 @@ class SearchQuery(models.Model):
         return 0 if self.hits is None else len(self.hits)
 
     @property
-    def highlights(self) -> dict:
-        """Extract object_id:highlights dict from results."""
-        return {h["id"]: h["highlight"] for h in self.hits if "highlight" in h}
+    def has_aggs(self) -> bool:
+        """Return True if the query includes aggs."""
+        return "aggs" in self.query
 
-    def add_instance_highlights(
-        self, instance: models.Model, field_name: str = "search_highlights"
-    ) -> None:
-        """Annotate model instance with its search highlights."""
-        # ES stores the id/pk field as string, so must cast first.
-        setattr(instance, field_name, self.highlights.get(str(instance.pk)))
+    @property
+    def has_highlights(self) -> bool:
+        """Return True if the query includes aggs."""
+        if not self.query:
+            raise ValueError("Missing query attribute.")
+        return "highlight" in self.query
+
+    def get_hit(self, doc_id: int | str) -> dict:
+        """
+        Return the hit with a give document id.
+
+        Raises KeyError if the id does not exist.
+
+        """
+        if hit := [h for h in self.hits if h["id"] == str(doc_id)]:
+            return hit[0]
+        raise KeyError("Document id not found in search results.")
+
+    def get_doc_rank(self, doc_id: int | str) -> int:
+        """Return the position of a document in the results."""
+        return [x for x in self._extract_set("id")].index(str(doc_id))
+
+    def get_doc_score(self, doc_id: int | str) -> float:
+        """Return specific document score."""
+        return self.get_hit(doc_id)["score"]
+
+    def get_doc_highlights(self, doc_id: int | str) -> dict | None:
+        """Return specific document highlights."""
+        return self.get_hit(doc_id).get("highlight")
 
 
 def execute_search(

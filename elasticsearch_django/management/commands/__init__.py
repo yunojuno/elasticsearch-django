@@ -46,22 +46,11 @@ class BaseSearchCommand(BaseCommand):
         for index in options.pop("indexes"):
             try:
                 data = self.do_index_command(index, **options)
-            except TransportError as ex:
-                logger.exception("ElasticSearch transport error.")
-                data = {"index": index, "status": ex.status_code, "reason": ex.error}
+            except TransportError:
+                logger.exception("Elasticsearch threw a TransportError")
             except FileNotFoundError:
                 logger.exception("Elasticsearch mapping file not found")
-                data = {
-                    "index": index,
-                    "status": "N/A",
-                    "reason": "Mapping file not found",
-                }
-            except Exception as ex:  # noqa: B902
-                logger.exception("Unhandled error running Elasticsearch command")
-                data = {
-                    "index": index,
-                    "status": "N/A",
-                    "reason": str(ex),
-                }
-            finally:
+            except Exception:  # noqa: B902
+                logger.exception("Unhandled error running Elasticsearch index command")
+            else:
                 logger.info(data)

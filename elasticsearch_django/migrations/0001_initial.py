@@ -23,14 +23,14 @@ class Migration(migrations.Migration):
                     "index",
                     models.CharField(
                         default="_all",
-                        help_text="The name of the ElasticSearch index(es) being queried.",
+                        help_text="The name of the Elasticsearch index(es) being queried.",
                         max_length=100,
                     ),
                 ),
                 (
                     "query",
                     models.TextField(
-                        default="{}", help_text="The raw ElasticSearch DSL query."
+                        default="{}", help_text="The raw Elasticsearch DSL query."
                     ),
                 ),
                 (
