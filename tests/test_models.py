@@ -244,7 +244,7 @@ class SearchDocumentManagerMixinTests(TestCase):
     def test_in_search_queryset(self, mock_qs):
         """Test the in_search_queryset method."""
         obj = ExampleModel(id=1)
-        ExampleModel.objects.in_search_queryset(obj.id)
+        ExampleModel.objects.in_search_queryset(obj.pk)
         mock_qs.assert_called_once_with(index="_all")
         mock_qs.return_value.filter.assert_called_once_with(pk=1)
         mock_qs.return_value.filter.return_value.exists.assert_called_once_with()
