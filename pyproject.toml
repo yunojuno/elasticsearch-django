@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "elasticsearch-django"
-version = "8.0.beta3"
+version = "8.0.beta4"
 description = "Elasticsearch Django app."
 license = "MIT"
 authors = ["YunoJuno <code@yunojuno.com>"]
@@ -30,8 +30,7 @@ simplejson = "*"
 [tool.poetry.dev-dependencies]
 black = {version = "*", allow-prereleases = true}
 coverage = "*"
-# v5 breaks bandit
-flake8 = "^4.0.1"
+flake8 = "*"
 flake8-bandit = "*"
 flake8-blind-except = "*"
 flake8-docstrings = "*"
