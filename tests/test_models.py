@@ -18,7 +18,7 @@ from elasticsearch_django.models import (
     execute_search,
 )
 
-from .models import ExampleModel, ExampleModelManager
+from .models import ExampleModel, ExampleModelManager, ExampleModelWithCustomPrimaryKey
 
 
 class SearchDocumentMixinTests(TestCase):
@@ -244,7 +244,16 @@ class SearchDocumentManagerMixinTests(TestCase):
     def test_in_search_queryset(self, mock_qs):
         """Test the in_search_queryset method."""
         obj = ExampleModel(id=1)
-        ExampleModel.objects.in_search_queryset(obj.id)
+        ExampleModel.objects.in_search_queryset(obj.pk)
+        mock_qs.assert_called_once_with(index="_all")
+        mock_qs.return_value.filter.assert_called_once_with(pk=1)
+        mock_qs.return_value.filter.return_value.exists.assert_called_once_with()
+
+    @mock.patch.object(ExampleModelManager, "get_search_queryset")
+    def test_in_search_queryset_with_a_model_using_custom_primary_key(self, mock_qs):
+        """Test the in_search_queryset method."""
+        obj = ExampleModelWithCustomPrimaryKey(simple_field_1=1)
+        ExampleModelWithCustomPrimaryKey.objects.in_search_queryset(obj.pk)
         mock_qs.assert_called_once_with(index="_all")
         mock_qs.return_value.filter.assert_called_once_with(pk=1)
         mock_qs.return_value.filter.return_value.exists.assert_called_once_with()

@@ -61,7 +61,7 @@ class SearchDocumentManagerMixin(models.Manager):
             )
         )
 
-    def in_search_queryset(self, instance_id: int, index: str = "_all") -> bool:
+    def in_search_queryset(self, instance_pk: Any, index: str = "_all") -> bool:
         """
         Return True if an object is part of the search index queryset.
 
@@ -75,14 +75,14 @@ class SearchDocumentManagerMixin(models.Manager):
         important that the `get_search_queryset` method returns a queryset.
 
         Args:
-            instance_id: the id of model object that we are looking for.
+            instance_pk: the primary key of model object that we are looking for.
 
         Kwargs:
             index: string, the name of the index in which to check.
                 Defaults to '_all'.
 
         """
-        return self.get_search_queryset(index=index).filter(pk=instance_id).exists()
+        return self.get_search_queryset(index=index).filter(pk=instance_pk).exists()
 
     def from_search_query(self, search_query: SearchQuery) -> QuerySet:
         """

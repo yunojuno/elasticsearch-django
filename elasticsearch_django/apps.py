@@ -109,7 +109,7 @@ def _on_model_delete(sender: type[Model], **kwargs: Any) -> None:
 def _in_search_queryset(*, instance: Model, index: str) -> bool:
     """Return True if instance is in the index queryset."""
     try:
-        return instance.__class__.objects.in_search_queryset(instance.id, index=index)
+        return instance.__class__.objects.in_search_queryset(instance.pk, index=index)
     except Exception:  # noqa: B902
         logger.exception("Error checking object in_search_queryset.")
         return False
