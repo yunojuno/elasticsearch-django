@@ -42,9 +42,6 @@ class SearchDocumentManagerMixin(models.Manager):
 
     """
 
-    def get_pk_field_name(self) -> str:
-        return "pk"
-
     def get_search_queryset(self, index: str = "_all") -> QuerySet:
         """
         Return the dataset used to populate the search index.
@@ -109,32 +106,23 @@ class SearchDocumentManagerMixin(models.Manager):
         """
         if not search_query.hits:
             return self.get_queryset().none()
-        case_when_rank = []
-        case_when_score = []
-        pk = self.get_pk_field_name()
-        # build up a list of When clauses - one per object in search
-        # results. The rank is just the position in the list (1-based).
-        for rank, hit in enumerate(search_query.hits, start=1):
-            # if custom sorting has been applied, score is null
-            score = None if hit["score"] is None else float(hit["score"])
-            case_when_rank.append(When(**{pk: hit["id"]}, then=rank))
-            case_when_score.append(When(**{pk: hit["id"]}, then=score))
 
         # Fetch the matching objects from the database and annotate
         # with the rank and score from above, ordering by the rank.
         qs = (
             self.get_queryset()
-            .filter(**{f"{pk}__in": search_query.object_ids})
-            .annotate(search_rank=Case(*case_when_rank))
-            .annotate(search_score=Case(*case_when_score))
+            .filter(pk__in=search_query.object_ids)
+            .annotate(search_rank=search_query.search_rank_annotation())
+            .annotate(search_score=search_query.search_score_annotation())
             .order_by("search_rank")
         )
 
-        if search_query.has_highlights:
-            # NB this iteration will evaluate the qs.
-            for obj in qs:
-                obj.search_highlights = search_query.get_doc_highlights(obj.id)
+        if not search_query.has_highlights:
+            return qs
 
+        # NB this iteration will evaluate the qs.
+        for obj in qs:
+            obj.search_highlights = search_query.get_doc_highlights(obj.pk)
         return qs
 
 
@@ -564,6 +552,22 @@ class SearchQuery(models.Model):
         if not self.query:
             raise ValueError("Missing query attribute.")
         return "highlight" in self.query
+
+    def search_rank_annotation(self, pk_field_name: str = "pk") -> Case:
+        """Return SQL CASE statement used to annotate results with rank."""
+        case_when_rank = []
+        for rank, hit in enumerate(self.hits, start=1):
+            case_when_rank.append(When(**{pk_field_name: hit["id"]}, then=rank))
+        return Case(*case_when_rank)
+
+    def search_score_annotation(self, pk_field_name: str = "pk") -> Case:
+        """Return SQL CASE statement used to annotate results with score."""
+        case_when_score = []
+        for hit in self.hits:
+            # if custom sorting has been applied, score is null
+            score = None if hit["score"] is None else float(hit["score"])
+            case_when_score.append(When(**{pk_field_name: hit["id"]}, then=score))
+        return Case(*case_when_score)
 
     def get_hit(self, doc_id: int | str) -> dict:
         """
