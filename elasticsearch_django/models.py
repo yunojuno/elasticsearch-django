@@ -42,6 +42,9 @@ class SearchDocumentManagerMixin(models.Manager):
 
     """
 
+    def get_pk_field_name(self) -> str:
+        return "pk"
+
     def get_search_queryset(self, index: str = "_all") -> QuerySet:
         """
         Return the dataset used to populate the search index.
@@ -108,19 +111,20 @@ class SearchDocumentManagerMixin(models.Manager):
             return self.get_queryset().none()
         case_when_rank = []
         case_when_score = []
+        pk = self.get_pk_field_name()
         # build up a list of When clauses - one per object in search
         # results. The rank is just the position in the list (1-based).
         for rank, hit in enumerate(search_query.hits, start=1):
             # if custom sorting has been applied, score is null
             score = None if hit["score"] is None else float(hit["score"])
-            case_when_rank.append(When(pk=hit["id"], then=rank))
-            case_when_score.append(When(pk=hit["id"], then=score))
+            case_when_rank.append(When(**{pk: hit["id"]}, then=rank))
+            case_when_score.append(When(**{pk: hit["id"]}, then=score))
 
         # Fetch the matching objects from the database and annotate
         # with the rank and score from above, ordering by the rank.
         qs = (
             self.get_queryset()
-            .filter(id__in=search_query.object_ids)
+            .filter(**{f"{pk}__in": search_query.object_ids})
             .annotate(search_rank=Case(*case_when_rank))
             .annotate(search_score=Case(*case_when_score))
             .order_by("search_rank")
@@ -517,9 +521,9 @@ class SearchQuery(models.Model):
         return int(min(self._extract_set("score") or [0]))
 
     @property
-    def object_ids(self) -> list[int]:
+    def object_ids(self) -> list[int | str]:
         """List of model ids extracted from hits."""
-        return [int(x) for x in self._extract_set("id")]
+        return [x for x in self._extract_set("id")]
 
     @property
     def page_slice(self) -> tuple[int, int] | None:

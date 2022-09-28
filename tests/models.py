@@ -8,6 +8,9 @@ class ExampleModelManager(SearchDocumentManagerMixin, models.Manager):
     def get_search_queryset(self, index="_all"):
         return self.all()
 
+    def get_pk_field_name(self) -> str:
+        return "simple_field_1"
+
 
 class ExampleModel(SearchDocumentMixin, models.Model):
     """Model class for use in tests."""
@@ -20,6 +23,9 @@ class ExampleModel(SearchDocumentMixin, models.Model):
     complex_field = models.FileField()
 
     objects = ExampleModelManager()
+
+    def get_search_document_id(self) -> str:
+        return self.simple_field_1
 
     def user_name(self) -> str:
         return self.user.get_full_name() if self.user else "Anonymous"
