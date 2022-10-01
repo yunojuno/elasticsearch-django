@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django.conf import settings
 from django.db import models
 
@@ -66,3 +68,27 @@ class ExampleModelWithCustomPrimaryKey(SearchDocumentMixin, models.Model):
             "complex_field": str(self.complex_field),
             "user_name": self.user_name(),
         }
+
+
+# === Compound models ===
+
+
+class ModelAQuerySet(SearchResultsQuerySet):
+    pass
+
+
+class ModelA(models.Model):
+    field_1 = models.UUIDField(default=uuid4)
+    field_2 = models.CharField(max_length=100)
+    objects = ModelAQuerySet.as_manager()
+
+
+class ModelB(SearchDocumentMixin, models.Model):
+
+    source = models.OneToOneField(ModelA, on_delete=models.CASCADE)
+
+    def get_search_document_id(self) -> str:
+        return str(self.source.field_1)
+
+    def as_search_document(self, *, index: str) -> dict:
+        return {"field_2": self.source.field_2, "extra_info": "some other data"}

@@ -87,13 +87,17 @@ class SearchResultsQuerySet(QuerySet):
         self, search_query: SearchQuery, pk_field_name: str = "pk"
     ) -> SearchResultsQuerySet:
         """Add search_rank annotation to queryset."""
-        return self.annotate(search_rank=search_query.search_rank_annotation())
+        return self.annotate(
+            search_rank=search_query.search_rank_annotation(pk_field_name)
+        )
 
     def add_search_score(
         self, search_query: SearchQuery, pk_field_name: str = "pk"
     ) -> SearchResultsQuerySet:
         """Add search_score annotation to queryset."""
-        return self.annotate(search_score=search_query.search_score_annotation())
+        return self.annotate(
+            search_score=search_query.search_score_annotation(pk_field_name)
+        )
 
     def add_search_annotations(
         self, search_query: SearchQuery, pk_field_name: str = "pk"
