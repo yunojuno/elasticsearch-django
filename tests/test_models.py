@@ -1,6 +1,7 @@
 import datetime
 import decimal
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 from django.core.cache import cache
@@ -18,7 +19,13 @@ from elasticsearch_django.models import (
     execute_search,
 )
 
-from .models import ExampleModel, ExampleModelManager, ExampleModelWithCustomPrimaryKey
+from .models import (
+    ExampleModel,
+    ExampleModelManager,
+    ExampleModelWithCustomPrimaryKey,
+    ModelA,
+    ModelB,
+)
 
 
 class SearchDocumentMixinTests:
@@ -466,3 +473,28 @@ class ExecuteFunctionTests:
         assert sq.query_type == SearchQuery.QueryType.SEARCH
         assert sq.aggregations == self.aggregations
         assert sq.duration > 0
+
+
+@pytest.mark.django_db
+class SearchResultsQuerySetTests:
+    def hits(self):
+        return [
+            {"id": str(uuid4()), "score": 3.0},
+            {"id": str(uuid4()), "score": 2.0},
+            {"id": str(uuid4()), "score": 1.0},
+        ]
+
+    def test_from_search_results(self) -> None:
+        hits = self.hits()
+        model_a1 = ModelA.objects.create(field_1=hits[0]["id"], field_2="foo")
+        model_b = ModelB.objects.create(source=model_a1)
+        assert model_b.as_search_document(index="") == {
+            "field_2": "foo",
+            "extra_info": "some other data",
+        }
+        sq = SearchQuery(hits=hits)
+        qs = ModelA.objects.all().from_search_results(sq, pk_field_name="field_1")
+        obj = qs.get()
+        assert obj == model_a1
+        assert obj.search_rank == 1
+        assert obj.search_score == 3.0
