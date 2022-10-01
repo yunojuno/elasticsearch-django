@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 from django.conf import settings
+from django.contrib.auth.models import AbstractBaseUser
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
@@ -21,14 +22,108 @@ from .settings import (
     get_setting,
 )
 
-if TYPE_CHECKING:
-    from django.contrib.auth.models import AbstractBaseUser
-
 logger = logging.getLogger(__name__)
 
 UPDATE_STRATEGY_FULL = "full"
 UPDATE_STRATEGY_PARTIAL = "partial"
 UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
+
+
+class SearchResultsQuerySet(QuerySet):
+    """
+    QuerySet mixin that adds annotations from search results.
+
+    This class is designed to be used as a QuerySet mixin for models that can
+    be mapped on to a set of search results, but that are not the source models.
+
+    As an example, if you have a Profile model and a ProfileSearchDocument model
+    that is a 1:1 relationship, with the ProfileSearchDocument configured to be
+    the index source, then this class can be used to map the results from the
+    search result id back to the Profile.
+
+
+        class ProfileQuerySet(SearchDocumentQuerySet):
+            pass
+
+
+        class Profile(Model):
+            pass
+
+
+        class ProfileSearchDocument(SearchDocumentMixing, Model):
+            profile = OneToOne(Profile)
+
+            def get_search_document_id(self):
+                return self.profile.pk
+
+
+        >>> search_query = execute_search(...)
+        >>> profiles = (
+                Profile.objects.all()
+                .filter_search_results(search_query)
+                .add_search_annotations(search_query)
+                .add_search_highlights(search_query)
+            )
+        ...
+        [<Profile>, <Profile>]
+        >>> profiles[0].search_rank
+        1
+        >>> profiles[0].search_score
+        3.12345
+        >>> profiles[0].search_highlights
+        {
+            "resume": ["foo"]
+        }
+
+    """
+
+    def filter_search_results(
+        self, search_query: SearchQuery, pk_field_name: str = "pk"
+    ) -> SearchResultsQuerySet:
+        """Filter queryset on PK field to match search query hits."""
+        return self.filter(**{f"{pk_field_name}__in": search_query.object_ids})
+
+    def add_search_rank(
+        self, search_query: SearchQuery, pk_field_name: str = "pk"
+    ) -> SearchResultsQuerySet:
+        """Add search_rank annotation to queryset."""
+        return self.annotate(search_rank=search_query.search_rank_annotation())
+
+    def add_search_score(
+        self, search_query: SearchQuery, pk_field_name: str = "pk"
+    ) -> SearchResultsQuerySet:
+        """Add search_score annotation to queryset."""
+        return self.annotate(search_score=search_query.search_score_annotation())
+
+    def add_search_annotations(
+        self, search_query: SearchQuery, pk_field_name: str = "pk"
+    ) -> SearchResultsQuerySet:
+        """Add search_rank and search_score annotations to queryset."""
+        return self.add_search_rank(search_query, pk_field_name).add_search_score(
+            search_query, pk_field_name
+        )
+
+    def add_search_highlights(
+        self, search_query: SearchQuery, pk_field_name: str = "pk"
+    ) -> list:
+        """Add search_highlights attr. to each object in the queryset (evaluates QS)."""
+        obj_list = list(self)
+        if not search_query.has_highlights:
+            return obj_list
+
+        for obj in obj_list:
+            pk = getattr(obj, pk_field_name)
+            obj.search_highlights = search_query.get_doc_highlights(pk)
+        return obj_list
+
+    def from_search_results(
+        self, search_query: SearchQuery, pk_field_name: str = "pk"
+    ) -> SearchResultsQuerySet:
+        return (
+            self.filter_search_results(search_query, pk_field_name)
+            .add_search_annotations(search_query, pk_field_name)
+            .order_by("search_rank")
+        )
 
 
 class SearchDocumentManagerMixin(models.Manager):
@@ -84,49 +179,8 @@ class SearchDocumentManagerMixin(models.Manager):
         """
         return self.get_search_queryset(index=index).filter(pk=instance_pk).exists()
 
-    def from_search_query(self, search_query: SearchQuery) -> QuerySet:
-        """
-        Return search results as model queryset in search ranking order.
 
-        This method uses the Case .. When .. Then .. End SQL expression
-        to annotate a queryset of model instances that map to the
-        documents in the SearchQuery.hits collection. Doing this in SQL
-        means that we can order the output using the search score which
-        may not map onto any known object property.
-
-        If the SearchQuery has highlighting in the query then we then
-        iterate through the queryset and add these - this is more
-        complex to do in SQL as the highlights are python dicts, and the
-        combination of python and SQL is hard when going via the ORM.
-
-        NB The performance of this function is directly related to the
-        number of search results returned - if you are returning very
-        large pages this may not run quickly. You have been warned.
-
-        """
-        if not search_query.hits:
-            return self.get_queryset().none()
-
-        # Fetch the matching objects from the database and annotate
-        # with the rank and score from above, ordering by the rank.
-        qs = (
-            self.get_queryset()
-            .filter(pk__in=search_query.object_ids)
-            .annotate(search_rank=search_query.search_rank_annotation())
-            .annotate(search_score=search_query.search_score_annotation())
-            .order_by("search_rank")
-        )
-
-        if not search_query.has_highlights:
-            return qs
-
-        # NB this iteration will evaluate the qs.
-        for obj in qs:
-            obj.search_highlights = search_query.get_doc_highlights(obj.pk)
-        return qs
-
-
-class SearchDocumentMixin(object):
+class SearchDocumentMixin:
     """
     Mixin used by models that are indexed for ES.
 
@@ -137,6 +191,15 @@ class SearchDocumentMixin(object):
     """
 
     @property
+    def _model_meta(self) -> Any:
+        if not (meta := getattr(self, "_meta")):
+            raise ValueError(
+                "SearchDocumentMixin missing _meta attr - "
+                "have you forgotten to subclass models.Model?"
+            )
+        return meta
+
+    @property
     def search_indexes(self) -> list[str]:
         """Return the list of indexes for which this model is configured."""
         return get_model_indexes(self.__class__)
@@ -145,13 +208,10 @@ class SearchDocumentMixin(object):
     def search_document_cache_key(self) -> str:
         """Key used for storing search docs in local cache."""
         return "elasticsearch_django:{}.{}.{}".format(
-            self._meta.app_label, self._meta.model_name, self.pk  # type: ignore
+            self._model_meta.app_label,
+            self._model_meta.model_name,
+            self.get_search_document_id(),
         )
-
-    @property
-    def search_doc_type(self) -> str:
-        """Return the doc_type used for the model."""
-        raise DeprecationWarning("Mapping types have been removed from ES7.x")
 
     def as_search_document(self, *, index: str) -> dict:
         """
@@ -177,15 +237,23 @@ class SearchDocumentMixin(object):
             )
         )
 
+    def get_search_document_id(self) -> str:
+        """
+        Return the value to be used as the search document id.
+
+        This value defaults to the object pk value - which is cast to a
+        str value as that is what ES uses.
+
+        It can be overridden in subclasses if you want to use a different
+        value.
+
+        """
+        return str(getattr(self, "pk"))
+
     @property
     def _related_fields(self) -> list[str]:
         """Return the list of fields that are relations and not serializable."""
-        if meta := getattr(self, "_meta", None):
-            return [f.name for f in meta.get_fields() if f.is_relation]
-        raise ValueError(
-            "SearchDocumentMixin missing _meta attr - "
-            "have you forgotten to subclass models.Model?"
-        )
+        return [f.name for f in self._model_meta.get_fields() if f.is_relation]
 
     def clean_update_fields(self, index: str, update_fields: list[str]) -> list[str]:
         """
@@ -291,10 +359,10 @@ class SearchDocumentMixin(object):
         if action not in ("index", "update", "delete"):
             raise ValueError("Action must be 'index', 'update' or 'delete'.")
 
-        document = {
+        document: dict[str, str | dict] = {
             "_index": index,
             "_op_type": action,
-            "_id": self.pk,  # type: ignore
+            "_id": self.get_search_document_id(),
         }
 
         if action == "index":
@@ -308,7 +376,7 @@ class SearchDocumentMixin(object):
         if not self.pk:  # type: ignore
             raise ValueError("Object must have a primary key before being indexed.")
         client = get_client()
-        return client.get(index=index, id=self.pk)  # type: ignore
+        return client.get(index=index, id=self.get_search_document_id())
 
     def index_search_document(self, *, index: str) -> None:
         """
@@ -327,7 +395,11 @@ class SearchDocumentMixin(object):
             logger.debug("Search document for %r is unchanged, ignoring update.", self)
             return
         cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
-        get_client().index(index=index, body=new_doc, id=self.pk)  # type: ignore
+        get_client().index(
+            index=index,
+            body=new_doc,
+            id=self.get_search_document_id(),
+        )
 
     def update_search_document(self, *, index: str, update_fields: list[str]) -> None:
         """
@@ -356,7 +428,7 @@ class SearchDocumentMixin(object):
         retry_on_conflict = cast(int, get_setting("retry_on_conflict", 0))
         get_client().update(
             index=index,
-            id=self.pk,  # type: ignore
+            id=self.get_search_document_id(),
             body={"doc": doc},
             retry_on_conflict=retry_on_conflict,
         )
@@ -364,7 +436,7 @@ class SearchDocumentMixin(object):
     def delete_search_document(self, *, index: str) -> None:
         """Delete document from named index."""
         cache.delete(self.search_document_cache_key)
-        get_client().delete(index=index, id=self.pk)  # type: ignore
+        get_client().delete(index=index, id=self.get_search_document_id())
 
 
 class SearchQuery(models.Model):
@@ -490,28 +562,28 @@ class SearchQuery(models.Model):
         super().save(**kwargs)
         return self
 
-    def _extract_set(self, _property: str) -> list[str | int]:
-        return [] if self.hits is None else (list({h[_property] for h in self.hits}))
+    def _hit_values(self, property_name: str) -> list[str | float]:
+        """Extract list of property values from each hit in search results."""
+        return [] if self.hits is None else [h[property_name] for h in self.hits]
 
     @property
-    def doc_types(self) -> list[str]:
-        """List of doc_types extracted from hits."""
-        raise DeprecationWarning("Mapping types have been removed from ES7.x")
-
-    @property
-    def max_score(self) -> int:
+    def max_score(self) -> float:
         """Max relevance score in the returned page."""
-        return int(max(self._extract_set("score") or [0]))
+        if self.hits:
+            return float(max(self._hit_values("score")))
+        return 0.0
 
     @property
-    def min_score(self) -> int:
+    def min_score(self) -> float:
         """Min relevance score in the returned page."""
-        return int(min(self._extract_set("score") or [0]))
+        if self.hits:
+            return float(min(self._hit_values("score")))
+        return 0.0
 
     @property
-    def object_ids(self) -> list[int | str]:
+    def object_ids(self) -> list[str]:
         """List of model ids extracted from hits."""
-        return [x for x in self._extract_set("id")]
+        return self._hit_values("id")  # type: ignore
 
     @property
     def page_slice(self) -> tuple[int, int] | None:
@@ -569,7 +641,7 @@ class SearchQuery(models.Model):
             case_when_score.append(When(**{pk_field_name: hit["id"]}, then=score))
         return Case(*case_when_score)
 
-    def get_hit(self, doc_id: int | str) -> dict:
+    def get_hit(self, doc_id: str) -> dict:
         """
         Return the hit with a give document id.
 
@@ -580,17 +652,17 @@ class SearchQuery(models.Model):
             return hit[0]
         raise KeyError("Document id not found in search results.")
 
-    def get_doc_rank(self, doc_id: int | str) -> int:
+    def get_doc_rank(self, doc_id: str) -> int:
         """Return the position of a document in the results."""
-        return [x for x in self._extract_set("id")].index(str(doc_id))
+        return self.object_ids.index(str(doc_id))
 
-    def get_doc_score(self, doc_id: int | str) -> float:
+    def get_doc_score(self, doc_id: str) -> float:
         """Return specific document score."""
-        return self.get_hit(doc_id)["score"]
+        return self.get_hit(str(doc_id))["score"]
 
-    def get_doc_highlights(self, doc_id: int | str) -> dict | None:
+    def get_doc_highlights(self, doc_id: str) -> dict | None:
         """Return specific document highlights."""
-        return self.get_hit(doc_id).get("highlight")
+        return self.get_hit(str(doc_id)).get("highlight")
 
 
 def execute_search(
