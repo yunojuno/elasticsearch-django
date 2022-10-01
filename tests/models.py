@@ -1,15 +1,20 @@
 from django.conf import settings
 from django.db import models
 
-from elasticsearch_django.models import SearchDocumentManagerMixin, SearchDocumentMixin
+from elasticsearch_django.models import (
+    SearchDocumentManagerMixin,
+    SearchDocumentMixin,
+    SearchResultsQuerySet,
+)
+
+
+class ExampleModelQuerySet(SearchResultsQuerySet):
+    pass
 
 
 class ExampleModelManager(SearchDocumentManagerMixin, models.Manager):
     def get_search_queryset(self, index="_all"):
         return self.all()
-
-    def get_pk_field_name(self) -> str:
-        return "simple_field_1"
 
 
 class ExampleModel(SearchDocumentMixin, models.Model):
@@ -22,10 +27,10 @@ class ExampleModel(SearchDocumentMixin, models.Model):
     simple_field_2 = models.CharField(max_length=100)
     complex_field = models.FileField()
 
-    objects = ExampleModelManager()
+    objects = ExampleModelManager.from_queryset(ExampleModelQuerySet)()
 
     def get_search_document_id(self) -> str:
-        return self.simple_field_1
+        return f"{self.simple_field_1}_{self.simple_field_2}"
 
     def user_name(self) -> str:
         return self.user.get_full_name() if self.user else "Anonymous"
