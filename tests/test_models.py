@@ -493,7 +493,7 @@ class SearchResultsQuerySetTests:
             "extra_info": "some other data",
         }
         sq = SearchQuery(hits=hits)
-        qs = ModelA.objects.all().from_search_results(sq, pk_field_name="field_1")
+        qs = ModelA.objects.from_search_results(sq)
         obj = qs.get()
         assert obj == model_a1
         assert obj.search_rank == 1
