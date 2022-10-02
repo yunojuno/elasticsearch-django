@@ -74,7 +74,8 @@ class ExampleModelWithCustomPrimaryKey(SearchDocumentMixin, models.Model):
 
 
 class ModelAQuerySet(SearchResultsQuerySet):
-    pass
+    # this is the field used as the ID for the search documents
+    search_document_id_field = "field_1"
 
 
 class ModelA(models.Model):

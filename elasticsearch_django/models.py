@@ -77,55 +77,52 @@ class SearchResultsQuerySet(QuerySet):
 
     """
 
-    def filter_search_results(
-        self, search_query: SearchQuery, pk_field_name: str = "pk"
-    ) -> SearchResultsQuerySet:
-        """Filter queryset on PK field to match search query hits."""
-        return self.filter(**{f"{pk_field_name}__in": search_query.object_ids})
+    # the field used to map objects to search document id
+    search_document_id_field = "pk"
 
-    def add_search_rank(
-        self, search_query: SearchQuery, pk_field_name: str = "pk"
-    ) -> SearchResultsQuerySet:
-        """Add search_rank annotation to queryset."""
-        return self.annotate(
-            search_rank=search_query.search_rank_annotation(pk_field_name)
+    def filter_search_results(self, search_query: SearchQuery) -> SearchResultsQuerySet:
+        """Filter queryset on PK field to match search query hits."""
+        return self.filter(
+            **{f"{self.search_document_id_field}__in": search_query.object_ids}
         )
 
-    def add_search_score(
-        self, search_query: SearchQuery, pk_field_name: str = "pk"
-    ) -> SearchResultsQuerySet:
+    def add_search_rank(self, search_query: SearchQuery) -> SearchResultsQuerySet:
+        """Add search_rank annotation to queryset."""
+        return self.annotate(
+            search_rank=search_query.search_rank_annotation(
+                self.search_document_id_field
+            )
+        )
+
+    def add_search_score(self, search_query: SearchQuery) -> SearchResultsQuerySet:
         """Add search_score annotation to queryset."""
         return self.annotate(
-            search_score=search_query.search_score_annotation(pk_field_name)
+            search_score=search_query.search_score_annotation(
+                self.search_document_id_field
+            )
         )
 
     def add_search_annotations(
-        self, search_query: SearchQuery, pk_field_name: str = "pk"
+        self, search_query: SearchQuery
     ) -> SearchResultsQuerySet:
         """Add search_rank and search_score annotations to queryset."""
-        return self.add_search_rank(search_query, pk_field_name).add_search_score(
-            search_query, pk_field_name
-        )
+        return self.add_search_rank(search_query).add_search_score(search_query)
 
-    def add_search_highlights(
-        self, search_query: SearchQuery, pk_field_name: str = "pk"
-    ) -> list:
+    def add_search_highlights(self, search_query: SearchQuery) -> list:
         """Add search_highlights attr. to each object in the queryset (evaluates QS)."""
         obj_list = list(self)
         if not search_query.has_highlights:
             return obj_list
 
         for obj in obj_list:
-            pk = getattr(obj, pk_field_name)
+            pk = getattr(obj, self.search_document_id_field)
             obj.search_highlights = search_query.get_doc_highlights(pk)
         return obj_list
 
-    def from_search_results(
-        self, search_query: SearchQuery, pk_field_name: str = "pk"
-    ) -> SearchResultsQuerySet:
+    def from_search_results(self, search_query: SearchQuery) -> SearchResultsQuerySet:
         return (
-            self.filter_search_results(search_query, pk_field_name)
-            .add_search_annotations(search_query, pk_field_name)
+            self.filter_search_results(search_query)
+            .add_search_annotations(search_query)
             .order_by("search_rank")
         )
 
