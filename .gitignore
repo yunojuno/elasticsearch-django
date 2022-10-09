@@ -2,6 +2,7 @@
 .tox
 *.egg-info
 .coverage
+.DS_Store
 staticfiles
 Pipfile
 Pipfile.lock

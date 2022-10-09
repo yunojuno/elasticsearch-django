@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 from django.apps import apps
 from django.conf import settings

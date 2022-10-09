@@ -118,8 +118,8 @@ class SearchDocumentMixinTests:
         assert cache.get(key) == doc
         mock_client.return_value.index.assert_called_once_with(
             index="_all",
+            document=doc,
             id=test_obj.get_search_document_id(),
-            body=doc,
         )
 
     @mock.patch(

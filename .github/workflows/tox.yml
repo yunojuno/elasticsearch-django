@@ -1,58 +1,58 @@
 name: Python / Django
 
 on:
-  push:
-    branches:
-      - master
+    push:
+        branches:
+            - master
 
-  pull_request:
-    types: [opened, synchronize, reopened]
+    pull_request:
+        types: [opened, synchronize, reopened]
 
 jobs:
-  format:
-    name: Check formatting
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        toxenv: [fmt,lint,mypy]
-    env:
-      TOXENV: ${{ matrix.toxenv }}
+    format:
+        name: Check formatting
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                toxenv: [fmt, lint, mypy]
+        env:
+            TOXENV: ${{ matrix.toxenv }}
 
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v3
+        steps:
+            - name: Check out the repository
+              uses: actions/checkout@v3
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v1
-        with:
-          python-version: "3.11"
+            - name: Set up Python 3.11
+              uses: actions/setup-python@v1
+              with:
+                  python-version: "3.11"
 
-      - name: Install and run tox
-        run: |
-          pip install tox
-          tox
+            - name: Install and run tox
+              run: |
+                  pip install tox
+                  tox
 
-  test:
-    name: Run tests
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: ["3.8", "3.10", "3.11"]
-        django: [32,41,main]
+    test:
+        name: Run tests
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                python: ["3.8", "3.10", "3.11"]
+                django: ["32", "41", "main"]
 
-    env:
-      TOXENV: py${{ matrix.python }}-django${{ matrix.django }}
+        env:
+            TOXENV: py${{ matrix.python }}-django${{ matrix.django }}-es${{ matrix.es }}
 
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v3
+        steps:
+            - name: Check out the repository
+              uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
+            - name: Set up Python ${{ matrix.python }}
+              uses: actions/setup-python@v4
+              with:
+                  python-version: ${{ matrix.python }}
 
-      - name: Install and run tox
-        run: |
-          pip install tox
-          tox
+            - name: Install and run tox
+              run: |
+                  pip install tox
+                  tox
