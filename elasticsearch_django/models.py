@@ -9,7 +9,7 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
-from django.db.models import Case, When
+from django.db.models import Case, Value, When
 from django.db.models.query import QuerySet
 from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext_lazy as _lazy
@@ -88,19 +88,19 @@ class SearchResultsQuerySet(QuerySet):
 
     def add_search_rank(self, search_query: SearchQuery) -> SearchResultsQuerySet:
         """Add search_rank annotation to queryset."""
-        return self.annotate(
-            search_rank=search_query.search_rank_annotation(
-                self.search_document_id_field
-            )
-        )
+        if search_rank_annotation := search_query.search_rank_annotation(
+            self.search_document_id_field
+        ):
+            return self.annotate(search_rank=search_rank_annotation)
+        return self.annotate(search_rank=Value(1))
 
     def add_search_score(self, search_query: SearchQuery) -> SearchResultsQuerySet:
         """Add search_score annotation to queryset."""
-        return self.annotate(
-            search_score=search_query.search_score_annotation(
-                self.search_document_id_field
-            )
-        )
+        if search_score_annotation := search_query.search_score_annotation(
+            self.search_document_id_field
+        ):
+            return self.annotate(search_score=search_score_annotation)
+        return self.annotate(search_score=Value(1.0))
 
     def add_search_annotations(
         self, search_query: SearchQuery
@@ -120,11 +120,9 @@ class SearchResultsQuerySet(QuerySet):
         return obj_list
 
     def from_search_results(self, search_query: SearchQuery) -> SearchResultsQuerySet:
-        return (
-            self.filter_search_results(search_query)
-            .add_search_annotations(search_query)
-            .order_by("search_rank")
-        )
+        qs = self.filter_search_results(search_query)
+        qs = qs.add_search_annotations(search_query)
+        return qs.order_by("search_rank")
 
 
 class SearchDocumentManagerMixin(models.Manager):
@@ -626,15 +624,19 @@ class SearchQuery(models.Model):
             raise ValueError("Missing query attribute.")
         return "highlight" in self.query
 
-    def search_rank_annotation(self, pk_field_name: str = "pk") -> Case:
+    def search_rank_annotation(self, pk_field_name: str = "pk") -> Case | None:
         """Return SQL CASE statement used to annotate results with rank."""
+        if not self.hits:
+            return None
         case_when_rank = []
         for rank, hit in enumerate(self.hits, start=1):
             case_when_rank.append(When(**{pk_field_name: hit["id"]}, then=rank))
         return Case(*case_when_rank)
 
-    def search_score_annotation(self, pk_field_name: str = "pk") -> Case:
+    def search_score_annotation(self, pk_field_name: str = "pk") -> Case | None:
         """Return SQL CASE statement used to annotate results with score."""
+        if not self.hits:
+            return None
         case_when_score = []
         for hit in self.hits:
             # if custom sorting has been applied, score is null
