@@ -7,18 +7,18 @@ repos:
 
   # python code formatting - will amend files
   - repo: https://github.com/ambv/black
-    rev: 22.6.0
+    rev: 22.10.0
     hooks:
       - id: black
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.37.3
+    rev: v3.2.2
     hooks:
       - id: pyupgrade
 
   # Flake8 includes pyflakes, pycodestyle, mccabe, pydocstyle, bandit
-  - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.9.2
+  - repo: https://github.com/PyCQA/flake8
+    rev: 5.0.4
     hooks:
       - id: flake8
         additional_dependencies:
@@ -30,7 +30,7 @@ repos:
 
   # python static type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.971
+    rev: v0.991
     hooks:
       - id: mypy
         args:
