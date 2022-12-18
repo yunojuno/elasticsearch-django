@@ -396,7 +396,7 @@ class SearchDocumentMixin:
         cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
         get_client().index(
             index=index,
-            document=new_doc,
+            body=new_doc,
             id=self.get_search_document_id(),
         )
 
