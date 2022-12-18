@@ -76,7 +76,7 @@ def get_index_mapping(index: str) -> dict:
     mappings_dir = get_setting("mappings_dir")
     filename = "%s.json" % index
     path = os.path.join(mappings_dir, filename)
-    with open(path, "r") as f:
+    with open(path) as f:
         return json.load(f)
 
 

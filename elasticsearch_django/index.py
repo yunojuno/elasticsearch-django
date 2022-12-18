@@ -148,8 +148,7 @@ def scan_index(index: str, model: Model) -> Generator:
     # noqa: E501, see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-type-query.html
     query = {"query": {"type": {"value": model._meta.model_name}}}
     client = get_client()
-    for hit in helpers.scan(client, index=index, query=query):
-        yield hit
+    yield from helpers.scan(client, index=index, query=query)
 
 
 def bulk_actions(objects: Sequence[Model], index: str, action: str) -> Generator:

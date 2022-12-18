@@ -4,17 +4,27 @@ max-complexity = 8
 # http://flake8.pycqa.org/en/2.5.5/warnings.html#warning-error-codes
 ignore =
   # pydocstyle - docstring conventions (PEP257)
-  D100	# Missing docstring in public module
-  D101	# Missing docstring in public class
-  D102	# Missing docstring in public method
-  D103	# Missing docstring in public function
-  D104	# Missing docstring in public package
-  D105	# Missing docstring in magic method
-  D106	# Missing docstring in public nested class
-  D107	# Missing docstring in __init__
-  D412  # No blank lines allowed between a section header and its content
+  # Missing docstring in public module
+  D100
+  # Missing docstring in public class
+  D101
+  # Missing docstring in public method
+  D102
+  # Missing docstring in public function
+  D103
+  # Missing docstring in public package
+  D104
+  # Missing docstring in magic method
+  D105
+  # Missing docstring in public nested class
+  D106
+  # Missing docstring in __init__
+  D107
+  # No blank lines allowed between a section header and its content
+  D412
   # pycodestyle - style checker (PEP8)
-  W503  # line break before binary operator
+  # line break before binary operator
+  W503
   # the following are ignored in CI using --extend-ignore option:
   ; D205  # [pydocstyle] 1 blank line required between summary line and description
   ; D400  # [pydocstyle] First line should end with a period

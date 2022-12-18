@@ -25,7 +25,7 @@ class ElasticAppConfig(AppConfig):
 
     def ready(self) -> None:
         """Validate config and connect signals."""
-        super(ElasticAppConfig, self).ready()
+        super().ready()
         _validate_config(bool(settings.get_setting("strict_validation")))
         _connect_signals()
 
@@ -47,7 +47,7 @@ def _validate_mapping(index: str, strict: bool = False) -> None:
     """Check that an index mapping JSON file exists."""
     try:
         settings.get_index_mapping(index)
-    except IOError:
+    except OSError:
         if strict:
             raise ImproperlyConfigured("Index '%s' has no mapping file." % index)
         else:

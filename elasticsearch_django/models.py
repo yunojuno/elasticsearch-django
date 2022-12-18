@@ -134,7 +134,7 @@ class SearchDocumentManagerMixin(models.Manager):
         return qs
 
 
-class SearchDocumentMixin(object):
+class SearchDocumentMixin:
     """
     Mixin used by models that are indexed for ES.
 
