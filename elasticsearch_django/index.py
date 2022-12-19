@@ -18,7 +18,8 @@ def create_index(index: str) -> dict:
     """Create an index and apply mapping if appropriate."""
     logger.info("Creating search index: '%s'", index)
     client = get_client()
-    return client.indices.create(index=index, mappings=get_index_mapping(index))
+    mapping = get_index_mapping(index)
+    return client.indices.create(index=index, mappings=mapping["mappings"])
 
 
 def update_index(index: str) -> list[BulkResponseType]:
@@ -35,11 +36,11 @@ def update_index(index: str) -> list[BulkResponseType]:
     return responses
 
 
-def delete_index(index: str) -> dict:
+def delete_index(index: str, ignore_unavailable: bool = True) -> dict:
     """Delete index entirely (removes all documents and mapping)."""
     logger.info("Deleting search index: '%s'", index)
     client = get_client()
-    return client.indices.delete(index=index)
+    return client.indices.delete(index=index, ignore_unavailable=ignore_unavailable)
 
 
 def prune_index(index: str) -> list[BulkResponseType]:
@@ -146,9 +147,8 @@ def scan_index(index: str, model: Model) -> Generator:
 
     """
     # noqa: E501, see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-type-query.html
-    query = {"query": {"type": {"value": model._meta.model_name}}}
     client = get_client()
-    yield from helpers.scan(client, index=index, query=query)
+    yield from helpers.scan(client, index=index)
 
 
 def bulk_actions(objects: Sequence[Model], index: str, action: str) -> Generator:
