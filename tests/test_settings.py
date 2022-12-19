@@ -32,10 +32,10 @@ class SettingsFunctionTests:
     @mock.patch("elasticsearch_django.settings.get_connection_string")
     def test_get_client(self, mock_conn):
         """Test the get_client function."""
-        mock_conn.return_value = "http://foo"
+        mock_conn.return_value = "http://foo:9200"
         client = get_client()
-        assert len(client.transport.hosts) == 1
-        assert client.transport.hosts[0]["host"] == "foo"
+        assert len(client.transport.node_pool.all()) == 1
+        assert client.transport.node_pool.all()[0].base_url == mock_conn()
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_settings(self):

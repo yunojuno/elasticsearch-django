@@ -27,7 +27,7 @@ class IndexFunctionTests:
         mock_client.assert_called_once_with()
         mock_mapping.assert_called_once_with("foo")
         mock_client.return_value.indices.create.assert_called_once_with(
-            index="foo", body=mock_mapping.return_value
+            index="foo", document=mock_mapping.return_value
         )
 
     from django.db.models.query import QuerySet

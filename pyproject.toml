@@ -24,8 +24,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.8"
 django = "^3.2 || ^4.0"
-elasticsearch = "^7.0"
-elasticsearch-dsl = "^7.0"
+elasticsearch = "^8.0"
 simplejson = "*"
 
 [tool.poetry.dev-dependencies]

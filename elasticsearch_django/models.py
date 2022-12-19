@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, cast
+from typing import Any, TypeAlias, cast
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
@@ -13,7 +13,6 @@ from django.db.models import Case, Value, When
 from django.db.models.query import QuerySet
 from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext_lazy as _lazy
-from elasticsearch_dsl import Search
 
 from .settings import (
     get_client,
@@ -27,6 +26,10 @@ logger = logging.getLogger(__name__)
 UPDATE_STRATEGY_FULL = "full"
 UPDATE_STRATEGY_PARTIAL = "partial"
 UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
+
+
+# Strongly-type the meta object we return from search
+SearchHitMetaType: TypeAlias = dict[str, str | float]
 
 
 class SearchResultsQuerySet(QuerySet):
@@ -396,7 +399,7 @@ class SearchDocumentMixin:
         cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
         get_client().index(
             index=index,
-            body=new_doc,
+            document=new_doc,
             id=self.get_search_document_id(),
         )
 
@@ -428,7 +431,7 @@ class SearchDocumentMixin:
         get_client().update(
             index=index,
             id=self.get_search_document_id(),
-            body={"doc": doc},
+            document={"doc": doc},
             retry_on_conflict=retry_on_conflict,
         )
 
@@ -446,10 +449,6 @@ class SearchQuery(models.Model):
     searches, and to track how a user filtered and searched.
     This model can be used to store a search query and meta
     information about the results (document type, id and score).
-
-    >>> from elasticsearch_dsl import Search
-    >>> search = Search(using=client)
-    >>> sq = SearchQuery.execute(search).save()
 
     """
 
@@ -668,9 +667,59 @@ class SearchQuery(models.Model):
         return self.get_hit(str(doc_id)).get("highlight")
 
 
+class SearchResponse:
+    """Parse search response to make it easier to work with."""
+
+    def __init__(self, response: dict) -> None:
+        self.raw = response
+        self._hits = response.get("hits", {})
+        self._total = self._hits.get("total", {})
+
+    @property
+    def hits(self) -> list[SearchHitMetaType]:
+        """Return list of id, index, score dict for each hit returned."""
+        return [
+            {
+                "index": hit["_index"],
+                "id": hit["_id"],
+                "score": hit["_score"],
+            }
+            for hit in self._hits.get("hits", {})
+        ]
+
+    @property
+    def aggregations(self) -> dict:
+        """Return raw aggregations from the response."""
+        return self.raw.get("aggregations", {})
+
+    @property
+    def max_score(self) -> float:
+        return self._hits.get("max_score", 0.0)
+
+    @property
+    def total_hits(self) -> int:
+        return self._total.get("value", 0)
+
+    @property
+    def total_hits_relation(self) -> str:
+        return self._total.get("relation", "")
+
+
+class CountResponse:
+    """Parse count response to make it easier to work with."""
+
+    def __init__(self, response: dict) -> None:
+        self.raw = response
+
+    @property
+    def count(self) -> int:
+        return self.raw.get("count", 0)
+
+
 def execute_search(
-    search: Search,
     *,
+    index: str | list[str],
+    query: dict,
     search_terms: str = "",
     user: AbstractBaseUser | None = None,
     reference: str | None = "",
@@ -695,17 +744,17 @@ def execute_search(
 
     """
     start = time.time()
-    response = search.execute()
-    hits = [h.meta.to_dict() for h in response.hits]
-    total_hits = response.hits.total.value
-    total_hits_relation = response.hits.total.relation
-    aggregations = response.aggregations.to_dict()
+    response = SearchResponse(get_client().search(index=index, query=query))
+    hits = response.hits
+    total_hits = response.total_hits
+    total_hits_relation = response.total_hits_relation
+    aggregations = response.aggregations
     duration = time.time() - start
     search_query = SearchQuery(
         user=user,
         search_terms=search_terms,
-        index=", ".join(search._index or ["_all"])[:100],  # field length restriction
-        query=search.to_dict(),
+        index=index,
+        query=query,
         query_type=SearchQuery.QueryType.SEARCH,
         hits=hits,
         aggregations=aggregations,
@@ -715,13 +764,14 @@ def execute_search(
         executed_at=tz_now(),
         duration=duration,
     )
-    search_query.response = response
+    search_query.response = response.raw
     return search_query.save() if save else search_query
 
 
 def execute_count(
-    search: Search,
     *,
+    index: str | list[str],
+    query: dict,
     search_terms: str = "",
     user: AbstractBaseUser | None = None,
     reference: str | None = "",
@@ -746,21 +796,21 @@ def execute_count(
 
     """
     start = time.time()
-    response = search.count()
+    response = CountResponse(get_client().count(index=index, query=query))
     duration = time.time() - start
     search_query = SearchQuery(
         user=user,
         search_terms=search_terms,
-        index=", ".join(search._index or ["_all"])[:100],  # field length restriction
-        query=search.to_dict(),
+        index=index,
+        query=query,
         query_type=SearchQuery.QueryType.COUNT,
         hits=[],
         aggregations={},
-        total_hits=response,
+        total_hits=response.count,
         total_hits_relation=SearchQuery.TotalHitsRelation.ACCURATE,
         reference=reference or "",
         executed_at=tz_now(),
         duration=duration,
     )
-    search_query.response = response
+    search_query.response = response.raw
     return search_query.save() if save else search_query

@@ -24,9 +24,7 @@ class BaseSearchCommandTests:
         # this should have called the do_index_command twice
         mock_do.assert_has_calls([mock.call("foo"), mock.call("bar")])
         mock_do.reset_mock()
-        mock_do.side_effect = TransportError(
-            123, "oops", {"error": {"reason": "no idea"}}
-        )
+        mock_do.side_effect = TransportError(message="oops", errors=(Exception(),))
         obj.handle(indexes=["baz"])
         mock_do.assert_called_once_with("baz")
         mock_log.exception.assert_called_once()

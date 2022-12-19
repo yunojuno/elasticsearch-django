@@ -18,7 +18,7 @@ def create_index(index: str) -> dict:
     """Create an index and apply mapping if appropriate."""
     logger.info("Creating search index: '%s'", index)
     client = get_client()
-    return client.indices.create(index=index, body=get_index_mapping(index))
+    return client.indices.create(index=index, document=get_index_mapping(index))
 
 
 def update_index(index: str) -> list[BulkResponseType]:
