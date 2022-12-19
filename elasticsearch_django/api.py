@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-import time
-from typing import TypeAlias
+import datetime
+from typing import TypeAlias, cast
 
-from django.utils.timezone import now as tz_now
+from django.conf import settings
 from elasticsearch import Elasticsearch
 
 from .context_manager import stopwatch
 from .models import SearchQuery
 from .settings import get_client, get_setting
 
-DEFAULT_CLIENT = get_client()
-DEFAULT_SEARCH_QUERY = {"match_all": {}}
-DEFAULT_FROM = 0
-DEFAULT_PAGE_SIZE = get_setting("page_size")
+DEFAULT_CLIENT: Elasticsearch = get_client()
+DEFAULT_SEARCH_QUERY: dict = {"match_all": {}}
+DEFAULT_FROM: int = 0
+DEFAULT_PAGE_SIZE = cast(int, get_setting("page_size"))
 
 
 # Strongly-type the meta object we return from search
@@ -25,20 +25,25 @@ class Search:
     Parse search response to make it easier to work with.
 
     This class provides a classmethod to execute a search and parse the
-    results:
-
-        >>> search = Search.execute(index="blogs", query={"match_all": {}})
-        >>> print(search.total_hits)
-        10
+    results.
 
     """
 
-    def __init__(self, response: dict) -> None:
-        self.raw = response
+    def __init__(
+        self,
+        index: str | list[str],
+        query: dict,
+        response: dict,
+        duration: float = 0.0,
+        executed_at: datetime.datetime | None = None,
+    ) -> None:
+        self.index = index
+        self.query = query
+        self.response = response
         self._hits = response.get("hits", {})
         self._total = self._hits.get("total", {})
-        self.duration = None
-        self.executed_at = None
+        self.duration = duration
+        self.executed_at = executed_at
 
     def _extract_hit(self, hit: dict) -> dict:
         return {
@@ -55,7 +60,7 @@ class Search:
     @property
     def aggregations(self) -> dict:
         """Return raw aggregations from the response."""
-        return self.raw.get("aggregations", {})
+        return self.response.get("aggregations", {})
 
     @property
     def max_score(self) -> float:
@@ -76,11 +81,9 @@ class Search:
         index: str | list[str],
         query: dict,
         client: Elasticsearch = DEFAULT_CLIENT,
-        **search_kwargs,
     ) -> Search:
-        start = time.time()
         with stopwatch() as timer:
-            response = client.search(index=index, query=query, **search_kwargs)
+            response = client.search(index=index, **query)
         search = Search(
             index=index,
             query=query,
@@ -90,12 +93,17 @@ class Search:
         )
         return search
 
-    def log(self, user, search_terms, reference) -> SearchQuery:
-        return SearchQuery(
+    def log(
+        self,
+        user: settings.AUTH_USER_MODEL,
+        search_terms: str = "",
+        reference: str = "",
+    ) -> SearchQuery:
+        return SearchQuery.objects.create(
             user=user,
             search_terms=search_terms,
-            index=self.inde,
-            query=query,
+            index=self.index,
+            query=self.query,
             query_type=SearchQuery.QueryType.SEARCH,
             hits=self.hits,
             aggregations=self.aggregations,
@@ -105,7 +113,3 @@ class Search:
             executed_at=self.executed_at,
             duration=self.duration,
         )
-
-
-# search = Search.execute()
-# search.log(user=me, reference="foo")

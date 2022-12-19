@@ -27,7 +27,9 @@ class IndexFunctionTests:
         mock_client.assert_called_once_with()
         mock_mapping.assert_called_once_with("foo")
         mock_client.return_value.indices.create.assert_called_once_with(
-            index="foo", document=mock_mapping.return_value
+            index="foo",
+            mappings=mock_mapping.return_value["mappings"],
+            settings=mock_mapping.return_value.get("settings"),
         )
 
     from django.db.models.query import QuerySet
@@ -53,7 +55,9 @@ class IndexFunctionTests:
         """Test the delete_index function."""
         delete_index("foo")
         mock_client.assert_called_once()
-        mock_client.return_value.indices.delete.assert_called_once_with(index="foo")
+        mock_client.return_value.indices.delete.assert_called_once_with(
+            index="foo", ignore_unavailable=True
+        )
 
     @mock.patch("elasticsearch_django.index.helpers")
     @mock.patch("elasticsearch_django.index.scan_index")
@@ -110,13 +114,9 @@ class IndexFunctionTests:
     @mock.patch("elasticsearch_django.index.helpers")
     def test_scan_index(self, mock_helpers, mock_client):
         """Test the scan_index function."""
-        query = {"query": {"type": {"value": "examplemodel"}}}
-        # mock_helpers.scan.return_value = ['foo', 'bar']
         # cast to list to force evaluation of the generator
         response = list(scan_index("foo", ExampleModel))
-        mock_helpers.scan.assert_called_once_with(
-            mock_client.return_value, query=query, index="foo"
-        )
+        mock_helpers.scan.assert_called_once_with(mock_client.return_value, index="foo")
         assert response == list(mock_helpers.scan.return_value)
 
     @mock.patch.object(ExampleModel, "as_search_action")
