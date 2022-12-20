@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import logging
 from typing import Any, cast
 
@@ -687,9 +688,14 @@ class SearchQuery(models.Model):
         with stopwatch() as timer:
             response = client.search(index=index, query=query, **search_kwargs)
         parser = SearchResponseParser(response)
+        # HACK: we want the "query" that we store to be the raw wire query, which
+        # is a dict that contains query, aggs, highlights, from_, size, min_score,
+        # etc.
+        raw_query = {"query": copy.deepcopy(query)}
+        raw_query.update(**search_kwargs)
         return SearchQuery(
             index=index,
-            query=query,
+            query=raw_query,
             query_type=SearchQuery.QueryType.SEARCH,
             hits=parser.hits,
             aggregations=parser.aggregations,

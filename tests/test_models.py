@@ -529,7 +529,7 @@ class ExecuteFunctionTests:
         assert sq.id is not None
         assert sq.search_terms == "foo"
         assert sq.reference == "bar"
-        assert sq.query == {"match_all": {}}
+        assert sq.query == {"query": {"match_all": {}}, "from_": 0, "size": 25}
         assert sq.index == "index"
         assert sq.hits == self.clean_hits
         assert sq.total_hits == 168
