@@ -4,6 +4,7 @@ import logging
 from typing import Any, Generator, List, Sequence, Tuple, Union
 
 from django.db.models import Model
+from elastic_transport import ObjectApiResponse
 from elasticsearch import helpers
 
 from .models import SearchDocumentMixin
@@ -14,7 +15,7 @@ BulkResponseType = Tuple[int, Union[int, List[Any]]]
 logger = logging.getLogger(__name__)
 
 
-def create_index(index: str) -> dict:
+def create_index(index: str) -> ObjectApiResponse:
     """Create an index and apply mapping if appropriate."""
     logger.info("Creating search index: '%s'", index)
     client = get_client()
@@ -40,11 +41,11 @@ def update_index(index: str) -> list[BulkResponseType]:
     return responses
 
 
-def delete_index(index: str, ignore_unavailable: bool = True) -> dict:
+def delete_index(index: str, ignore_unavailable: bool = True) -> ObjectApiResponse:
     """Delete index entirely (removes all documents and mapping)."""
     logger.info("Deleting search index: '%s'", index)
-    client = get_client()
-    return client.indices.delete(index=index, ignore_unavailable=ignore_unavailable)
+    indices = get_client().indices
+    return indices.delete(index=index, ignore_unavailable=ignore_unavailable)
 
 
 def prune_index(index: str) -> list[BulkResponseType]:

@@ -25,4 +25,4 @@ class Command(BaseSearchCommand):
                     "Aborting deletion of index '%s' at user's request.", index
                 )
                 return None
-        return delete_index(index)
+        return delete_index(index).body

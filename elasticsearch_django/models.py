@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import logging
-import time
-from typing import Any, TypeAlias, cast
+from typing import Any, Union, cast
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractBaseUser
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Case, Value, When
 from django.db.models.query import QuerySet
-from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext_lazy as _lazy
+from elastic_transport import ObjectApiResponse
 
 from .settings import (
     get_client,
@@ -29,7 +27,7 @@ UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
 
 
 # Strongly-type the meta object we return from search
-SearchHitMetaType: TypeAlias = dict[str, str | float]
+SearchHitMetaType = dict[str, Union[str, float]]
 
 
 class SearchResultsQuerySet(QuerySet):
@@ -373,12 +371,11 @@ class SearchDocumentMixin:
             document["doc"] = self.as_search_document(index=index)
         return document
 
-    def fetch_search_document(self, *, index: str) -> dict:
+    def fetch_search_document(self, *, index: str) -> ObjectApiResponse:
         """Fetch the object's document from a search index by id."""
         if not self.pk:  # type: ignore
             raise ValueError("Object must have a primary key before being indexed.")
-        client = get_client()
-        return client.get(index=index, id=self.get_search_document_id())
+        return get_client().get(index=index, id=self.get_search_document_id())
 
     def index_search_document(self, *, index: str) -> None:
         """
@@ -397,7 +394,7 @@ class SearchDocumentMixin:
             logger.debug("Search document for %r is unchanged, ignoring update.", self)
             return
         cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
-        get_client().index(
+        _ = get_client().index(
             index=index,
             document=new_doc,
             id=self.get_search_document_id(),
@@ -428,17 +425,17 @@ class SearchDocumentMixin:
             logger.debug("Ignoring object update as document is empty.")
             return
         retry_on_conflict = cast(int, get_setting("retry_on_conflict", 0))
-        get_client().update(
+        _ = get_client().update(
             index=index,
             id=self.get_search_document_id(),
-            document={"doc": doc},
+            doc=doc,
             retry_on_conflict=retry_on_conflict,
         )
 
     def delete_search_document(self, *, index: str) -> None:
         """Delete document from named index."""
         cache.delete(self.search_document_cache_key)
-        get_client().delete(index=index, id=self.get_search_document_id())
+        _ = get_client().delete(index=index, id=self.get_search_document_id())
 
 
 class SearchQuery(models.Model):
@@ -667,150 +664,154 @@ class SearchQuery(models.Model):
         return self.get_hit(str(doc_id)).get("highlight")
 
 
-class SearchResponse:
-    """Parse search response to make it easier to work with."""
+# class SearchResponse:
+#     """Parse search response to make it easier to work with."""
 
-    def __init__(self, response: dict) -> None:
-        self.raw = response
-        self._hits = response.get("hits", {})
-        self._total = self._hits.get("total", {})
+#     def __init__(self, response: dict) -> None:
+#         self.raw = response
+#         self._hits = response.get("hits", {})
+#         self._total = self._hits.get("total", {})
 
-    @property
-    def hits(self) -> list[SearchHitMetaType]:
-        """Return list of id, index, score dict for each hit returned."""
-        return [
-            {
-                "index": hit["_index"],
-                "id": hit["_id"],
-                "score": hit["_score"],
-            }
-            for hit in self._hits.get("hits", {})
-        ]
+#     @property
+#     def hits(self) -> list[SearchHitMetaType]:
+#         """Return list of id, index, score dict for each hit returned."""
+#         return [
+#             {
+#                 "index": hit["_index"],
+#                 "id": hit["_id"],
+#                 "score": hit["_score"],
+#             }
+#             for hit in self._hits.get("hits", {})
+#         ]
 
-    @property
-    def aggregations(self) -> dict:
-        """Return raw aggregations from the response."""
-        return self.raw.get("aggregations", {})
+#     @property
+#     def aggregations(self) -> dict:
+#         """Return raw aggregations from the response."""
+#         return self.raw.get("aggregations", {})
 
-    @property
-    def max_score(self) -> float:
-        return self._hits.get("max_score", 0.0)
+#     @property
+#     def max_score(self) -> float:
+#         return self._hits.get("max_score", 0.0)
 
-    @property
-    def total_hits(self) -> int:
-        return self._total.get("value", 0)
+#     @property
+#     def total_hits(self) -> int:
+#         return self._total.get("value", 0)
 
-    @property
-    def total_hits_relation(self) -> str:
-        return self._total.get("relation", "")
-
-
-class CountResponse:
-    """Parse count response to make it easier to work with."""
-
-    def __init__(self, response: dict) -> None:
-        self.raw = response
-
-    @property
-    def count(self) -> int:
-        return self.raw.get("count", 0)
+#     @property
+#     def total_hits_relation(self) -> str:
+#         return self._total.get("relation", "")
 
 
-def execute_search(
-    *,
-    index: str | list[str],
-    query: dict,
-    search_terms: str = "",
-    user: AbstractBaseUser | None = None,
-    reference: str | None = "",
-    save: bool = True,
-) -> SearchQuery:
-    """
-    Create a new SearchQuery instance and execute a search against ES.
+# class CountResponse:
+#     """Parse count response to make it easier to work with."""
 
-    Args:
-        search: elasticsearch.search.Search object, that internally contains
-            the connection and query; this is the query that is executed. All
-            we are doing is logging the input and parsing the output.
-        search_terms: raw end user search terms input - what they typed into the search
-            box.
-        user: Django User object, the person making the query - used for logging
-            purposes. Can be null.
-        reference: string, can be anything you like, used for identification,
-            grouping purposes.
-        save: bool, if True then save the new object immediately, can be
-            overridden to False to prevent logging absolutely everything.
-            Defaults to True
+#     def __init__(self, response: dict) -> None:
+#         self.raw = response
 
-    """
-    start = time.time()
-    response = SearchResponse(get_client().search(index=index, query=query))
-    hits = response.hits
-    total_hits = response.total_hits
-    total_hits_relation = response.total_hits_relation
-    aggregations = response.aggregations
-    duration = time.time() - start
-    search_query = SearchQuery(
-        user=user,
-        search_terms=search_terms,
-        index=index,
-        query=query,
-        query_type=SearchQuery.QueryType.SEARCH,
-        hits=hits,
-        aggregations=aggregations,
-        total_hits=total_hits,
-        total_hits_relation=total_hits_relation,
-        reference=reference or "",
-        executed_at=tz_now(),
-        duration=duration,
-    )
-    search_query.response = response.raw
-    return search_query.save() if save else search_query
+#     @property
+#     def count(self) -> int:
+#         return self.raw.get("count", 0)
 
 
-def execute_count(
-    *,
-    index: str | list[str],
-    query: dict,
-    search_terms: str = "",
-    user: AbstractBaseUser | None = None,
-    reference: str | None = "",
-    save: bool = True,
-) -> SearchQuery:
-    """
-    Run a "count" against ES and store the results.
+# def execute_search(
+#     *,
+#     index: str | list[str],
+#     query: dict,
+#     search_terms: str = "",
+#     user: AbstractBaseUser | None = None,
+#     reference: str | None = "",
+#     save: bool = True,
+# ) -> SearchQuery:
+#     """
+#     Create a new SearchQuery instance and execute a search against ES.
 
-    Args:
-        search: elasticsearch.search.Search object, that internally contains
-            the connection and query; this is the query that is executed. All
-            we are doing is logging the input and parsing the output.
-        search_terms: raw end user search terms input - what they typed into the search
-            box.
-        user: Django User object, the person making the query - used for logging
-            purposes. Can be null.
-        reference: string, can be anything you like, used for identification,
-            grouping purposes.
-        save: bool, if True then save the new object immediately, can be
-            overridden to False to prevent logging absolutely everything.
-            Defaults to True
+#     Args: search: elasticsearch.search.Search object, that internally
+#         contains the connection and query; this is the query that is
+#             executed. All we are doing is logging the input and
+#             parsing the output. search_terms: raw end user search
+#         terms input - what they typed into the search box. user:
+#             Django User object, the person making the query - used for
+#         logging purposes. Can be null. reference: string, can be
+#             anything you like, used for identification, grouping
+#         purposes. save: bool, if True then save the new object
+#             immediately, can be overridden to False to prevent logging
+#         absolutely everything. Defaults to True
 
-    """
-    start = time.time()
-    response = CountResponse(get_client().count(index=index, query=query))
-    duration = time.time() - start
-    search_query = SearchQuery(
-        user=user,
-        search_terms=search_terms,
-        index=index,
-        query=query,
-        query_type=SearchQuery.QueryType.COUNT,
-        hits=[],
-        aggregations={},
-        total_hits=response.count,
-        total_hits_relation=SearchQuery.TotalHitsRelation.ACCURATE,
-        reference=reference or "",
-        executed_at=tz_now(),
-        duration=duration,
-    )
-    search_query.response = response.raw
-    return search_query.save() if save else search_query
+#     """
+#     start = time.time()
+#     response = SearchResponse(get_client().search(index=index, query=query))
+#     hits = response.hits
+#     total_hits = response.total_hits
+#     total_hits_relation = response.total_hits_relation
+#     aggregations = response.aggregations
+#     duration = time.time() - start
+#     search_query = SearchQuery(
+#         user=user,
+#         search_terms=search_terms,
+#         index=index,
+#         query=query,
+#         query_type=SearchQuery.QueryType.SEARCH,
+#         hits=hits,
+#         aggregations=aggregations,
+#         total_hits=total_hits,
+#         total_hits_relation=total_hits_relation,
+#         reference=reference or "",
+#         executed_at=tz_now(),
+#         duration=duration,
+#     )
+#     search_query.response = response.raw
+#     return search_query.save() if save else search_query
+
+
+# def execute_count(
+#     *,
+#     index: str | list[str],
+#     query: dict,
+#     search_terms: str = "",
+#     user: AbstractBaseUser | None = None,
+#     reference: str | None = "",
+#     save: bool = True,
+# ) -> SearchQuery:
+#     """
+#     Run a "count" against ES and store the results.
+
+#     Args:
+#
+#         search: elasticsearch.search.Search object, that internally
+#             contains the connection and query; this is the query that is
+#             executed. All we are doing is logging the input and
+#             parsing the output.
+
+#         search_terms: raw end user search terms input - what they
+#             typed into the search box.
+
+#         user: Django User object, the person making the query - used
+#             for logging purposes. Can be null.
+
+#         reference: string, can be anything you like, used for
+#             identification, grouping purposes.
+
+#         save: bool, if True then save the new object immediately, can
+#             be overridden to False to prevent logging absolutely
+#             everything. Defaults to True
+
+#     """
+#     start = time.time()
+#     response = CountResponse(get_client().count(index=index, query=query))
+#     duration = time.time() - start
+#     search_query = SearchQuery(
+#         user=user,
+#         search_terms=search_terms,
+#         index=index,
+#         query=query,
+#         query_type=SearchQuery.QueryType.COUNT,
+#         hits=[],
+#         aggregations={},
+#         total_hits=response.count,
+#         total_hits_relation=SearchQuery.TotalHitsRelation.ACCURATE,
+#         reference=reference or "",
+#         executed_at=tz_now(),
+#         duration=duration,
+#     )
+#     search_query.response = response.raw
+#     return search_query.save() if save else search_query

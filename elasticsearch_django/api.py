@@ -4,6 +4,7 @@ import datetime
 from typing import Any, TypeAlias, cast
 
 from django.conf import settings
+from elastic_transport import ObjectApiResponse
 from elasticsearch import Elasticsearch
 
 from .context_manager import stopwatch
@@ -27,7 +28,7 @@ class BaseOperation:
         self,
         index: str | list[str],
         query: dict,
-        response: dict,
+        response: ObjectApiResponse,
         duration: float = 0.0,
         executed_at: datetime.datetime | None = None,
     ) -> None:
@@ -69,7 +70,7 @@ class BaseOperation:
         query: dict,
         client: Elasticsearch = DEFAULT_CLIENT,
         **kwargs: Any,
-    ) -> dict:
+    ) -> ObjectApiResponse:
         raise NotImplementedError
 
     @classmethod
@@ -125,7 +126,7 @@ class Search(BaseOperation):
         self,
         index: str | list[str],
         query: dict,
-        response: dict,
+        response: ObjectApiResponse,
         duration: float = 0.0,
         executed_at: datetime.datetime | None = None,
     ) -> None:
@@ -172,7 +173,7 @@ class Search(BaseOperation):
         query: dict,
         client: Elasticsearch = DEFAULT_CLIENT,
         **kwargs: Any,
-    ) -> dict:
+    ) -> ObjectApiResponse:
         kwargs.setdefault("from_", DEFAULT_FROM)
         kwargs.setdefault("size", DEFAULT_PAGE_SIZE)
         return client.search(index=index, query=query, **kwargs)
@@ -214,5 +215,5 @@ class Count(BaseOperation):
         query: dict,
         client: Elasticsearch = DEFAULT_CLIENT,
         **kwargs: Any,
-    ) -> dict:
+    ) -> ObjectApiResponse:
         return client.count(index=index, query=query, **kwargs)
