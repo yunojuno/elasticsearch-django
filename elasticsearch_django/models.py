@@ -741,14 +741,17 @@ class SearchResponseParser:
 
     @property
     def hits(self) -> list[dict]:
-        return [
-            {
-                "id": h["_id"],
-                "index": h["_index"],
-                "score": h["_score"],
+        def _hit(hit: dict) -> dict:
+            retval = {
+                "id": hit["_id"],
+                "index": hit["_index"],
+                "score": hit["_score"],
             }
-            for h in self.raw_hits
-        ]
+            if highlight := hit.get("highlight"):
+                retval["highlight"] = highlight
+            return retval
+
+        return [_hit(h) for h in self.raw_hits]
 
     @property
     def total(self) -> dict:
