@@ -24,6 +24,8 @@ SearchHitMetaType: TypeAlias = dict[str, str | float]
 class BaseOperation:
     """Base class used to execute and log search queries."""
 
+    query_type: Any = ""
+
     def __init__(
         self,
         index: str | list[str],
@@ -40,27 +42,23 @@ class BaseOperation:
 
     @property
     def hits(self) -> list[SearchHitMetaType]:
-        raise NotImplementedError
+        return []
 
     @property
     def aggregations(self) -> dict:
-        raise NotImplementedError
+        return {}
 
     @property
     def max_score(self) -> float:
-        raise NotImplementedError
+        return 0.0
 
     @property
     def total_hits(self) -> int:
-        raise NotImplementedError
+        return 0
 
     @property
     def total_hits_relation(self) -> str:
-        raise NotImplementedError
-
-    @property
-    def query_type(self) -> str:
-        raise NotImplementedError
+        return ""
 
     @classmethod
     def do_execute(
@@ -122,6 +120,8 @@ class Search(BaseOperation):
 
     """
 
+    query_type = SearchQuery.QueryType.SEARCH
+
     def __init__(
         self,
         index: str | list[str],
@@ -161,10 +161,6 @@ class Search(BaseOperation):
     def total_hits_relation(self) -> str:
         return self._total.get("relation", "")
 
-    @property
-    def query_type(self) -> str:
-        return str(SearchQuery.QueryType.SEARCH)
-
     @classmethod
     def do_execute(
         cls,
@@ -187,13 +183,7 @@ class Count(BaseOperation):
 
     """
 
-    @property
-    def hits(self) -> list[SearchHitMetaType]:
-        return []
-
-    @property
-    def aggregations(self) -> dict:
-        return {}
+    query_type = SearchQuery.QueryType.COUNT
 
     @property
     def total_hits(self) -> int:
@@ -202,10 +192,6 @@ class Count(BaseOperation):
     @property
     def total_hits_relation(self) -> str:
         return str(SearchQuery.TotalHitsRelation.ACCURATE)
-
-    @property
-    def query_type(self) -> str:
-        return str(SearchQuery.QueryType.COUNT)
 
     @classmethod
     def do_execute(

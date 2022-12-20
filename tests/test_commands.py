@@ -51,7 +51,7 @@ class NamedCommandTests:
         retval = cmd.do_index_command(
             "foo", interactive=False
         )  # True would hang the tests
-        assert retval == mock_delete.return_value
+        assert retval == mock_delete.return_value.body
         mock_delete.assert_called_once_with("foo")
         mock_delete.reset_mock()
 
@@ -100,8 +100,8 @@ class NamedCommandTests:
         mock_delete.assert_called_once_with("foo")
         mock_create.assert_called_once_with("foo")
         mock_update.assert_called_once_with("foo")
-        assert result["delete"] == mock_delete.return_value
-        assert result["create"] == mock_create.return_value
+        assert result["delete"] == mock_delete.return_value.body
+        assert result["create"] == mock_create.return_value.body
         assert result["update"] == mock_update.return_value
         # check that the delete is handled if the index does not exist
         mock_delete.side_effect = TransportError("Index not found")
