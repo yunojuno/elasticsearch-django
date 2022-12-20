@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Union, cast
+from typing import Any, cast
 
 from django.conf import settings
 from django.core.cache import cache
@@ -11,7 +11,9 @@ from django.db.models import Case, Value, When
 from django.db.models.query import QuerySet
 from django.utils.translation import gettext_lazy as _lazy
 from elastic_transport import ObjectApiResponse
+from elasticsearch import Elasticsearch
 
+from .context_managers import stopwatch
 from .settings import (
     get_client,
     get_model_index_properties,
@@ -25,9 +27,10 @@ UPDATE_STRATEGY_FULL = "full"
 UPDATE_STRATEGY_PARTIAL = "partial"
 UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
 
-
-# Strongly-type the meta object we return from search
-SearchHitMetaType = dict[str, Union[str, float]]
+DEFAULT_CLIENT: Elasticsearch = get_client()
+DEFAULT_SEARCH_QUERY: dict = {"match_all": {}}
+DEFAULT_FROM: int = 0
+DEFAULT_PAGE_SIZE = cast(int, get_setting("page_size"))
 
 
 class SearchResultsQuerySet(QuerySet):
@@ -499,6 +502,8 @@ class SearchQuery(models.Model):
         help_text=_lazy(
             "The list of meta info for each of the query matches returned."
         ),
+        blank=True,
+        null=True,
         encoder=DjangoJSONEncoder,
     )
     total_hits = models.IntegerField(
@@ -519,7 +524,9 @@ class SearchQuery(models.Model):
     aggregations = models.JSONField(
         help_text=_lazy("The raw aggregations returned from the query."),
         encoder=DjangoJSONEncoder,
-        default=dict,
+        default=None,
+        blank=True,
+        null=True,
     )
     reference = models.CharField(
         max_length=100,
@@ -551,10 +558,13 @@ class SearchQuery(models.Model):
         )
 
     def save(self, *args: Any, **kwargs: Any) -> SearchQuery:
-        """Save and return the object (for chaining)."""
-        if self.search_terms is None:
-            self.search_terms = ""
-        super().save(**kwargs)
+        if user := kwargs.pop("user", None):
+            self.user = user
+        if reference := kwargs.pop("reference", ""):
+            self.reference = reference
+        if search_terms := kwargs.pop("search_terms", ""):
+            self.search_terms = search_terms
+        super().save(*args, **kwargs)
         return self
 
     def _hit_values(self, property_name: str) -> list[str | float]:
@@ -663,155 +673,102 @@ class SearchQuery(models.Model):
         """Return specific document highlights."""
         return self.get_hit(str(doc_id)).get("highlight")
 
+    @classmethod
+    def do_search(
+        self,
+        index: str,
+        query: dict,
+        client: Elasticsearch = DEFAULT_CLIENT,
+        **search_kwargs: Any,
+    ) -> SearchQuery:
+        """Perform a search query and parse the response."""
+        search_kwargs.setdefault("from_", DEFAULT_FROM)
+        search_kwargs.setdefault("size", DEFAULT_PAGE_SIZE)
+        with stopwatch() as timer:
+            response = client.search(index=index, query=query, **search_kwargs)
+        parser = SearchResponseParser(response)
+        return SearchQuery(
+            index=index,
+            query=query,
+            query_type=SearchQuery.QueryType.SEARCH,
+            hits=parser.hits,
+            aggregations=parser.aggregations,
+            total_hits=parser.total_hits,
+            total_hits_relation=parser.total_hits_relation,
+            executed_at=timer.started_at,
+            duration=timer.elapsed,
+        )
 
-# class SearchResponse:
-#     """Parse search response to make it easier to work with."""
-
-#     def __init__(self, response: dict) -> None:
-#         self.raw = response
-#         self._hits = response.get("hits", {})
-#         self._total = self._hits.get("total", {})
-
-#     @property
-#     def hits(self) -> list[SearchHitMetaType]:
-#         """Return list of id, index, score dict for each hit returned."""
-#         return [
-#             {
-#                 "index": hit["_index"],
-#                 "id": hit["_id"],
-#                 "score": hit["_score"],
-#             }
-#             for hit in self._hits.get("hits", {})
-#         ]
-
-#     @property
-#     def aggregations(self) -> dict:
-#         """Return raw aggregations from the response."""
-#         return self.raw.get("aggregations", {})
-
-#     @property
-#     def max_score(self) -> float:
-#         return self._hits.get("max_score", 0.0)
-
-#     @property
-#     def total_hits(self) -> int:
-#         return self._total.get("value", 0)
-
-#     @property
-#     def total_hits_relation(self) -> str:
-#         return self._total.get("relation", "")
-
-
-# class CountResponse:
-#     """Parse count response to make it easier to work with."""
-
-#     def __init__(self, response: dict) -> None:
-#         self.raw = response
-
-#     @property
-#     def count(self) -> int:
-#         return self.raw.get("count", 0)
-
-
-# def execute_search(
-#     *,
-#     index: str | list[str],
-#     query: dict,
-#     search_terms: str = "",
-#     user: AbstractBaseUser | None = None,
-#     reference: str | None = "",
-#     save: bool = True,
-# ) -> SearchQuery:
-#     """
-#     Create a new SearchQuery instance and execute a search against ES.
-
-#     Args: search: elasticsearch.search.Search object, that internally
-#         contains the connection and query; this is the query that is
-#             executed. All we are doing is logging the input and
-#             parsing the output. search_terms: raw end user search
-#         terms input - what they typed into the search box. user:
-#             Django User object, the person making the query - used for
-#         logging purposes. Can be null. reference: string, can be
-#             anything you like, used for identification, grouping
-#         purposes. save: bool, if True then save the new object
-#             immediately, can be overridden to False to prevent logging
-#         absolutely everything. Defaults to True
-
-#     """
-#     start = time.time()
-#     response = SearchResponse(get_client().search(index=index, query=query))
-#     hits = response.hits
-#     total_hits = response.total_hits
-#     total_hits_relation = response.total_hits_relation
-#     aggregations = response.aggregations
-#     duration = time.time() - start
-#     search_query = SearchQuery(
-#         user=user,
-#         search_terms=search_terms,
-#         index=index,
-#         query=query,
-#         query_type=SearchQuery.QueryType.SEARCH,
-#         hits=hits,
-#         aggregations=aggregations,
-#         total_hits=total_hits,
-#         total_hits_relation=total_hits_relation,
-#         reference=reference or "",
-#         executed_at=tz_now(),
-#         duration=duration,
-#     )
-#     search_query.response = response.raw
-#     return search_query.save() if save else search_query
+    @classmethod
+    def do_count(
+        self,
+        index: str,
+        query: dict,
+        client: Elasticsearch = DEFAULT_CLIENT,
+        **count_kwargs: Any,
+    ) -> SearchQuery:
+        """Perform a count query and parse the response."""
+        with stopwatch() as timer:
+            response = client.count(index=index, query=query, **count_kwargs)
+        parser = CountResponseParser(response)
+        return SearchQuery(
+            index=index,
+            query=query,
+            query_type=SearchQuery.QueryType.COUNT,
+            # hits=[],
+            # aggregations={},
+            total_hits=parser.total_hits,
+            total_hits_relation=parser.total_hits_relation,
+            executed_at=timer.started_at,
+            duration=timer.elapsed,
+        )
 
 
-# def execute_count(
-#     *,
-#     index: str | list[str],
-#     query: dict,
-#     search_terms: str = "",
-#     user: AbstractBaseUser | None = None,
-#     reference: str | None = "",
-#     save: bool = True,
-# ) -> SearchQuery:
-#     """
-#     Run a "count" against ES and store the results.
+class SearchResponseParser:
+    def __init__(self, response: ObjectApiResponse) -> None:
+        self.body = response.body
+        self._hits = self.body.get("hits", {})
 
-#     Args:
-#
-#         search: elasticsearch.search.Search object, that internally
-#             contains the connection and query; this is the query that is
-#             executed. All we are doing is logging the input and
-#             parsing the output.
+    @property
+    def raw_hits(self) -> list[dict]:
+        return self._hits.get("hits", {})
 
-#         search_terms: raw end user search terms input - what they
-#             typed into the search box.
+    @property
+    def hits(self) -> list[dict]:
+        return [
+            {
+                "id": h["_id"],
+                "index": h["_index"],
+                "score": h["_score"],
+            }
+            for h in self.raw_hits
+        ]
 
-#         user: Django User object, the person making the query - used
-#             for logging purposes. Can be null.
+    @property
+    def total(self) -> dict:
+        return self._hits.get("total", {})
 
-#         reference: string, can be anything you like, used for
-#             identification, grouping purposes.
+    @property
+    def total_hits(self) -> int:
+        return self.total.get("value", 0)
 
-#         save: bool, if True then save the new object immediately, can
-#             be overridden to False to prevent logging absolutely
-#             everything. Defaults to True
+    @property
+    def total_hits_relation(self) -> str:
+        return self.total.get("relation", "")
 
-#     """
-#     start = time.time()
-#     response = CountResponse(get_client().count(index=index, query=query))
-#     duration = time.time() - start
-#     search_query = SearchQuery(
-#         user=user,
-#         search_terms=search_terms,
-#         index=index,
-#         query=query,
-#         query_type=SearchQuery.QueryType.COUNT,
-#         hits=[],
-#         aggregations={},
-#         total_hits=response.count,
-#         total_hits_relation=SearchQuery.TotalHitsRelation.ACCURATE,
-#         reference=reference or "",
-#         executed_at=tz_now(),
-#         duration=duration,
-#     )
-#     search_query.response = response.raw
-#     return search_query.save() if save else search_query
+    @property
+    def aggregations(self) -> dict:
+        return self.body.get("aggregations", {})
+
+
+class CountResponseParser:
+    def __init__(self, response: ObjectApiResponse) -> None:
+        self.body = response.body
+
+    @property
+    def total_hits(self) -> int:
+        return self.body.get("count", 0)
+
+    @property
+    def total_hits_relation(self) -> str:
+        return str(SearchQuery.TotalHitsRelation.ACCURATE)
