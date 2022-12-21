@@ -683,7 +683,11 @@ class SearchQuery(models.Model):
         **search_kwargs: Any,
     ) -> SearchQuery:
         """Perform a search query and parse the response."""
-        search_kwargs.setdefault("from_", DEFAULT_FROM)
+        # if "from" has been passed in we need to convert it to "from_"
+        # for the search method, ensuring that we don't overwrite
+        # "from_" if it's been passed in correctly.
+        from_ = search_kwargs.pop("from", DEFAULT_FROM)
+        search_kwargs.setdefault("from_", from_)
         search_kwargs.setdefault("size", DEFAULT_PAGE_SIZE)
         with stopwatch() as timer:
             response = client.search(index=index, query=query, **search_kwargs)
@@ -693,6 +697,9 @@ class SearchQuery(models.Model):
         # etc.
         raw_query = {"query": copy.deepcopy(query)}
         raw_query.update(**search_kwargs)
+        # now we need to replace "from_" with "from" for the stored
+        # JSON as this is what gets sent over the wire.
+        raw_query["from"] = raw_query.pop("from_")
         return SearchQuery(
             index=index,
             query=raw_query,
