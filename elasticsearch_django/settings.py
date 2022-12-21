@@ -88,7 +88,7 @@ def get_model_index_properties(instance: Model, index: str) -> list[str]:
 
 def get_index_models(index: str) -> list[Model]:
     """Return list of models configured for a named index."""
-    models = []  # type: List[Model]
+    models: list[Model] = []
     for app_model in get_index_config(index).get("models"):
         app, model = app_model.split(".")
         models.append(apps.get_model(app, model))
@@ -108,7 +108,7 @@ def get_model_indexes(model: Model) -> list[str]:
         model: a Django model class.
 
     """
-    indexes = []  # type: List[str]
+    indexes: list[str] = []
     for index in get_index_names():
         for app_model in get_index_models(index):
             if app_model == model:

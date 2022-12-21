@@ -10,6 +10,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Case, Value, When
 from django.db.models.query import QuerySet
+from django.utils.functional import SimpleLazyObject
 from django.utils.translation import gettext_lazy as _lazy
 from elastic_transport import ObjectApiResponse
 from elasticsearch import Elasticsearch
@@ -28,8 +29,7 @@ UPDATE_STRATEGY_FULL = "full"
 UPDATE_STRATEGY_PARTIAL = "partial"
 UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
 
-DEFAULT_CLIENT: Elasticsearch = get_client()
-DEFAULT_SEARCH_QUERY: dict = {"match_all": {}}
+DEFAULT_CLIENT: Elasticsearch = SimpleLazyObject(get_client)
 DEFAULT_FROM: int = 0
 DEFAULT_PAGE_SIZE = cast(int, get_setting("page_size"))
 
