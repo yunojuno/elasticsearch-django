@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             name="aggregations",
             field=models.JSONField(
                 blank=True,
-                default=dict,
+                default=None,
                 encoder=django.core.serializers.json.DjangoJSONEncoder,
                 help_text="The raw aggregations returned from the query.",
                 null=True,
