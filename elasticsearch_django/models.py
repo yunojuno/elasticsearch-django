@@ -1,19 +1,21 @@
 from __future__ import annotations
 
+import copy
 import logging
-import time
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 from django.conf import settings
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
-from django.db.models import Case, When
+from django.db.models import Case, Value, When
 from django.db.models.query import QuerySet
-from django.utils.timezone import now as tz_now
+from django.utils.functional import SimpleLazyObject
 from django.utils.translation import gettext_lazy as _lazy
-from elasticsearch_dsl import Search
+from elastic_transport import ObjectApiResponse
+from elasticsearch import Elasticsearch
 
+from .context_managers import stopwatch
 from .settings import (
     get_client,
     get_model_index_properties,
@@ -21,14 +23,111 @@ from .settings import (
     get_setting,
 )
 
-if TYPE_CHECKING:
-    from django.contrib.auth.models import AbstractBaseUser
-
 logger = logging.getLogger(__name__)
 
 UPDATE_STRATEGY_FULL = "full"
 UPDATE_STRATEGY_PARTIAL = "partial"
 UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
+
+DEFAULT_CLIENT: Elasticsearch = SimpleLazyObject(get_client)
+DEFAULT_FROM: int = 0
+DEFAULT_PAGE_SIZE = cast(int, get_setting("page_size"))
+
+
+class SearchResultsQuerySet(QuerySet):
+    """
+    QuerySet mixin that adds annotations from search results.
+
+    This class is designed to be used as a QuerySet mixin for models that can
+    be mapped on to a set of search results, but that are not the source models.
+
+    As an example, if you have a Profile model and a ProfileSearchDocument model
+    that is a 1:1 relationship, with the ProfileSearchDocument configured to be
+    the index source, then this class can be used to map the results from the
+    search result id back to the Profile.
+
+
+        class ProfileQuerySet(SearchDocumentQuerySet):
+            pass
+
+
+        class Profile(Model):
+            pass
+
+
+        class ProfileSearchDocument(SearchDocumentMixing, Model):
+            profile = OneToOne(Profile)
+
+            def get_search_document_id(self):
+                return self.profile.pk
+
+
+        >>> search_query = execute_search(...)
+        >>> profiles = (
+                Profile.objects.all()
+                .filter_search_results(search_query)
+                .add_search_annotations(search_query)
+                .add_search_highlights(search_query)
+            )
+        ...
+        [<Profile>, <Profile>]
+        >>> profiles[0].search_rank
+        1
+        >>> profiles[0].search_score
+        3.12345
+        >>> profiles[0].search_highlights
+        {
+            "resume": ["foo"]
+        }
+
+    """
+
+    # the field used to map objects to search document id
+    search_document_id_field = "pk"
+
+    def filter_search_results(self, search_query: SearchQuery) -> SearchResultsQuerySet:
+        """Filter queryset on PK field to match search query hits."""
+        return self.filter(
+            **{f"{self.search_document_id_field}__in": search_query.object_ids}
+        )
+
+    def add_search_rank(self, search_query: SearchQuery) -> SearchResultsQuerySet:
+        """Add search_rank annotation to queryset."""
+        if search_rank_annotation := search_query.search_rank_annotation(
+            self.search_document_id_field
+        ):
+            return self.annotate(search_rank=search_rank_annotation)
+        return self.annotate(search_rank=Value(1))
+
+    def add_search_score(self, search_query: SearchQuery) -> SearchResultsQuerySet:
+        """Add search_score annotation to queryset."""
+        if search_score_annotation := search_query.search_score_annotation(
+            self.search_document_id_field
+        ):
+            return self.annotate(search_score=search_score_annotation)
+        return self.annotate(search_score=Value(1.0))
+
+    def add_search_annotations(
+        self, search_query: SearchQuery
+    ) -> SearchResultsQuerySet:
+        """Add search_rank and search_score annotations to queryset."""
+        return self.add_search_rank(search_query).add_search_score(search_query)
+
+    def add_search_highlights(self, search_query: SearchQuery) -> list:
+        """Add search_highlights attr. to each object in the queryset (evaluates QS)."""
+        obj_list = list(self)
+        if not search_query.has_highlights:
+            return obj_list
+
+        for obj in obj_list:
+            pk = getattr(obj, self.search_document_id_field)
+            obj.search_highlights = search_query.get_doc_highlights(pk)
+        return obj_list
+
+    def from_search_results(self, search_query: SearchQuery) -> SearchResultsQuerySet:
+        qs = self.filter_search_results(search_query)
+        qs = qs.add_search_annotations(search_query)
+        return qs.order_by("search_rank")
 
 
 class SearchDocumentManagerMixin(models.Manager):
@@ -84,55 +183,6 @@ class SearchDocumentManagerMixin(models.Manager):
         """
         return self.get_search_queryset(index=index).filter(pk=instance_pk).exists()
 
-    def from_search_query(self, search_query: SearchQuery) -> QuerySet:
-        """
-        Return search results as model queryset in search ranking order.
-
-        This method uses the Case .. When .. Then .. End SQL expression
-        to annotate a queryset of model instances that map to the
-        documents in the SearchQuery.hits collection. Doing this in SQL
-        means that we can order the output using the search score which
-        may not map onto any known object property.
-
-        If the SearchQuery has highlighting in the query then we then
-        iterate through the queryset and add these - this is more
-        complex to do in SQL as the highlights are python dicts, and the
-        combination of python and SQL is hard when going via the ORM.
-
-        NB The performance of this function is directly related to the
-        number of search results returned - if you are returning very
-        large pages this may not run quickly. You have been warned.
-
-        """
-        if not search_query.hits:
-            return self.get_queryset().none()
-        case_when_rank = []
-        case_when_score = []
-        # build up a list of When clauses - one per object in search
-        # results. The rank is just the position in the list (1-based).
-        for rank, hit in enumerate(search_query.hits, start=1):
-            # if custom sorting has been applied, score is null
-            score = None if hit["score"] is None else float(hit["score"])
-            case_when_rank.append(When(pk=hit["id"], then=rank))
-            case_when_score.append(When(pk=hit["id"], then=score))
-
-        # Fetch the matching objects from the database and annotate
-        # with the rank and score from above, ordering by the rank.
-        qs = (
-            self.get_queryset()
-            .filter(id__in=search_query.object_ids)
-            .annotate(search_rank=Case(*case_when_rank))
-            .annotate(search_score=Case(*case_when_score))
-            .order_by("search_rank")
-        )
-
-        if search_query.has_highlights:
-            # NB this iteration will evaluate the qs.
-            for obj in qs:
-                obj.search_highlights = search_query.get_doc_highlights(obj.id)
-
-        return qs
-
 
 class SearchDocumentMixin:
     """
@@ -145,6 +195,15 @@ class SearchDocumentMixin:
     """
 
     @property
+    def _model_meta(self) -> Any:
+        if not (meta := getattr(self, "_meta")):
+            raise ValueError(
+                "SearchDocumentMixin missing _meta attr - "
+                "have you forgotten to subclass models.Model?"
+            )
+        return meta
+
+    @property
     def search_indexes(self) -> list[str]:
         """Return the list of indexes for which this model is configured."""
         return get_model_indexes(self.__class__)
@@ -153,13 +212,10 @@ class SearchDocumentMixin:
     def search_document_cache_key(self) -> str:
         """Key used for storing search docs in local cache."""
         return "elasticsearch_django:{}.{}.{}".format(
-            self._meta.app_label, self._meta.model_name, self.pk  # type: ignore
+            self._model_meta.app_label,
+            self._model_meta.model_name,
+            self.get_search_document_id(),
         )
-
-    @property
-    def search_doc_type(self) -> str:
-        """Return the doc_type used for the model."""
-        raise DeprecationWarning("Mapping types have been removed from ES7.x")
 
     def as_search_document(self, *, index: str) -> dict:
         """
@@ -185,15 +241,23 @@ class SearchDocumentMixin:
             )
         )
 
+    def get_search_document_id(self) -> str:
+        """
+        Return the value to be used as the search document id.
+
+        This value defaults to the object pk value - which is cast to a
+        str value as that is what ES uses.
+
+        It can be overridden in subclasses if you want to use a different
+        value.
+
+        """
+        return str(getattr(self, "pk"))
+
     @property
     def _related_fields(self) -> list[str]:
         """Return the list of fields that are relations and not serializable."""
-        if meta := getattr(self, "_meta", None):
-            return [f.name for f in meta.get_fields() if f.is_relation]
-        raise ValueError(
-            "SearchDocumentMixin missing _meta attr - "
-            "have you forgotten to subclass models.Model?"
-        )
+        return [f.name for f in self._model_meta.get_fields() if f.is_relation]
 
     def clean_update_fields(self, index: str, update_fields: list[str]) -> list[str]:
         """
@@ -299,10 +363,10 @@ class SearchDocumentMixin:
         if action not in ("index", "update", "delete"):
             raise ValueError("Action must be 'index', 'update' or 'delete'.")
 
-        document = {
+        document: dict[str, str | dict] = {
             "_index": index,
             "_op_type": action,
-            "_id": self.pk,  # type: ignore
+            "_id": self.get_search_document_id(),
         }
 
         if action == "index":
@@ -311,12 +375,11 @@ class SearchDocumentMixin:
             document["doc"] = self.as_search_document(index=index)
         return document
 
-    def fetch_search_document(self, *, index: str) -> dict:
+    def fetch_search_document(self, *, index: str) -> ObjectApiResponse:
         """Fetch the object's document from a search index by id."""
         if not self.pk:  # type: ignore
             raise ValueError("Object must have a primary key before being indexed.")
-        client = get_client()
-        return client.get(index=index, id=self.pk)  # type: ignore
+        return get_client().get(index=index, id=self.get_search_document_id())
 
     def index_search_document(self, *, index: str) -> None:
         """
@@ -335,7 +398,11 @@ class SearchDocumentMixin:
             logger.debug("Search document for %r is unchanged, ignoring update.", self)
             return
         cache.set(cache_key, new_doc, timeout=get_setting("cache_expiry", 60))
-        get_client().index(index=index, body=new_doc, id=self.pk)  # type: ignore
+        _ = get_client().index(
+            index=index,
+            document=new_doc,
+            id=self.get_search_document_id(),
+        )
 
     def update_search_document(self, *, index: str, update_fields: list[str]) -> None:
         """
@@ -362,17 +429,17 @@ class SearchDocumentMixin:
             logger.debug("Ignoring object update as document is empty.")
             return
         retry_on_conflict = cast(int, get_setting("retry_on_conflict", 0))
-        get_client().update(
+        _ = get_client().update(
             index=index,
-            id=self.pk,  # type: ignore
-            body={"doc": doc},
+            id=self.get_search_document_id(),
+            doc=doc,
             retry_on_conflict=retry_on_conflict,
         )
 
     def delete_search_document(self, *, index: str) -> None:
         """Delete document from named index."""
         cache.delete(self.search_document_cache_key)
-        get_client().delete(index=index, id=self.pk)  # type: ignore
+        _ = get_client().delete(index=index, id=self.get_search_document_id())
 
 
 class SearchQuery(models.Model):
@@ -383,10 +450,6 @@ class SearchQuery(models.Model):
     searches, and to track how a user filtered and searched.
     This model can be used to store a search query and meta
     information about the results (document type, id and score).
-
-    >>> from elasticsearch_dsl import Search
-    >>> search = Search(using=client)
-    >>> sq = SearchQuery.execute(search).save()
 
     """
 
@@ -440,6 +503,8 @@ class SearchQuery(models.Model):
         help_text=_lazy(
             "The list of meta info for each of the query matches returned."
         ),
+        blank=True,
+        null=True,
         encoder=DjangoJSONEncoder,
     )
     total_hits = models.IntegerField(
@@ -460,7 +525,9 @@ class SearchQuery(models.Model):
     aggregations = models.JSONField(
         help_text=_lazy("The raw aggregations returned from the query."),
         encoder=DjangoJSONEncoder,
-        default=dict,
+        default=None,
+        blank=True,
+        null=True,
     )
     reference = models.CharField(
         max_length=100,
@@ -492,34 +559,37 @@ class SearchQuery(models.Model):
         )
 
     def save(self, *args: Any, **kwargs: Any) -> SearchQuery:
-        """Save and return the object (for chaining)."""
-        if self.search_terms is None:
-            self.search_terms = ""
-        super().save(**kwargs)
+        if user := kwargs.pop("user", None):
+            self.user = user
+        if reference := kwargs.pop("reference", ""):
+            self.reference = reference
+        if search_terms := kwargs.pop("search_terms", ""):
+            self.search_terms = search_terms
+        super().save(*args, **kwargs)
         return self
 
-    def _extract_set(self, _property: str) -> list[str | int]:
-        return [] if self.hits is None else (list({h[_property] for h in self.hits}))
+    def _hit_values(self, property_name: str) -> list[str | float]:
+        """Extract list of property values from each hit in search results."""
+        return [] if self.hits is None else [h[property_name] for h in self.hits]
 
     @property
-    def doc_types(self) -> list[str]:
-        """List of doc_types extracted from hits."""
-        raise DeprecationWarning("Mapping types have been removed from ES7.x")
-
-    @property
-    def max_score(self) -> int:
+    def max_score(self) -> float:
         """Max relevance score in the returned page."""
-        return int(max(self._extract_set("score") or [0]))
+        if self.hits:
+            return float(max(self._hit_values("score")))
+        return 0.0
 
     @property
-    def min_score(self) -> int:
+    def min_score(self) -> float:
         """Min relevance score in the returned page."""
-        return int(min(self._extract_set("score") or [0]))
+        if self.hits:
+            return float(min(self._hit_values("score")))
+        return 0.0
 
     @property
-    def object_ids(self) -> list[int]:
+    def object_ids(self) -> list[str]:
         """List of model ids extracted from hits."""
-        return [int(x) for x in self._extract_set("id")]
+        return self._hit_values("id")  # type: ignore
 
     @property
     def page_slice(self) -> tuple[int, int] | None:
@@ -561,7 +631,27 @@ class SearchQuery(models.Model):
             raise ValueError("Missing query attribute.")
         return "highlight" in self.query
 
-    def get_hit(self, doc_id: int | str) -> dict:
+    def search_rank_annotation(self, pk_field_name: str = "pk") -> Case | None:
+        """Return SQL CASE statement used to annotate results with rank."""
+        if not self.hits:
+            return None
+        case_when_rank = []
+        for rank, hit in enumerate(self.hits, start=1):
+            case_when_rank.append(When(**{pk_field_name: hit["id"]}, then=rank))
+        return Case(*case_when_rank)
+
+    def search_score_annotation(self, pk_field_name: str = "pk") -> Case | None:
+        """Return SQL CASE statement used to annotate results with score."""
+        if not self.hits:
+            return None
+        case_when_score = []
+        for hit in self.hits:
+            # if custom sorting has been applied, score is null
+            score = None if hit["score"] is None else float(hit["score"])
+            case_when_score.append(When(**{pk_field_name: hit["id"]}, then=score))
+        return Case(*case_when_score)
+
+    def get_hit(self, doc_id: str) -> dict:
         """
         Return the hit with a give document id.
 
@@ -572,112 +662,129 @@ class SearchQuery(models.Model):
             return hit[0]
         raise KeyError("Document id not found in search results.")
 
-    def get_doc_rank(self, doc_id: int | str) -> int:
+    def get_doc_rank(self, doc_id: str) -> int:
         """Return the position of a document in the results."""
-        return [x for x in self._extract_set("id")].index(str(doc_id))
+        return self.object_ids.index(str(doc_id))
 
-    def get_doc_score(self, doc_id: int | str) -> float:
+    def get_doc_score(self, doc_id: str) -> float:
         """Return specific document score."""
-        return self.get_hit(doc_id)["score"]
+        return self.get_hit(str(doc_id))["score"]
 
-    def get_doc_highlights(self, doc_id: int | str) -> dict | None:
+    def get_doc_highlights(self, doc_id: str) -> dict | None:
         """Return specific document highlights."""
-        return self.get_hit(doc_id).get("highlight")
+        return self.get_hit(str(doc_id)).get("highlight")
+
+    @classmethod
+    def do_search(
+        self,
+        index: str,
+        query: dict,
+        client: Elasticsearch = DEFAULT_CLIENT,
+        **search_kwargs: Any,
+    ) -> SearchQuery:
+        """Perform a search query and parse the response."""
+        # if "from" has been passed in we need to convert it to "from_"
+        # for the search method, ensuring that we don't overwrite
+        # "from_" if it's been passed in correctly.
+        from_ = search_kwargs.pop("from", DEFAULT_FROM)
+        search_kwargs.setdefault("from_", from_)
+        search_kwargs.setdefault("size", DEFAULT_PAGE_SIZE)
+        with stopwatch() as timer:
+            response = client.search(index=index, query=query, **search_kwargs)
+        parser = SearchResponseParser(response)
+        # HACK: we want the "query" that we store to be the raw wire query, which
+        # is a dict that contains query, aggs, highlights, from_, size, min_score,
+        # etc.
+        raw_query = {"query": copy.deepcopy(query)}
+        raw_query.update(**search_kwargs)
+        # now we need to replace "from_" with "from" for the stored
+        # JSON as this is what gets sent over the wire.
+        raw_query["from"] = raw_query.pop("from_")
+        return SearchQuery(
+            index=index,
+            query=raw_query,
+            query_type=SearchQuery.QueryType.SEARCH,
+            hits=parser.hits,
+            aggregations=parser.aggregations,
+            total_hits=parser.total_hits,
+            total_hits_relation=parser.total_hits_relation,
+            executed_at=timer.started_at,
+            duration=timer.elapsed,
+        )
+
+    @classmethod
+    def do_count(
+        self,
+        index: str,
+        query: dict,
+        client: Elasticsearch = DEFAULT_CLIENT,
+        **count_kwargs: Any,
+    ) -> SearchQuery:
+        """Perform a count query and parse the response."""
+        with stopwatch() as timer:
+            response = client.count(index=index, query=query, **count_kwargs)
+        parser = CountResponseParser(response)
+        return SearchQuery(
+            index=index,
+            query=query,
+            query_type=SearchQuery.QueryType.COUNT,
+            # hits=[],
+            # aggregations={},
+            total_hits=parser.total_hits,
+            total_hits_relation=parser.total_hits_relation,
+            executed_at=timer.started_at,
+            duration=timer.elapsed,
+        )
 
 
-def execute_search(
-    search: Search,
-    *,
-    search_terms: str = "",
-    user: AbstractBaseUser | None = None,
-    reference: str | None = "",
-    save: bool = True,
-) -> SearchQuery:
-    """
-    Create a new SearchQuery instance and execute a search against ES.
+class SearchResponseParser:
+    def __init__(self, response: ObjectApiResponse) -> None:
+        self.body = response.body
+        self._hits = self.body.get("hits", {})
 
-    Args:
-        search: elasticsearch.search.Search object, that internally contains
-            the connection and query; this is the query that is executed. All
-            we are doing is logging the input and parsing the output.
-        search_terms: raw end user search terms input - what they typed into the search
-            box.
-        user: Django User object, the person making the query - used for logging
-            purposes. Can be null.
-        reference: string, can be anything you like, used for identification,
-            grouping purposes.
-        save: bool, if True then save the new object immediately, can be
-            overridden to False to prevent logging absolutely everything.
-            Defaults to True
+    @property
+    def raw_hits(self) -> list[dict]:
+        return self._hits.get("hits", {})
 
-    """
-    start = time.time()
-    response = search.execute()
-    hits = [h.meta.to_dict() for h in response.hits]
-    total_hits = response.hits.total.value
-    total_hits_relation = response.hits.total.relation
-    aggregations = response.aggregations.to_dict()
-    duration = time.time() - start
-    search_query = SearchQuery(
-        user=user,
-        search_terms=search_terms,
-        index=", ".join(search._index or ["_all"])[:100],  # field length restriction
-        query=search.to_dict(),
-        query_type=SearchQuery.QueryType.SEARCH,
-        hits=hits,
-        aggregations=aggregations,
-        total_hits=total_hits,
-        total_hits_relation=total_hits_relation,
-        reference=reference or "",
-        executed_at=tz_now(),
-        duration=duration,
-    )
-    search_query.response = response
-    return search_query.save() if save else search_query
+    @property
+    def hits(self) -> list[dict]:
+        def _hit(hit: dict) -> dict:
+            retval = {
+                "id": hit["_id"],
+                "index": hit["_index"],
+                "score": hit["_score"],
+            }
+            if highlight := hit.get("highlight"):
+                retval["highlight"] = highlight
+            return retval
+
+        return [_hit(h) for h in self.raw_hits]
+
+    @property
+    def total(self) -> dict:
+        return self._hits.get("total", {})
+
+    @property
+    def total_hits(self) -> int:
+        return self.total.get("value", 0)
+
+    @property
+    def total_hits_relation(self) -> str:
+        return self.total.get("relation", "")
+
+    @property
+    def aggregations(self) -> dict:
+        return self.body.get("aggregations", {})
 
 
-def execute_count(
-    search: Search,
-    *,
-    search_terms: str = "",
-    user: AbstractBaseUser | None = None,
-    reference: str | None = "",
-    save: bool = True,
-) -> SearchQuery:
-    """
-    Run a "count" against ES and store the results.
+class CountResponseParser:
+    def __init__(self, response: ObjectApiResponse) -> None:
+        self.body = response.body
 
-    Args:
-        search: elasticsearch.search.Search object, that internally contains
-            the connection and query; this is the query that is executed. All
-            we are doing is logging the input and parsing the output.
-        search_terms: raw end user search terms input - what they typed into the search
-            box.
-        user: Django User object, the person making the query - used for logging
-            purposes. Can be null.
-        reference: string, can be anything you like, used for identification,
-            grouping purposes.
-        save: bool, if True then save the new object immediately, can be
-            overridden to False to prevent logging absolutely everything.
-            Defaults to True
+    @property
+    def total_hits(self) -> int:
+        return self.body.get("count", 0)
 
-    """
-    start = time.time()
-    response = search.count()
-    duration = time.time() - start
-    search_query = SearchQuery(
-        user=user,
-        search_terms=search_terms,
-        index=", ".join(search._index or ["_all"])[:100],  # field length restriction
-        query=search.to_dict(),
-        query_type=SearchQuery.QueryType.COUNT,
-        hits=[],
-        aggregations={},
-        total_hits=response,
-        total_hits_relation=SearchQuery.TotalHitsRelation.ACCURATE,
-        reference=reference or "",
-        executed_at=tz_now(),
-        duration=duration,
-    )
-    search_query.response = response
-    return search_query.save() if save else search_query
+    @property
+    def total_hits_relation(self) -> str:
+        return str(SearchQuery.TotalHitsRelation.ACCURATE)

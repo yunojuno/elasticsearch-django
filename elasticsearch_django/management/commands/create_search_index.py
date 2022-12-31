@@ -15,4 +15,4 @@ class Command(BaseSearchCommand):
 
     def do_index_command(self, index: str, **options: Any) -> CommandReturnType:
         """Create new search index."""
-        return create_index(index)
+        return create_index(index).body

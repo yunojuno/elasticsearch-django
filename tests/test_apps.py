@@ -1,7 +1,7 @@
 from unittest import mock
 
+import pytest
 from django.core.exceptions import ImproperlyConfigured
-from django.test import TestCase
 
 import elasticsearch_django
 from elasticsearch_django.apps import (
@@ -20,7 +20,7 @@ from elasticsearch_django.models import SearchDocumentMixin
 from .models import ExampleModel
 
 
-class SearchAppsConfigTests(TestCase):
+class SearchAppsConfigTests:
     """Tests for the apps module ready function."""
 
     @mock.patch("elasticsearch_django.apps.settings.get_setting", lambda x: False)
@@ -35,7 +35,7 @@ class SearchAppsConfigTests(TestCase):
         mock_signals.assert_called_once_with()
 
 
-class SearchAppsValidationTests(TestCase):
+class SearchAppsValidationTests:
     """Tests for the apps module validation functions."""
 
     def test__validate_model(self):
@@ -43,12 +43,14 @@ class SearchAppsValidationTests(TestCase):
         # 1. model doesn't implement as_search_document
         with mock.patch("tests.models.ExampleModel") as tm:
             del tm.as_search_document
-            self.assertRaises(ImproperlyConfigured, _validate_model, tm)
+            with pytest.raises(ImproperlyConfigured):
+                _validate_model(tm)
 
         # 2. model.objects doesn't implement get_search_queryset
         with mock.patch("tests.models.ExampleModel") as tm:
             del tm.objects.get_search_queryset
-            self.assertRaises(ImproperlyConfigured, _validate_model, tm)
+            with pytest.raises(ImproperlyConfigured):
+                _validate_model(tm)
 
         # model should pass
         with mock.patch("tests.models.ExampleModel") as tm:
@@ -60,7 +62,8 @@ class SearchAppsValidationTests(TestCase):
         _validate_mapping("foo", strict=True)
         mock_settings.get_index_mapping.assert_called_once_with("foo")
         mock_settings.get_index_mapping.side_effect = IOError()
-        self.assertRaises(ImproperlyConfigured, _validate_mapping, "foo", strict=True)
+        with pytest.raises(ImproperlyConfigured):
+            _validate_mapping("foo", strict=True)
         # shouldn't raise error
         _validate_mapping("foo", strict=False)
 
@@ -86,7 +89,8 @@ class SearchAppsValidationTests(TestCase):
         mock_settings.get_index_names.return_value = ["foo"]
         mock_settings.get_setting.return_value = "foo"
         mock_settings.get_index_models.return_value = [ExampleModel]
-        self.assertRaises(ImproperlyConfigured, _validate_config)
+        with pytest.raises(ImproperlyConfigured):
+            _validate_config()
 
     @mock.patch("elasticsearch_django.apps.signals")
     @mock.patch("elasticsearch_django.apps.settings")
@@ -110,7 +114,7 @@ class SearchAppsValidationTests(TestCase):
         """Test the _on_model_delete function."""
         obj = mock.Mock(spec=SearchDocumentMixin, search_indexes=["foo", "bar"])
         _on_model_delete(None, instance=obj)
-        self.assertEqual(mock_delete.call_count, 2)
+        assert mock_delete.call_count == 2
         mock_delete.assert_called_with(instance=obj, index="bar")
 
     @mock.patch("elasticsearch_django.apps.settings.auto_sync")
@@ -163,8 +167,8 @@ class SearchAppsValidationTests(TestCase):
         mock_in_qs.return_value = False
         obj = mock.Mock(spec=SearchDocumentMixin)
         _update_search_index(instance=obj, index="foo", update_fields=None)
-        self.assertEqual(obj.index_search_document.call_count, 0)
-        self.assertEqual(obj.update_search_document.call_count, 0)
+        assert obj.index_search_document.call_count == 0
+        assert obj.update_search_document.call_count == 0
         obj.index_search_document.assert_not_called()
         obj.update_search_document.assert_not_called()
         obj.delete_search_document.assert_not_called()
@@ -177,8 +181,8 @@ class SearchAppsValidationTests(TestCase):
         mock_in_qs.return_value = True
         obj = mock.Mock(spec=SearchDocumentMixin)
         _update_search_index(instance=obj, index="foo", update_fields=None)
-        self.assertEqual(obj.index_search_document.call_count, 1)
-        self.assertEqual(obj.update_search_document.call_count, 0)
+        assert obj.index_search_document.call_count == 1
+        assert obj.update_search_document.call_count == 0
         obj.index_search_document.assert_called_once_with(index="foo")
         obj.update_search_document.assert_not_called()
         obj.delete_search_document.assert_not_called()
@@ -191,8 +195,8 @@ class SearchAppsValidationTests(TestCase):
         mock_in_qs.return_value = True
         obj = mock.Mock(spec=SearchDocumentMixin)
         _update_search_index(instance=obj, index="foo", update_fields=None)
-        self.assertEqual(obj.index_search_document.call_count, 0)
-        self.assertEqual(obj.update_search_document.call_count, 0)
+        assert obj.index_search_document.call_count == 0
+        assert obj.update_search_document.call_count == 0
         obj.index_search_document.assert_not_called()
         obj.update_search_document.assert_not_called()
         obj.delete_search_document.assert_not_called()

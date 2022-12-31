@@ -1,6 +1,5 @@
 from unittest import mock
 
-from django.test import TestCase
 from elasticsearch.exceptions import TransportError
 
 from elasticsearch_django.management.commands import (
@@ -13,7 +12,7 @@ from elasticsearch_django.management.commands import (
 )
 
 
-class BaseSearchCommandTests(TestCase):
+class BaseSearchCommandTests:
     """Tests for the elasticsearch_django management commands base command."""
 
     @mock.patch("elasticsearch_django.management.commands.logger")
@@ -25,15 +24,13 @@ class BaseSearchCommandTests(TestCase):
         # this should have called the do_index_command twice
         mock_do.assert_has_calls([mock.call("foo"), mock.call("bar")])
         mock_do.reset_mock()
-        mock_do.side_effect = TransportError(
-            123, "oops", {"error": {"reason": "no idea"}}
-        )
+        mock_do.side_effect = TransportError(message="oops", errors=(Exception(),))
         obj.handle(indexes=["baz"])
         mock_do.assert_called_once_with("baz")
         mock_log.exception.assert_called_once()
 
 
-class NamedCommandTests(TestCase):
+class NamedCommandTests:
     """Test each named command."""
 
     @mock.patch(
@@ -54,7 +51,7 @@ class NamedCommandTests(TestCase):
         retval = cmd.do_index_command(
             "foo", interactive=False
         )  # True would hang the tests
-        self.assertEqual(retval, mock_delete.return_value)
+        assert retval == mock_delete.return_value.body
         mock_delete.assert_called_once_with("foo")
         mock_delete.reset_mock()
 
@@ -65,7 +62,7 @@ class NamedCommandTests(TestCase):
             mock_confirm.return_value = False
             retval = cmd.do_index_command("foo", interactive=True)
             mock_delete.assert_not_called()
-            self.assertIsNone(retval)
+            assert retval is None
 
     @mock.patch(
         "elasticsearch_django.management.commands.prune_search_index.prune_index"
@@ -103,12 +100,12 @@ class NamedCommandTests(TestCase):
         mock_delete.assert_called_once_with("foo")
         mock_create.assert_called_once_with("foo")
         mock_update.assert_called_once_with("foo")
-        self.assertEqual(result["delete"], mock_delete.return_value)
-        self.assertEqual(result["create"], mock_create.return_value)
-        self.assertEqual(result["update"], mock_update.return_value)
+        assert result["delete"] == mock_delete.return_value.body
+        assert result["create"] == mock_create.return_value.body
+        assert result["update"] == mock_update.return_value
         # check that the delete is handled if the index does not exist
         mock_delete.side_effect = TransportError("Index not found")
         result = cmd.do_index_command(
             "foo", interactive=False
         )  # True would hang the tests
-        self.assertEqual(result["delete"], {})
+        assert result["delete"] == {}

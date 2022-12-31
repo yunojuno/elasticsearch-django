@@ -4,6 +4,7 @@ import logging
 from typing import Any, Generator, List, Sequence, Tuple, Union
 
 from django.db.models import Model
+from elastic_transport import ObjectApiResponse
 from elasticsearch import helpers
 
 from .models import SearchDocumentMixin
@@ -14,11 +15,16 @@ BulkResponseType = Tuple[int, Union[int, List[Any]]]
 logger = logging.getLogger(__name__)
 
 
-def create_index(index: str) -> dict:
+def create_index(index: str) -> ObjectApiResponse:
     """Create an index and apply mapping if appropriate."""
     logger.info("Creating search index: '%s'", index)
     client = get_client()
-    return client.indices.create(index=index, body=get_index_mapping(index))
+    mapping = get_index_mapping(index)
+    return client.indices.create(
+        index=index,
+        mappings=mapping["mappings"],
+        settings=mapping.get("settings", None),
+    )
 
 
 def update_index(index: str) -> list[BulkResponseType]:
@@ -35,11 +41,11 @@ def update_index(index: str) -> list[BulkResponseType]:
     return responses
 
 
-def delete_index(index: str) -> dict:
+def delete_index(index: str, ignore_unavailable: bool = True) -> ObjectApiResponse:
     """Delete index entirely (removes all documents and mapping)."""
     logger.info("Deleting search index: '%s'", index)
-    client = get_client()
-    return client.indices.delete(index=index)
+    indices = get_client().indices
+    return indices.delete(index=index, ignore_unavailable=ignore_unavailable)
 
 
 def prune_index(index: str) -> list[BulkResponseType]:
@@ -146,9 +152,8 @@ def scan_index(index: str, model: Model) -> Generator:
 
     """
     # noqa: E501, see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-type-query.html
-    query = {"query": {"type": {"value": model._meta.model_name}}}
     client = get_client()
-    yield from helpers.scan(client, index=index, query=query)
+    yield from helpers.scan(client, index=index)
 
 
 def bulk_actions(objects: Sequence[Model], index: str, action: str) -> Generator:

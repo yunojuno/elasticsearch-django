@@ -6,7 +6,7 @@ Elasticsearch for Django
 
 This is a lightweight Django app for people who are using Elasticsearch with Django, and want to manage their indexes.
 
-**NB the master branch is now based on Elasticsearch 7/8. If you are using older versions, please switch to the relevant branch (released on PyPI as 2.x, 5.x, 6.x)**
+**NB the master branch is now based on ``elasticsearch-py`` 8. If you are using older versions, please switch to the relevant branch (released on PyPI as 2.x, 5.x, 6.x)**
 
 ----
 
@@ -266,25 +266,6 @@ Search Queries (How to Search)
 Running search queries
 ----------------------
 
-The search itself is done using ``elasticsearch_dsl``, which provides a pythonic abstraction over the QueryDSL, but also allows you to use raw JSON if required:
-
-.. code:: python
-
-    from elasticsearch_django.settings import get_client
-    from elasticsearch_dsl import Search
-
-    # run a default match_all query
-    search = Search(using=get_client())
-    response = search.execute()
-
-    # change the query using the python interface
-    search = search.query("match", title="python")
-
-    # change the query from the raw JSON
-    search.update_from_dict({"query": {"match": {"title": "python"}}})
-
-The response from ``execute`` is a ``Response`` object which wraps up the ES JSON response, but is still basically JSON.
-
 **SearchQuery**
 
 The ``elasticsearch_django.models.SearchQuery`` model wraps this functionality up and provides helper properties, as well as logging the query:
@@ -293,11 +274,9 @@ The ``elasticsearch_django.models.SearchQuery`` model wraps this functionality u
 
     from elasticsearch_django.settings import get_client
     from elasticsearch_django.models import execute_search
-    from elasticsearch_dsl import Search
 
     # run a default match_all query
-    search = Search(using=get_client(), index='blog')
-    sq = execute_search(search)
+    sq = execute_search(index="foo", query={"match_all": {}})
     # the raw response is stored on the return object,
     # but is not stored on the object in the database.
     print(sq.response)
@@ -309,8 +288,6 @@ Calling the ``execute_search`` function will execute the underlying search, log 
 * ``reference`` - a free text reference field - used for grouping searches together - could be session id.
 * ``save`` - by default the SearchQuery created will be saved, but passing in False will prevent this.
 
-In conclusion - running a search against an index means getting to grips with the ``elasticsearch_dsl`` library, and when playing with search in the shell there is no need to use anything else. However, in production, searches should always be executed using the ``SearchQuery.execute`` method.
-
 Converting search hits into Django objects
 ------------------------------------------
 
@@ -321,7 +298,6 @@ Running a search against an index will return a page of results, each containing
     from models import BlogPost
 
     # run a default match_all query
-    search = Search(using=get_client(), index='blog')
-    sq = execute_search(search)
+    sq = execute_search(index="blog", query={"match_all": {}})
     for obj in BlogPost.objects.from_search_query(sq):
         print obj.search_score, obj.search_rank

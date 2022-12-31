@@ -31,11 +31,11 @@ class Command(BaseSearchCommand):
                 return None
 
         try:
-            delete = delete_index(index)
+            delete = delete_index(index).body
         except TransportError:
             delete = {}
             logger.info("Index %s does not exist, cannot be deleted.", index)
-        create = create_index(index)
+        create = create_index(index).body
         update = update_index(index)
 
         return {"delete": delete, "create": create, "update": update}

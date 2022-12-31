@@ -1,6 +1,6 @@
 from unittest import mock
 
-from django.test import TestCase
+import pytest
 
 from elasticsearch_django.index import (
     _prune_hit,
@@ -15,7 +15,7 @@ from elasticsearch_django.index import (
 from .models import ExampleModel, ExampleModelManager
 
 
-class IndexFunctionTests(TestCase):
+class IndexFunctionTests:
     """Test index functions."""
 
     @mock.patch("elasticsearch_django.index.get_client")
@@ -27,7 +27,9 @@ class IndexFunctionTests(TestCase):
         mock_client.assert_called_once_with()
         mock_mapping.assert_called_once_with("foo")
         mock_client.return_value.indices.create.assert_called_once_with(
-            index="foo", body=mock_mapping.return_value
+            index="foo",
+            mappings=mock_mapping.return_value["mappings"],
+            settings=mock_mapping.return_value.get("settings"),
         )
 
     from django.db.models.query import QuerySet
@@ -46,14 +48,16 @@ class IndexFunctionTests(TestCase):
         mock_foo.objects = mock.PropertyMock(return_value=mock.Mock())
         mock_models.return_value = [mock_foo]
         responses = update_index("foo")
-        self.assertEqual(responses, [mock_bulk.return_value])
+        assert responses == [mock_bulk.return_value]
 
     @mock.patch("elasticsearch_django.index.get_client")
     def test_delete_index(self, mock_client):
         """Test the delete_index function."""
         delete_index("foo")
         mock_client.assert_called_once()
-        mock_client.return_value.indices.delete.assert_called_once_with(index="foo")
+        mock_client.return_value.indices.delete.assert_called_once_with(
+            index="foo", ignore_unavailable=True
+        )
 
     @mock.patch("elasticsearch_django.index.helpers")
     @mock.patch("elasticsearch_django.index.scan_index")
@@ -78,7 +82,7 @@ class IndexFunctionTests(TestCase):
         # _prune_hit returns an object, so bulk should be called
         mock_prune.return_value = ExampleModel()
         # should return a list with one item in it
-        self.assertEqual(prune_index("foo"), [mock_helpers.bulk.return_value])
+        assert prune_index("foo") == [mock_helpers.bulk.return_value]
         # should have called actions and bulk once each
         mock_actions.assert_called_once()
         mock_helpers.bulk.assert_called_once()
@@ -88,7 +92,7 @@ class IndexFunctionTests(TestCase):
         # if there are no objects to prune
         mock_prune.return_value = None
         # should return an empty list
-        self.assertEqual(prune_index("foo"), [])
+        assert prune_index("foo") == []
         # shouldn't call either actions or bulk (as there's no need)
         mock_actions.assert_not_called()
         mock_helpers.bulk.assert_not_called()
@@ -98,40 +102,34 @@ class IndexFunctionTests(TestCase):
         """Test the _prune_hit function."""
         hit = {"_id": 1, "_index": "foo"}
         mock_qs.return_value = True
-        self.assertIsNone(_prune_hit(hit, ExampleModel))
+        assert _prune_hit(hit, ExampleModel) is None
 
         mock_qs.return_value = False
         # should now return an instance of ExampleModel
         obj = _prune_hit(hit, ExampleModel)
-        self.assertIsInstance(obj, ExampleModel)
-        self.assertEqual(obj.id, hit["_id"])
+        assert isinstance(obj, ExampleModel)
+        assert obj.id == hit["_id"]
 
     @mock.patch("elasticsearch_django.index.get_client")
     @mock.patch("elasticsearch_django.index.helpers")
     def test_scan_index(self, mock_helpers, mock_client):
         """Test the scan_index function."""
-        query = {"query": {"type": {"value": "examplemodel"}}}
-        # mock_helpers.scan.return_value = ['foo', 'bar']
         # cast to list to force evaluation of the generator
         response = list(scan_index("foo", ExampleModel))
-        mock_helpers.scan.assert_called_once_with(
-            mock_client.return_value, query=query, index="foo"
-        )
-        self.assertEqual(response, list(mock_helpers.scan.return_value))
+        mock_helpers.scan.assert_called_once_with(mock_client.return_value, index="foo")
+        assert response == list(mock_helpers.scan.return_value)
 
     @mock.patch.object(ExampleModel, "as_search_action")
     def test_bulk_actions(self, mock_action):
         """Test the bulk_actions function."""
         # cannot pass in in '_all' as the bulk_actions
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             list(bulk_actions([], "_all", "index"))
 
         mock_action.return_value = "foo"
         objects = [ExampleModel(), ExampleModel()]
 
-        self.assertEqual(list(bulk_actions(objects, "foo", "update")), ["foo", "foo"])
+        assert list(bulk_actions(objects, "foo", "update")) == ["foo", "foo"]
 
         # now let's add in a bad object, and check we still get the good one
-        self.assertEqual(
-            list(bulk_actions([ExampleModel(), "bad"], "foo", "update")), ["foo"]
-        )
+        assert list(bulk_actions([ExampleModel(), "bad"], "foo", "update")) == ["foo"]
