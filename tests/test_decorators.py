@@ -2,7 +2,7 @@ from django.db.models import signals
 from django.test import TestCase
 
 from elasticsearch_django.apps import _on_model_save
-from elasticsearch_django.decorators import _strip_on_model_save, disable_search_updates
+from elasticsearch_django.decorators import disable_search_updates
 
 
 class DecoratorTests(TestCase):
@@ -19,7 +19,3 @@ class DecoratorTests(TestCase):
         with disable_search_updates():
             self.assertEqual(signals.post_save.receivers, [])
         self.assertEqual(signals.post_save.receivers[0][1](), _on_model_save)
-
-    def test__strip_on_model_save(self):
-        self.assertNotEqual(signals.post_save.receivers, [])
-        self.assertEqual(_strip_on_model_save(), [])
