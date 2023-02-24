@@ -39,6 +39,9 @@ jobs:
             matrix:
                 python: ["3.8", "3.10", "3.11"]
                 django: ["32", "41", "main"]
+                exclude:
+                    - django: main
+                      python: "3.8"
 
         env:
             TOXENV: py${{ matrix.python }}-django${{ matrix.django }}-es${{ matrix.es }}
