@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Callable, Generator
+from typing import Generator
 
 from django.db.models import signals
 
 from .apps import _on_model_save
-
-
-def _strip_on_model_save() -> list[Callable]:
-    """Return list of signal receivers without _on_model_save."""
-    return [r for r in signals.post_save.receivers if r[1]() != _on_model_save]
 
 
 @contextmanager
@@ -30,7 +25,14 @@ def disable_search_updates() -> Generator:
     restoring them after.
 
     """
-    _receivers = signals.post_save.receivers.copy()
-    signals.post_save.receivers = _strip_on_model_save()
+    # get a list of the receivers for the search updates
+    search_update_receivers = [
+        r for r in signals.post_save.receivers if r[1]() == _on_model_save
+    ]
+    # strip them from the current post_save receivers
+    signals.post_save.receivers = [
+        r for r in signals.post_save.receivers if r not in search_update_receivers
+    ]
     yield
-    signals.post_save.receivers = _receivers
+    # add them back on again
+    signals.post_save.receivers += search_update_receivers
