@@ -33,6 +33,8 @@ def disable_search_updates() -> Generator:
     signals.post_save.receivers = [
         r for r in signals.post_save.receivers if r not in search_update_receivers
     ]
+    signals.post_save.sender_receivers_cache.clear()
     yield
     # add them back on again
     signals.post_save.receivers += search_update_receivers
+    signals.post_save.sender_receivers_cache.clear()
