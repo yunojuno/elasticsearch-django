@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import copy
 from typing import Dict, Union
 
 from django.apps import apps
@@ -22,10 +23,15 @@ from elasticsearch import Elasticsearch
 SettingType = Union[list, dict, int, str, bool]
 SettingsType = Dict[str, SettingType]
 
-
 def get_client(connection: str = "default") -> Elasticsearch:
     """Return configured elasticsearch client."""
-    return Elasticsearch(get_connection_string(connection))
+    conn_settings = copy.deepcopy(get_connection_settings(connection))
+    if 'url' in conn_settings.keys():
+        del conn_settings['url']
+    return Elasticsearch(
+        get_connection_string(connection),
+        **conn_settings
+    )
 
 
 def get_settings() -> SettingsType:
@@ -48,7 +54,34 @@ def set_setting(key: str, value: SettingType) -> None:
 
 def get_connection_string(connection: str = "default") -> str:
     """Return index settings from Django conf."""
-    return settings.SEARCH_SETTINGS["connections"][connection]
+    if isinstance(settings.SEARCH_SETTINGS["connections"][connection], str):
+        return settings.SEARCH_SETTINGS["connections"][connection]
+    elif isinstance(settings.SEARCH_SETTINGS["connections"][connection], dict):
+        return settings.SEARCH_SETTINGS["connections"][connection]["url"]
+    else:
+        raise ValueError(
+            f"Connection {connection} is not a string or dict in SEARCH_SETTINGS"
+        )
+
+def get_connection_settings(connection: str = "default") -> dict:
+    """Return index connection settings from Django conf."""
+    if isinstance(settings.SEARCH_SETTINGS["connections"][connection], str):
+        return {}
+    elif isinstance(settings.SEARCH_SETTINGS["connections"][connection], dict):
+        return settings.SEARCH_SETTINGS["connections"][connection]
+    else:
+        raise ValueError(
+            f"Connection {connection} is not a string or dict in SEARCH_SETTINGS"
+        )
+
+def get_connection_setting(key: str, *default: str | int | bool | list | dict | None) -> SettingType:
+    """Return specific search connection setting from Django conf."""
+    if default:
+        return get_connection_settings().get(key, default[0])
+    elif key in get_connection_settings():
+        return get_connection_settings()[key]
+    else:
+        return None
 
 
 def get_index_config(index: str) -> dict[str, list[str]]:
