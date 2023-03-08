@@ -55,6 +55,10 @@ The Django settings for search are contained in a dictionary called ``SEARCH_SET
     SEARCH_SETTINGS = {
         'connections': {
             'default': getenv('ELASTICSEARCH_URL'),
+            'backup': {
+                # all Elasticsearch init kwargs can be used here
+                'cloud_id': '{{ cloud_id }}'
+            }
         },
         'indexes': {
             'blog': {
@@ -78,6 +82,8 @@ The Django settings for search are contained in a dictionary called ``SEARCH_SET
     }
 
 The ``connections`` node is (hopefully) self-explanatory - we support multiple connections, but in practice you should only need the one - 'default' connection. This is the URL used to connect to your ES instance. The ``settings`` node contains site-wide search settings. The ``indexes`` nodes is where we configure how Django and ES play together, and is where most of the work happens.
+
+Note that prior to v8.2 the connection value had to be a connection string; since v8.2 this can still be a connection string, but can also be a dictionary that contains any kwarg that can be passed to the ``Elasticsearch`` init method.
 
 **Index settings**
 

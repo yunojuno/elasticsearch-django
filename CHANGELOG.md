@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## v8.2 [unreleased]
+
+- Adds support for more complex client configuration [#68 - @ColeDCrawford]
+
 ## v8.0
 
 This is a non-functional release - updating the Python, Django and

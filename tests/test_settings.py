@@ -3,11 +3,12 @@ from unittest import mock
 import pytest
 from django.apps import apps
 from django.test.utils import override_settings
+from elasticsearch import Elasticsearch
 
 from elasticsearch_django.settings import (
     auto_sync,
     get_client,
-    get_connection_string,
+    get_connection_settings,
     get_document_models,
     get_index_config,
     get_index_models,
@@ -20,7 +21,10 @@ from elasticsearch_django.settings import (
 from .models import ExampleModel
 
 TEST_SETTINGS = {
-    "connections": {"default": "https://foo", "backup": "https://bar"},
+    "connections": {
+        "default": "https://foo",
+        "backup": {"hosts": "https://bar.baz:123", "api_key": ("id", "secret")},
+    },
     "indexes": {"baz": {"models": ["tests.ExampleModel"]}},
     "settings": {"foo": "bar", "auto_sync": True, "never_auto_sync": []},
 }
@@ -29,13 +33,23 @@ TEST_SETTINGS = {
 class SettingsFunctionTests:
     """Tests for the settings functions."""
 
-    @mock.patch("elasticsearch_django.settings.get_connection_string")
+    @mock.patch("elasticsearch_django.settings.get_connection_settings")
     def test_get_client(self, mock_conn):
         """Test the get_client function."""
         mock_conn.return_value = "http://foo:9200"
         client = get_client()
         assert len(client.transport.node_pool.all()) == 1
         assert client.transport.node_pool.all()[0].base_url == mock_conn()
+
+    @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
+    def test_get_client__init(self):
+        """Test the get_client function initialises with correct settings."""
+
+        def check_init(*args, **kwargs):
+            assert kwargs == TEST_SETTINGS["connections"]["backup"]
+
+        with mock.patch.object(Elasticsearch, "__init__", check_init):
+            _ = get_client("backup")
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_settings(self):
@@ -55,10 +69,12 @@ class SettingsFunctionTests:
         assert get_setting("bar", "baz") == "baz"
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
-    def test_get_connection_string(self):
-        """Test the get_connection_string method."""
-        assert get_connection_string() == TEST_SETTINGS["connections"]["default"]
-        assert get_connection_string("backup") == TEST_SETTINGS["connections"]["backup"]
+    def test_get_connection_settings(self):
+        """Test the get_connection_settings method."""
+        assert get_connection_settings() == TEST_SETTINGS["connections"]["default"]
+        assert (
+            get_connection_settings("backup") == TEST_SETTINGS["connections"]["backup"]
+        )
 
     @override_settings(SEARCH_SETTINGS=TEST_SETTINGS)
     def test_get_index_config(self):
