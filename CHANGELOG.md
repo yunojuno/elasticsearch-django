@@ -2,9 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## v8.2 [unreleased]
+## v8.2
 
-- Adds support for more complex client configuration [#68 - @ColeDCrawford]
+- Adds support for complex client configuration [#68](https://github.com/yunojuno/elasticsearch-django/issues/68) (h/t @ColeDCrawford)
+
+### v8.1.2
+
+- Fixes `disable_search_updates` decorator [#65](https://github.com/yunojuno/elasticsearch-django/issues/65)
 
 ## v8.0
 
