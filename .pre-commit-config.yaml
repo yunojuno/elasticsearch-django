@@ -10,6 +10,8 @@ repos:
     rev: 23.1.0
     hooks:
       - id: black
+        additional_dependencies:
+          - platformdirs
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.3.1
@@ -22,7 +24,6 @@ repos:
     hooks:
       - id: flake8
         additional_dependencies:
-          - flake8-bandit
           - flake8-blind-except
           - flake8-docstrings
           - flake8-logging-format
@@ -30,7 +31,7 @@ repos:
 
   # python static type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.0.1
+    rev: v1.1.1
     hooks:
       - id: mypy
         args:

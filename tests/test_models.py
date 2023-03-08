@@ -103,7 +103,7 @@ class SearchDocumentMixinTests:
         ) == {"simple_field_1": test_obj.simple_field_1}
 
     @mock.patch(
-        "elasticsearch_django.settings.get_connection_string",
+        "elasticsearch_django.settings.get_connection_settings",
         lambda: "http://testserver",
     )
     @mock.patch("elasticsearch_django.models.get_client")
@@ -122,7 +122,7 @@ class SearchDocumentMixinTests:
         )
 
     @mock.patch(
-        "elasticsearch_django.settings.get_connection_string",
+        "elasticsearch_django.settings.get_connection_settings",
         lambda: "http://testserver",
     )
     @mock.patch("elasticsearch_django.models.get_client")
@@ -136,7 +136,7 @@ class SearchDocumentMixinTests:
         assert mock_client.call_count == 0
 
     @mock.patch(
-        "elasticsearch_django.settings.get_connection_string",
+        "elasticsearch_django.settings.get_connection_settings",
         lambda: "http://testserver",
     )
     @mock.patch("elasticsearch_django.models.get_setting")
@@ -158,7 +158,7 @@ class SearchDocumentMixinTests:
         mock_setting.assert_called_once_with("retry_on_conflict", 0)
 
     @mock.patch(
-        "elasticsearch_django.settings.get_connection_string",
+        "elasticsearch_django.settings.get_connection_settings",
         lambda: "http://testserver",
     )
     @mock.patch("elasticsearch_django.models.get_client")
@@ -173,7 +173,7 @@ class SearchDocumentMixinTests:
             mock_client.return_value.update.assert_not_called()
 
     @mock.patch(
-        "elasticsearch_django.settings.get_connection_string",
+        "elasticsearch_django.settings.get_connection_settings",
         lambda: "http://testserver",
     )
     @mock.patch("elasticsearch_django.models.get_client")
@@ -414,7 +414,6 @@ class SearchResultsQuerySetTests:
 
 @pytest.mark.django_db
 class ExecuteFunctionTests:
-
     raw_hits = [
         {"_id": "1", "_index": "foo", "_score": 1.1},
         {"_id": "2", "_index": "foo", "_score": 1.2},

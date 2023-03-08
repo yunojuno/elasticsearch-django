@@ -125,7 +125,14 @@ LOGGING = {
 ELASTICSEARCH_URL = getenv("ELASTICSEARCH_URL", "https://localhost:9200")
 
 SEARCH_SETTINGS = {
-    "connections": {"default": ELASTICSEARCH_URL},
+    "connections": {
+        "default": ELASTICSEARCH_URL,
+        "custom": {
+            "hosts": "localhost",
+            "cloud_id": "foo",
+            "api_key": "bar",
+        },
+    },
     "indexes": {
         # name of the index
         "examples": {

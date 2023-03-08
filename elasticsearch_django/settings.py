@@ -25,7 +25,10 @@ SettingsType = Dict[str, SettingType]
 
 def get_client(connection: str = "default") -> Elasticsearch:
     """Return configured elasticsearch client."""
-    return Elasticsearch(get_connection_string(connection))
+    conn_settings = get_connection_settings(connection)
+    if isinstance(conn_settings, (str, list)):
+        return Elasticsearch(conn_settings)
+    return Elasticsearch(**conn_settings)
 
 
 def get_settings() -> SettingsType:
@@ -46,7 +49,7 @@ def set_setting(key: str, value: SettingType) -> None:
     get_settings()[key] = value
 
 
-def get_connection_string(connection: str = "default") -> str:
+def get_connection_settings(connection: str = "default") -> str | list | dict:
     """Return index settings from Django conf."""
     return settings.SEARCH_SETTINGS["connections"][connection]
 
