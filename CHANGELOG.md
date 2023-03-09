@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## v8.3
+
+- Adds raw search question response object to SearchQuery (`SearchQuery.query_response`)
+
 ## v8.2
 
 - Adds support for complex client configuration [#68](https://github.com/yunojuno/elasticsearch-django/issues/68) (h/t @ColeDCrawford)
