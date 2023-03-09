@@ -481,9 +481,10 @@ class ExecuteFunctionTests:
         assert sq.query_type == SearchQuery.QueryType.COUNT
         assert sq.aggregations is None
         assert sq.duration > 0
+        assert sq.query_response is None
 
     @mock.patch.object(Elasticsearch, "search")
-    def test_execute_search__no_save(self, mock_search: mock.MagicMock):
+    def test_do_search__no_save(self, mock_search: mock.MagicMock):
         mock_search.return_value = mock.Mock(
             spec=ObjectApiResponse,
             body={
@@ -503,9 +504,10 @@ class ExecuteFunctionTests:
         assert search.total_hits == 168
         assert search.max_score == 1.3
         assert search.hits[0] == {"index": "foo", "id": "1", "score": 1.1}
+        assert search.query_response == mock_search.return_value
 
     @mock.patch.object(Elasticsearch, "search")
-    def test_execute_search(self, mock_search):
+    def test_do_search(self, mock_search):
         # lots of mocking to get around lack of ES server during tests
 
         mock_search.return_value = mock.Mock(
@@ -536,3 +538,5 @@ class ExecuteFunctionTests:
         assert sq.query_type == SearchQuery.QueryType.SEARCH
         assert sq.aggregations == self.aggregations
         assert sq.duration > 0
+        # the raw response - this is not saved to the db
+        assert sq.query_response == mock_search.return_value

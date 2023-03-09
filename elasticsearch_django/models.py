@@ -558,6 +558,10 @@ class SearchQuery(models.Model):
             f"index='{self.index}' total_hits={self.total_hits} >"
         )
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.query_response = kwargs.pop("query_response", None)
+        super().__init__(*args, **kwargs)
+
     def save(self, *args: Any, **kwargs: Any) -> SearchQuery:
         if user := kwargs.pop("user", None):
             self.user = user
@@ -710,6 +714,7 @@ class SearchQuery(models.Model):
             total_hits_relation=parser.total_hits_relation,
             executed_at=timer.started_at,
             duration=timer.elapsed,
+            query_response=response,
         )
 
     @classmethod
