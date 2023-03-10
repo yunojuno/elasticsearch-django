@@ -630,10 +630,17 @@ class SearchQuery(models.Model):
 
     @property
     def has_highlights(self) -> bool:
-        """Return True if the query includes aggs."""
+        """Return True if the query includes highlights."""
         if not self.query:
             raise ValueError("Missing query attribute.")
         return "highlight" in self.query
+
+    @property
+    def has_fields(self) -> bool:
+        """Return True if the query includes explicit fields."""
+        if not self.query:
+            raise ValueError("Missing query attribute.")
+        return "fields" in self.query
 
     def search_rank_annotation(self, pk_field_name: str = "pk") -> Case | None:
         """Return SQL CASE statement used to annotate results with rank."""
@@ -761,6 +768,8 @@ class SearchResponseParser:
             }
             if highlight := hit.get("highlight"):
                 retval["highlight"] = highlight
+            if fields := hit.get("fields"):
+                retval["fields"] = fields
             return retval
 
         return [_hit(h) for h in self.raw_hits]

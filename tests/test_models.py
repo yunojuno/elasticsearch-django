@@ -16,6 +16,7 @@ from elasticsearch_django.models import (
     SearchDocumentManagerMixin,
     SearchDocumentMixin,
     SearchQuery,
+    SearchResponseParser,
 )
 
 from .models import (
@@ -410,6 +411,57 @@ class SearchResultsQuerySetTests:
         assert obj == model_a1
         assert obj.search_rank == 1
         assert obj.search_score == 3.0
+
+
+@pytest.mark.django_db
+class SearchResponseParserTests:
+    def test_parse(self) -> None:
+        response = mock.MagicMock(spec=ObjectApiResponse)
+        response.body = {
+            "took": 31,
+            "timed_out": False,
+            "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0},
+            "hits": {
+                "total": {"value": 190, "relation": "eq"},
+                "max_score": 7.563781,
+                "hits": [
+                    {
+                        "_index": "foo",
+                        "_id": "123",
+                        "_score": 7.563781,
+                        "_source": {"country": "GB", "city": "London", "name": "Fred"},
+                        "fields": {"country": ["gb"], "city": ["london"]},
+                        "highlight": {"country": ["<em>gb</em>"]},
+                    }
+                ],
+            },
+            "aggregations": {
+                "countries": {
+                    "doc_count_error_upper_bound": 0,
+                    "sum_other_doc_count": 0,
+                    "buckets": [{"key": "gb", "doc_count": 100}],
+                }
+            },
+        }
+        parser = SearchResponseParser(response)
+        assert parser.total_hits == 190
+        assert parser.total_hits_relation == "eq"
+        assert parser.hits == [
+            {
+                "id": "123",
+                "index": "foo",
+                "score": 7.563781,
+                "fields": {"city": ["london"], "country": ["gb"]},
+                "highlight": {"country": ["<em>gb</em>"]},
+            }
+        ]
+        assert parser.aggregations == {
+            "countries": {
+                "doc_count_error_upper_bound": 0,
+                "sum_other_doc_count": 0,
+                "buckets": [{"key": "gb", "doc_count": 100}],
+            }
+        }
 
 
 @pytest.mark.django_db
