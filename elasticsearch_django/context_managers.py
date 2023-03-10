@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-import time
-from datetime import datetime
+from datetime import timedelta
 from types import TracebackType
+
+from django.utils.timezone import now as tz_now
 
 
 class stopwatch:
     def __enter__(self) -> stopwatch:
-        self._start = time.time()
+        self.started_at = tz_now()
+        self.stopped_at = None
+        self.in_progress = True
         return self
 
     def __exit__(
@@ -16,16 +19,15 @@ class stopwatch:
         exc_value: Exception,
         traceback: TracebackType,
     ) -> None:
-        self._stop = time.time()
+        self.stopped_at = tz_now()
+        self.in_progress = False
 
     @property
-    def started_at(self) -> datetime:
-        return datetime.fromtimestamp(self._start)
-
-    @property
-    def stopped_at(self) -> datetime:
-        return datetime.fromtimestamp(self._stop)
+    def duration(self) -> timedelta:
+        if self.in_progress:
+            return tz_now() - self.started_at
+        return self.stopped_at - self.started_at
 
     @property
     def elapsed(self) -> float:
-        return self._stop - self._start
+        return (self.duration).microseconds / 1e6

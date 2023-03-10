@@ -3,6 +3,7 @@ from os import getenv
 from django.core.exceptions import ImproperlyConfigured
 
 DEBUG = True
+USE_TZ = True
 
 DATABASES = {
     "default": {
