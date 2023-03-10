@@ -15,7 +15,7 @@ import os
 from typing import Dict, Union
 
 from django.apps import apps
-from django.conf import settings
+from django.conf import settings as django_settings
 from django.db.models import Model
 from elasticsearch import Elasticsearch
 
@@ -33,7 +33,7 @@ def get_client(connection: str = "default") -> Elasticsearch:
 
 def get_settings() -> SettingsType:
     """Return settings from Django conf."""
-    return settings.SEARCH_SETTINGS["settings"]
+    return django_settings.SEARCH_SETTINGS["settings"]
 
 
 def get_setting(key, *default: str | int | bool | list | dict) -> SettingType:
@@ -51,17 +51,17 @@ def set_setting(key: str, value: SettingType) -> None:
 
 def get_connection_settings(connection: str = "default") -> str | list | dict:
     """Return index settings from Django conf."""
-    return settings.SEARCH_SETTINGS["connections"][connection]
+    return django_settings.SEARCH_SETTINGS["connections"][connection]
 
 
 def get_index_config(index: str) -> dict[str, list[str]]:
     """Return index settings from Django conf."""
-    return settings.SEARCH_SETTINGS["indexes"][index]
+    return django_settings.SEARCH_SETTINGS["indexes"][index]
 
 
 def get_index_names() -> list[str]:
     """Return list of the names of all configured indexes."""
-    return list(settings.SEARCH_SETTINGS["indexes"].keys())
+    return list(django_settings.SEARCH_SETTINGS["indexes"].keys())
 
 
 def get_index_mapping(index: str) -> dict:
