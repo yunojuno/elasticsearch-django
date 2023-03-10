@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("elasticsearch_django", "0006_add_encoder_JSONField_kwarg")]
 
     operations = [

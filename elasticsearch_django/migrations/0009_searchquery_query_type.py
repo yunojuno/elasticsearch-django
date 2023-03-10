@@ -6,7 +6,6 @@ from elasticsearch_django.models import SearchQuery
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("elasticsearch_django", "0008_searchquery_search_terms")]
 
     operations = [

@@ -9,7 +9,6 @@ import elasticsearch_django.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("tests", "0003_examplemodelwithcustomprimarykey"),
     ]

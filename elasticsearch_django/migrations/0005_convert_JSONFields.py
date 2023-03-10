@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("elasticsearch_django", "0004_auto_20161129_1135")]
 
     operations = [

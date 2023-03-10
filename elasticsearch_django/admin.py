@@ -25,7 +25,6 @@ def pretty_print(data: dict) -> str:
 
 
 class SearchQueryAdmin(admin.ModelAdmin):
-
     list_display = (
         "id",
         "user",

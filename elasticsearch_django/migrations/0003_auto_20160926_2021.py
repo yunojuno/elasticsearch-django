@@ -2,7 +2,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("elasticsearch_django", "0002_searchquery_duration")]
 
     operations = [

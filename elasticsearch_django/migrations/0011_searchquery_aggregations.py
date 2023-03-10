@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("elasticsearch_django", "0010_searchquery_total_hits_relation"),
     ]

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("elasticsearch_django", "0007_update_json_field_encoders")]
 
     operations = [

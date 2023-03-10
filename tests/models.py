@@ -85,7 +85,6 @@ class ModelA(models.Model):
 
 
 class ModelB(SearchDocumentMixin, models.Model):
-
     source = models.OneToOneField(ModelA, on_delete=models.CASCADE)
 
     def get_search_document_id(self) -> str:
