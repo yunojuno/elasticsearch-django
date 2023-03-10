@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## v8.4
+
+- Adds "fields" to the stored hits JSON (if present) [#72]
+
 ## v8.3
 
 - Adds raw search question response object to SearchQuery (`SearchQuery.query_response`)
