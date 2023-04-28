@@ -15,6 +15,8 @@ class ExampleModelQuerySet(SearchResultsQuerySet):
 
 
 class ExampleModelManager(SearchDocumentManagerMixin, models.Manager):
+    ON_MODEL_SAVE_DB_ALIAS = "direct"
+
     def get_search_queryset(self, index="_all"):
         return self.all()
 

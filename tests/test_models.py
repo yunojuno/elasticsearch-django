@@ -241,29 +241,33 @@ class SearchDocumentManagerMixinTests:
         with pytest.raises(NotImplementedError):
             obj.get_search_queryset()
 
-    @mock.patch.object(ExampleModelManager, "get_search_queryset")
+    @mock.patch.object(ExampleModelManager, "get_search_queryset", autospec=True)
     def test_in_search_queryset(self, mock_qs):
         """Test the in_search_queryset method."""
         obj = ExampleModel(id=1, simple_field_1=1, simple_field_2="foo")
         ExampleModel.objects.in_search_queryset(obj.get_search_document_id())
-        mock_qs.assert_called_once_with(index="_all")
+        mock_qs.assert_called_once_with(ExampleModel.objects, index="_all")
         mock_qs.return_value.filter.assert_called_once_with(
             pk=obj.get_search_document_id()
         )
-        mock_qs.return_value.filter.return_value.exists.assert_called_once_with()
+        mock_qs.return_value.filter.return_value.using.assert_called_once_with("direct")
+        mock_qs.return_value.filter.return_value.using.return_value.exists.assert_called_once_with()
 
-    @mock.patch.object(ExampleModelManager, "get_search_queryset")
+    @mock.patch.object(ExampleModelManager, "get_search_queryset", autospec=True)
     def test_in_search_queryset_with_a_model_using_custom_primary_key(self, mock_qs):
         """Test the in_search_queryset method."""
         obj = ExampleModelWithCustomPrimaryKey(simple_field_1=1)
         ExampleModelWithCustomPrimaryKey.objects.in_search_queryset(
             obj.get_search_document_id()
         )
-        mock_qs.assert_called_once_with(index="_all")
+        mock_qs.assert_called_once_with(
+            ExampleModelWithCustomPrimaryKey.objects, index="_all"
+        )
         mock_qs.return_value.filter.assert_called_once_with(pk="1")
-        mock_qs.return_value.filter.return_value.exists.assert_called_once_with()
+        mock_qs.return_value.filter.return_value.using.assert_called_once_with("direct")
+        mock_qs.return_value.filter.return_value.using.return_value.exists.assert_called_once_with()
 
-    @mock.patch("django.db.models.query.QuerySet")
+    @mock.patch("django.db.models.query.QuerySet", autospec=True)
     def test_from_search_query(self, mock_qs):
         """Test the from_search_query method."""
         self.maxDiff = None
