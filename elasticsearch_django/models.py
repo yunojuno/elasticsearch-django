@@ -141,21 +141,20 @@ class SearchDocumentManagerMixin(models.Manager):
 
     If you are using a different database connection for the
     `get_search_queryset` method from the one that you use to save
-    models (default) you may run into a situation where the
-    `in_search_queryset` method returns False for an object that has
-    been created because the `get_search_queryset` query runs in a
-    different transaction from the one that created the object, and
-    cannot 'see' the object until the transaction has committed.
+    models you may run into a situation where the `in_search_queryset`
+    method returns False for an object that has been created because the
+    `get_search_queryset` query runs in a different transaction from the
+    one that created the object.
 
-    To avoid this, you can set the `ON_MODEL_SAVE_DB_ALIAS` attribute
-    to force `in_search_queryset` to use the same database connection
-    as that used to create the object.
+    To avoid this, you can set the `IN_SEARCH_QUERYSET_DB_ALIAS`
+    settings to force `in_search_queryset` to use the same database
+    connection as that used to create the object.
 
     Edge case, but it does happen.
 
     """
 
-    ON_MODEL_SAVE_DB_ALIAS: str = ""
+    IN_SEARCH_QUERYSET_DB_ALIAS = get_setting("in_search_queryset_db_alias")
 
     def get_search_queryset(self, index: str = "_all") -> QuerySet:
         """
@@ -198,7 +197,7 @@ class SearchDocumentManagerMixin(models.Manager):
 
         """
         qs = self.get_search_queryset(index=index).filter(pk=instance_pk)
-        if alias := self.ON_MODEL_SAVE_DB_ALIAS:
+        if alias := self.IN_SEARCH_QUERYSET_DB_ALIAS:
             qs = qs.using(alias)
         return qs.exists()
 

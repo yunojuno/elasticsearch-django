@@ -250,7 +250,7 @@ class SearchDocumentManagerMixinTests:
         mock_qs.return_value.filter.assert_called_once_with(
             pk=obj.get_search_document_id()
         )
-        mock_qs.return_value.filter.return_value.using.assert_called_once_with("direct")
+        mock_qs.return_value.filter.return_value.using.assert_called_once_with("foo")
         mock_qs.return_value.filter.return_value.using.return_value.exists.assert_called_once_with()
 
     @mock.patch.object(ExampleModelManager, "get_search_queryset", autospec=True)
@@ -264,7 +264,7 @@ class SearchDocumentManagerMixinTests:
             ExampleModelWithCustomPrimaryKey.objects, index="_all"
         )
         mock_qs.return_value.filter.assert_called_once_with(pk="1")
-        mock_qs.return_value.filter.return_value.using.assert_called_once_with("direct")
+        mock_qs.return_value.filter.return_value.using.assert_called_once_with("foo")
         mock_qs.return_value.filter.return_value.using.return_value.exists.assert_called_once_with()
 
     @mock.patch("django.db.models.query.QuerySet", autospec=True)
