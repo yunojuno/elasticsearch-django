@@ -3,6 +3,7 @@ import decimal
 from unittest import mock
 from uuid import uuid4
 
+import django
 import pytest
 from django.core.cache import cache
 from django.utils.timezone import now as tz_now
@@ -26,6 +27,9 @@ from .models import (
     ModelA,
     ModelB,
 )
+
+# SQL changes in Django 5.0dev
+DJANGO_50 = django.get_version() >= "5"
 
 
 class SearchDocumentMixinTests:
@@ -276,14 +280,16 @@ class SearchDocumentManagerMixinTests:
             hits=[{"id": "1", "score": 1.0}, {"id": "2", "score": 2.0}],
         )
         qs = ExampleModel.objects.all().from_search_results(sq)
+        # query ORDER BY has changed in Django 5.0 - now uses column index
+        order_by = "6" if DJANGO_50 else '"search_rank"'
         assert str(qs.query) == (
-            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", "tests_examplemodel"."simple_field_1", '
+            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", "tests_examplemodel"."simple_field_1", '  # noqa: S608
             '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '
             'CASE WHEN "tests_examplemodel"."id" = 1 THEN 1 WHEN "tests_examplemodel"."id" = 2 '
             'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
             'THEN 1.0 WHEN "tests_examplemodel"."id" = 2 THEN 2.0 ELSE NULL END AS "search_score" '
             'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
-            'ORDER BY "search_rank" ASC'
+            f"ORDER BY {order_by} ASC"
         )
 
         # test with a null score - new in v5
@@ -293,14 +299,14 @@ class SearchDocumentManagerMixinTests:
         )
         qs = ExampleModel.objects.all().from_search_results(sq)
         assert str(qs.query) == (
-            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", '
+            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", '  # noqa: S608
             '"tests_examplemodel"."simple_field_1", "tests_examplemodel"."simple_field_2", '
             '"tests_examplemodel"."complex_field", CASE WHEN "tests_examplemodel"."id" = 1 '
             'THEN 1 WHEN "tests_examplemodel"."id" = 2 '
             'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
             'THEN NULL WHEN "tests_examplemodel"."id" = 2 THEN 2.0 ELSE NULL END AS "search_score" '
             'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
-            'ORDER BY "search_rank" ASC'
+            f"ORDER BY {order_by} ASC"
         )
 
 
