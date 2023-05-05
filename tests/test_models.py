@@ -3,7 +3,6 @@ import decimal
 from unittest import mock
 from uuid import uuid4
 
-import django
 import pytest
 from django.core.cache import cache
 from django.utils.timezone import now as tz_now
@@ -27,9 +26,6 @@ from .models import (
     ModelA,
     ModelB,
 )
-
-# SQL changes in Django 5.0dev
-DJANGO_50 = django.get_version() >= "5"
 
 
 class SearchDocumentMixinTests:
@@ -280,17 +276,27 @@ class SearchDocumentManagerMixinTests:
             hits=[{"id": "1", "score": 1.0}, {"id": "2", "score": 2.0}],
         )
         qs = ExampleModel.objects.all().from_search_results(sq)
-        # query ORDER BY has changed in Django 5.0 - now uses column index
-        order_by = "6" if DJANGO_50 else '"search_rank"'
-        assert str(qs.query) == (
+
+        # These two produce equivalent queries, but one uses field name
+        # and the other uses field index. I thought this was a clean
+        # update in Django 50, but it appears not to be the case so I'm
+        # checking both variants. They are both 'correct' SQL and will
+        # get the same results.
+        def order_by_name(query: str) -> str:
+            return query + "ORDER BY 'search_rank' ASC"
+
+        def order_by_index(query: str) -> str:
+            return query + "ORDER BY 6 ASC"
+
+        query1 = (
             'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", "tests_examplemodel"."simple_field_1", '  # noqa: S608
             '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '
             'CASE WHEN "tests_examplemodel"."id" = 1 THEN 1 WHEN "tests_examplemodel"."id" = 2 '
             'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
             'THEN 1.0 WHEN "tests_examplemodel"."id" = 2 THEN 2.0 ELSE NULL END AS "search_score" '
             'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
-            f"ORDER BY {order_by} ASC"
         )
+        assert str(qs.query) == order_by_name(query1) or order_by_index(query1)
 
         # test with a null score - new in v5
         sq = SearchQuery(
@@ -298,16 +304,15 @@ class SearchDocumentManagerMixinTests:
             hits=[{"id": 1, "score": None}, {"id": 2, "score": 2}],
         )
         qs = ExampleModel.objects.all().from_search_results(sq)
-        assert str(qs.query) == (
-            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", '  # noqa: S608
-            '"tests_examplemodel"."simple_field_1", "tests_examplemodel"."simple_field_2", '
-            '"tests_examplemodel"."complex_field", CASE WHEN "tests_examplemodel"."id" = 1 '
-            'THEN 1 WHEN "tests_examplemodel"."id" = 2 '
+        query2 = (
+            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", "tests_examplemodel"."simple_field_1", '  # noqa: S608
+            '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '
+            'CASE WHEN "tests_examplemodel"."id" = 1 THEN 1 WHEN "tests_examplemodel"."id" = 2 '
             'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
-            'THEN NULL WHEN "tests_examplemodel"."id" = 2 THEN 2.0 ELSE NULL END AS "search_score" '
+            'THEN 1.0 WHEN "tests_examplemodel"."id" = 2 THEN 2.0 ELSE NULL END AS "search_score" '
             'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
-            f"ORDER BY {order_by} ASC"
         )
+        assert str(qs.query) == order_by_name(query2) or order_by_index(query2)
 
 
 @pytest.mark.django_db
@@ -561,7 +566,11 @@ class ExecuteFunctionTests:
         search = SearchQuery.do_search(index="index", query={"match_all": {}})
         assert mock_search.call_count == 1
         mock_search.assert_called_with(
-            index="index", query={"match_all": {}}, from_=0, size=25
+            index="index",
+            query={"match_all": {}},
+            from_=0,
+            size=25,
+            _source=True,
         )
         assert search.total_hits == 168
         assert search.max_score == 1.3
@@ -592,12 +601,26 @@ class ExecuteFunctionTests:
         assert sq.id is not None
         assert sq.search_terms == "foo"
         assert sq.reference == "bar"
-        assert sq.query == {"query": {"match_all": {}}, "from": 0, "size": 25}
+        assert sq.query == {
+            "query": {"match_all": {}},
+            "from": 0,
+            "size": 25,
+            "_source": True,
+        }
         assert sq.index == "index"
         assert sq.hits == self.clean_hits
         assert sq.total_hits == 168
         assert sq.total_hits_relation == SearchQuery.TotalHitsRelation.ESTIMATE
         assert sq.query_type == SearchQuery.QueryType.SEARCH
+        assert sq.aggregations == self.aggregations
+        assert sq.duration > 0
+        # the raw response - this is not saved to the db
+        assert sq.query_response == mock_search.return_value
+        assert sq.query_type == SearchQuery.QueryType.SEARCH
+        assert sq.aggregations == self.aggregations
+        assert sq.duration > 0
+        # the raw response - this is not saved to the db
+        assert sq.query_response == mock_search.return_value
         assert sq.aggregations == self.aggregations
         assert sq.duration > 0
         # the raw response - this is not saved to the db

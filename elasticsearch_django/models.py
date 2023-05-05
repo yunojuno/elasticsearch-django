@@ -32,6 +32,7 @@ UPDATE_STRATEGY = get_setting("update_strategy", UPDATE_STRATEGY_FULL)
 DEFAULT_CLIENT: Elasticsearch = SimpleLazyObject(get_client)
 DEFAULT_FROM: int = 0
 DEFAULT_PAGE_SIZE = cast(int, get_setting("page_size"))
+DEFAULT_INCLUDE_SOURCE = bool(get_setting("include_source", True))
 
 
 class SearchResultsQuerySet(QuerySet):
@@ -718,6 +719,7 @@ class SearchQuery(models.Model):
         from_ = search_kwargs.pop("from", DEFAULT_FROM)
         search_kwargs.setdefault("from_", from_)
         search_kwargs.setdefault("size", DEFAULT_PAGE_SIZE)
+        search_kwargs.setdefault("_source", DEFAULT_INCLUDE_SOURCE)
         with stopwatch() as timer:
             response = client.search(index=index, query=query, **search_kwargs)
         parser = SearchResponseParser(response)
