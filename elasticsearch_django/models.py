@@ -155,7 +155,7 @@ class SearchDocumentManagerMixin(models.Manager):
 
     """
 
-    IN_SEARCH_QUERYSET_DB_ALIAS = get_setting("in_search_queryset_db_alias")
+    IN_SEARCH_QUERYSET_DB_ALIAS = get_setting("in_search_queryset_db_alias", "")
 
     def get_search_queryset(self, index: str = "_all") -> QuerySet:
         """
