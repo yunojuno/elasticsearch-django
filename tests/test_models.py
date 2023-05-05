@@ -3,6 +3,7 @@ import decimal
 from unittest import mock
 from uuid import uuid4
 
+import django
 import pytest
 from django.core.cache import cache
 from django.utils.timezone import now as tz_now
@@ -26,6 +27,9 @@ from .models import (
     ModelA,
     ModelB,
 )
+
+# SQL changes in Django 5.0dev
+DJANGO_50 = django.get_version() >= "5"
 
 
 class SearchDocumentMixinTests:
@@ -241,29 +245,33 @@ class SearchDocumentManagerMixinTests:
         with pytest.raises(NotImplementedError):
             obj.get_search_queryset()
 
-    @mock.patch.object(ExampleModelManager, "get_search_queryset")
+    @mock.patch.object(ExampleModelManager, "get_search_queryset", autospec=True)
     def test_in_search_queryset(self, mock_qs):
         """Test the in_search_queryset method."""
         obj = ExampleModel(id=1, simple_field_1=1, simple_field_2="foo")
         ExampleModel.objects.in_search_queryset(obj.get_search_document_id())
-        mock_qs.assert_called_once_with(index="_all")
+        mock_qs.assert_called_once_with(ExampleModel.objects, index="_all")
         mock_qs.return_value.filter.assert_called_once_with(
             pk=obj.get_search_document_id()
         )
-        mock_qs.return_value.filter.return_value.exists.assert_called_once_with()
+        mock_qs.return_value.filter.return_value.using.assert_called_once_with("foo")
+        mock_qs.return_value.filter.return_value.using.return_value.exists.assert_called_once_with()
 
-    @mock.patch.object(ExampleModelManager, "get_search_queryset")
+    @mock.patch.object(ExampleModelManager, "get_search_queryset", autospec=True)
     def test_in_search_queryset_with_a_model_using_custom_primary_key(self, mock_qs):
         """Test the in_search_queryset method."""
         obj = ExampleModelWithCustomPrimaryKey(simple_field_1=1)
         ExampleModelWithCustomPrimaryKey.objects.in_search_queryset(
             obj.get_search_document_id()
         )
-        mock_qs.assert_called_once_with(index="_all")
+        mock_qs.assert_called_once_with(
+            ExampleModelWithCustomPrimaryKey.objects, index="_all"
+        )
         mock_qs.return_value.filter.assert_called_once_with(pk="1")
-        mock_qs.return_value.filter.return_value.exists.assert_called_once_with()
+        mock_qs.return_value.filter.return_value.using.assert_called_once_with("foo")
+        mock_qs.return_value.filter.return_value.using.return_value.exists.assert_called_once_with()
 
-    @mock.patch("django.db.models.query.QuerySet")
+    @mock.patch("django.db.models.query.QuerySet", autospec=True)
     def test_from_search_query(self, mock_qs):
         """Test the from_search_query method."""
         self.maxDiff = None
@@ -272,14 +280,16 @@ class SearchDocumentManagerMixinTests:
             hits=[{"id": "1", "score": 1.0}, {"id": "2", "score": 2.0}],
         )
         qs = ExampleModel.objects.all().from_search_results(sq)
+        # query ORDER BY has changed in Django 5.0 - now uses column index
+        order_by = "6" if DJANGO_50 else '"search_rank"'
         assert str(qs.query) == (
-            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", "tests_examplemodel"."simple_field_1", '
+            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", "tests_examplemodel"."simple_field_1", '  # noqa: S608
             '"tests_examplemodel"."simple_field_2", "tests_examplemodel"."complex_field", '
             'CASE WHEN "tests_examplemodel"."id" = 1 THEN 1 WHEN "tests_examplemodel"."id" = 2 '
             'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
             'THEN 1.0 WHEN "tests_examplemodel"."id" = 2 THEN 2.0 ELSE NULL END AS "search_score" '
             'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
-            'ORDER BY "search_rank" ASC'
+            f"ORDER BY {order_by} ASC"
         )
 
         # test with a null score - new in v5
@@ -289,14 +299,14 @@ class SearchDocumentManagerMixinTests:
         )
         qs = ExampleModel.objects.all().from_search_results(sq)
         assert str(qs.query) == (
-            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", '
+            'SELECT "tests_examplemodel"."id", "tests_examplemodel"."user_id", '  # noqa: S608
             '"tests_examplemodel"."simple_field_1", "tests_examplemodel"."simple_field_2", '
             '"tests_examplemodel"."complex_field", CASE WHEN "tests_examplemodel"."id" = 1 '
             'THEN 1 WHEN "tests_examplemodel"."id" = 2 '
             'THEN 2 ELSE NULL END AS "search_rank", CASE WHEN "tests_examplemodel"."id" = 1 '
             'THEN NULL WHEN "tests_examplemodel"."id" = 2 THEN 2.0 ELSE NULL END AS "search_score" '
             'FROM "tests_examplemodel" WHERE "tests_examplemodel"."id" IN (1, 2) '
-            'ORDER BY "search_rank" ASC'
+            f"ORDER BY {order_by} ASC"
         )
 
 

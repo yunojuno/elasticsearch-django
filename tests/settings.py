@@ -160,6 +160,8 @@ SEARCH_SETTINGS = {
         "strict_validation": False,
         # path/to/mappings/dir - where mapping files will be expected
         "mappings_dir": "mappings",
+        # db alias to use for the SearchDocumentManagerMixin method
+        "in_search_queryset_db_alias": "foo",
     },
 }
 

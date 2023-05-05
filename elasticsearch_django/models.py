@@ -135,11 +135,26 @@ class SearchDocumentManagerMixin(models.Manager):
     Model manager mixin that adds search document methods.
 
     There is one method in this class that must implemented -
-    `get_search_queryset`. This must return a queryset that is the
-    set of objects to be indexed. This queryset is then converted
-    into a generator that emits the objects as JSON documents.
+    `get_search_queryset`. This must return a queryset that is the set
+    of objects to be indexed. This queryset is then converted into a
+    generator that emits the objects as JSON documents.
+
+    If you are using a different database connection for the
+    `get_search_queryset` method from the one that you use to save
+    models you may run into a situation where the `in_search_queryset`
+    method returns False for an object that has been created because the
+    `get_search_queryset` query runs in a different transaction from the
+    one that created the object.
+
+    To avoid this, you can set the `IN_SEARCH_QUERYSET_DB_ALIAS`
+    settings to force `in_search_queryset` to use the same database
+    connection as that used to create the object.
+
+    Edge case, but it does happen.
 
     """
+
+    IN_SEARCH_QUERYSET_DB_ALIAS = get_setting("in_search_queryset_db_alias")
 
     def get_search_queryset(self, index: str = "_all") -> QuerySet:
         """
@@ -181,7 +196,10 @@ class SearchDocumentManagerMixin(models.Manager):
                 Defaults to '_all'.
 
         """
-        return self.get_search_queryset(index=index).filter(pk=instance_pk).exists()
+        qs = self.get_search_queryset(index=index).filter(pk=instance_pk)
+        if alias := self.IN_SEARCH_QUERYSET_DB_ALIAS:
+            qs = qs.using(alias)
+        return qs.exists()
 
 
 class SearchDocumentMixin:
