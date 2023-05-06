@@ -119,28 +119,29 @@ def _update_search_index(
     *, instance: SearchDocumentMixin, index: str, update_fields: list[str]
 ) -> None:
     """Process index / update search index update actions."""
+    # signals get sent even if we don't auto_sync - that's what
+    # they are here for - to enable custom handling of the event.
+    signal_kwargs = dict(sender=instance.__class__, instance=instance, index=index)
+    if update_fields:
+        pre_update.send(**signal_kwargs, update_fields=update_fields)
+    else:
+        pre_index.send(**signal_kwargs)
+
+    # if we don't auto_sync, we're done.
+    if not settings.auto_sync(instance):
+        return
+
     if not _in_search_queryset(instance=instance, index=index):
         logger.debug(
-            "Object (%r) is not in search queryset, ignoring update.", instance
+            "Skipping search index update for %s, not in search queryset.", instance
         )
         return
 
     try:
         if update_fields:
-            pre_update.send(
-                sender=instance.__class__,
-                instance=instance,
-                index=index,
-                update_fields=update_fields,
-            )
-            if settings.auto_sync(instance):
-                instance.update_search_document(
-                    index=index, update_fields=update_fields
-                )
+            instance.update_search_document(index=index, update_fields=update_fields)
         else:
-            pre_index.send(sender=instance.__class__, instance=instance, index=index)
-            if settings.auto_sync(instance):
-                instance.index_search_document(index=index)
+            instance.index_search_document(index=index)
     except Exception:  # noqa: B902
         logger.exception("Error handling 'post_save' signal for %s", instance)
 
