@@ -38,15 +38,19 @@ jobs:
         strategy:
             matrix:
                 python: ["3.8", "3.9", "3.10", "3.11"]
-                django: ["32", "41", "main"]
+                django: ["32", "41", "50", "main"]
                 exclude:
-                    - django: main
+                    - django: "50"
                       python: "3.8"
-                    - django: main
+                    - django: "50"
+                      python: "3.9"
+                    - django: "main"
+                      python: "3.8"
+                    - django: "main"
                       python: "3.9"
 
         env:
-            TOXENV: py${{ matrix.python }}-django${{ matrix.django }}-es${{ matrix.es }}
+            TOXENV: py${{ matrix.python }}-django${{ matrix.django }}
 
         steps:
             - name: Check out the repository
