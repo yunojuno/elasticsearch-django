@@ -40,9 +40,13 @@ jobs:
                 python: ["3.8", "3.9", "3.10", "3.11"]
                 django: ["32", "41", "main"]
                 exclude:
-                    - django: main
+                    - django: "50"
                       python: "3.8"
-                    - django: main
+                    - django: "main"
+                      python: "3.8"
+                    - django: "50"
+                      python: "3.9"
+                    - django: "main"
                       python: "3.9"
 
         env:
