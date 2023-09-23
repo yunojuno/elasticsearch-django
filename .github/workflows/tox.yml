@@ -38,7 +38,7 @@ jobs:
         strategy:
             matrix:
                 python: ["3.8", "3.9", "3.10", "3.11"]
-                django: ["32", "41", "main"]
+                django: ["32", "41", "50", "main"]
                 exclude:
                     - django: "50"
                       python: "3.8"
