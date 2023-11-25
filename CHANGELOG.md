@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v8.5.2
+
+- Add py.typed typing marker (h/t @0x416E64)
+
+## v8.5.1
+
+- Add support for db alias
+- Add "include_source" setting (default: True)
+- Add Django 5.0 to build matrix
+
 ## v8.4
 
 - Adds "fields" to the stored hits JSON (if present) [#72]
