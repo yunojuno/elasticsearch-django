@@ -1,4 +1,4 @@
-**This project now requires Python 3.8+ and Django 3.2+.
+**This project now requires Python 3.10+ and Django 4.2+ (including Django 5.2).\
 For previous versions please refer to the relevant tag or branch.**
 
 # Elasticsearch for Django

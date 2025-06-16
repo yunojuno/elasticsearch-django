@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v8.6.0
+
+- Add support for Django 5.2
+- Drop support for Django versions before 4.2
+- Update minimum Python version to 3.10
+- Update ruff usage to modern 'ruff check' command
+- Update classifiers and dependencies for Django/Python support
+
 ## v8.5.2
 
 - Add py.typed typing marker (h/t @0x416E64)
