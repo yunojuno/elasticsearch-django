@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "elasticsearch-django"
-version = "8.5.2"
+version = "8.6.0"
 description = "Elasticsearch Django app."
 license = "MIT"
 authors = ["YunoJuno <code@yunojuno.com>"]
@@ -10,23 +10,19 @@ homepage = "https://github.com/yunojuno/elasticsearch-django"
 repository = "https://github.com/yunojuno/elasticsearch-django"
 classifiers = [
     "Environment :: Web Environment",
-    "Framework :: Django :: 3.2",
-    "Framework :: Django :: 4.0",
-    "Framework :: Django :: 4.1",
     "Framework :: Django :: 4.2",
     "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.2",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-django = "^3.2 || ^4.0 || ^5.0"
+python = "^3.10"
+django = ">=4.2,<5.3"
 elasticsearch = "^8.0"
 simplejson = "*"
 
