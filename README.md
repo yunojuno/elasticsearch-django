@@ -8,9 +8,10 @@ with Django, and want to manage their indexes.
 
 ## Compatibility
 
-The master branch is now based on `elasticsearch-py` 8. If you are
-using older versions, please switch to the relevant branch (released on
-PyPI as 2.x, 5.x, 6.x).
+The master branch requires **Python 3.12+** and **Django 5.2–6.x**, and
+is based on `elasticsearch-py` 8. If you are using older versions of
+Python, Django, or the ES client, please switch to the relevant branch
+(released on PyPI as 2.x, 5.x, 6.x).
 
 ## Search Index Lifecycle
 
@@ -130,7 +131,7 @@ document. This is done by implementing two separate mixins -
 configuration validation routine will tell you if these are not
 implemented. **SearchDocumentMixin**
 
-This mixin is responsible for the seaerch index document format. We are
+This mixin is responsible for the search index document format. We are
 indexing JSON representations of each object, and we have two methods on
 the mixin responsible for outputting the correct format -
 `as_search_document` and `as_search_document_update`.
@@ -196,10 +197,10 @@ In the case of the second method, the simplest possible implementation
 would be a dictionary containing the names of the fields being updated
 and their new values, and this is the default implementation. If the
 fields passed in are simple fields (numbers, dates, strings, etc.) then
-a simple `{'field_name': getattr(obj, field_name}` is returned. However,
+a simple `{'field_name': getattr(obj, field_name)}` is returned. However,
 if the field name relates to a complex object (e.g. a related object)
 then this method will raise an `InvalidUpdateFields` exception. In this
-scenario you should override the default implementationwith one of your
+scenario you should override the default implementation with one of your
 own.
 
 ```python
@@ -338,7 +339,24 @@ There is a **VERY IMPORTANT** caveat to the signal handling. It will
 is affected by such a change then you will need to implement additional
 signal handling yourself.
 
-In addition to `object.save()`, SeachDocumentMixin also provides the
+There is a second **VERY IMPORTANT** caveat when creating new objects.
+Django's `post_save` signal fires before the transaction is committed to
+the database. This means that `get_search_queryset()` may not find a
+newly created object, causing the initial index to be silently skipped.
+Subsequent saves will then 404 as the document doesn't exist. To avoid
+this, wrap index operations in `transaction.on_commit()`:
+
+```python
+from django.db import transaction
+
+def save(self, *args, **kwargs):
+    super().save(*args, **kwargs)
+    transaction.on_commit(lambda: self.index_search_document(index='myindex'))
+```
+
+See [#74](https://github.com/yunojuno/elasticsearch-django/issues/74) for more detail.
+
+In addition to `object.save()`, SearchDocumentMixin also provides the
 `update_search_index(self, action, index='_all', update_fields=None,
 force=False)` method. Action should be 'index', 'update' or 'delete'.
 The difference between 'index' and 'update' is that 'update' is a
@@ -393,7 +411,7 @@ containing the `_source` attribute which is the search document itself
 together with meta info about the result - most significantly the
 relevance **score**, which is the magic value used for ranking
 (ordering) results. However, the search document probably doesn't
-contain all the of the information that you need to display the result,
+contain all the information that you need to display the result,
 so what you really need is a standard Django QuerySet, containing the
 objects in the search results, but maintaining the order. This means
 injecting the ES score into the queryset, and then using it for
@@ -404,10 +422,10 @@ the 'rank' - so that even if the score is identical for all hits, the
 ordering is preserved.)
 
 ```python
-from models import BlogPost
+from myapp.models import BlogPost  # replace 'myapp' with your actual app name
 
 # run a default match_all query
 sq = execute_search(index="blog", query={"match_all": {}})
 for obj in BlogPost.objects.from_search_query(sq):
-    print obj.search_score, obj.search_rank
+    print(obj.search_score, obj.search_rank)
 ```
